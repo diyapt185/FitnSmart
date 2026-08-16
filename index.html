@@ -62,7 +62,7 @@ button{cursor:pointer}
 .detail-image{height:270px;background:radial-gradient(circle at 50% 38%,rgba(43,196,201,.08),transparent 42%),#0b0e12;border-radius:22px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden}.detail-image svg{width:94%;height:94%}
 .exercise-detail h1{font-size:28px;margin:16px 0 5px}.recommended{display:flex;align-items:end;justify-content:space-between;gap:10px;margin:15px 0}.recommended strong{font-size:28px}.metric-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:750}
 .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.stat{background:var(--surface2);border:1px solid var(--line);border-radius:18px;padding:14px}.stat strong{display:block;font-size:19px;margin-top:4px}.stat .label{font-size:11px;color:var(--muted)}
-.input-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:grid;gap:6px}.field label{font-size:12px;color:var(--muted)}input,textarea,select{width:100%;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:13px 14px;outline:none}input:focus,textarea:focus,select:focus{border-color:var(--teal)}textarea{min-height:82px;resize:vertical}
+.input-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:grid;gap:6px;min-width:0}.field label{font-size:12px;color:var(--muted)}input,textarea,select{width:100%;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:13px 14px;outline:none;min-width:0;box-sizing:border-box}input:focus,textarea:focus,select:focus{border-color:var(--teal)}textarea{min-height:82px;resize:vertical}
 .rpe{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-top:8px}.rpe button{height:36px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:#cfd5da}.rpe button.selected{background:var(--teal);color:#061113;border-color:var(--teal);font-weight:800}
 .feedback-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.feedback-grid button{padding:13px 10px;border-radius:14px;border:1px solid var(--line);background:var(--surface2);color:#dfe4e8}.feedback-grid button.selected{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal) inset}.feedback-grid button.pain.selected{border-color:var(--red);box-shadow:0 0 0 1px var(--red) inset}
 .sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.64);z-index:40;display:flex;align-items:flex-end;justify-content:center}.sheet{width:min(680px,100%);max-height:88vh;overflow:auto;background:#11161b;border:1px solid #2b343e;border-radius:28px 28px 0 0;padding:22px 18px calc(24px + env(safe-area-inset-bottom));box-shadow:0 -30px 80px rgba(0,0,0,.55)}.sheet h2{margin:2px 0 5px}.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.option{display:flex;align-items:center;justify-content:space-between;padding:15px;background:var(--surface2);border:1px solid var(--line);border-radius:15px;margin:8px 0}.option.active{border-color:var(--teal)}
@@ -174,6 +174,12 @@ body{background:var(--bg)}
   --rust:#B2542E !important; --canyon:#5C3018 !important;
 }
   </style>
+<style id="fs-v714-ui">
+/* v7.1 Preparedness toggle + Coach chat polish */
+.prep-toggle{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:#E9DDD1;border:1px solid var(--line);border-radius:16px;margin:10px 0 12px}.prep-toggle button{border:0;background:transparent;color:var(--muted);font-weight:750;padding:10px 8px;border-radius:12px}.prep-toggle button.active{background:var(--surface);color:var(--canyon);box-shadow:0 2px 8px rgba(92,48,24,.09)}
+.coach-chat-card{background:var(--surface);border:1px solid var(--line);border-radius:24px;overflow:hidden;box-shadow:0 9px 24px rgba(104,69,46,.07)}.coach-chat-status{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 16px 12px;border-bottom:1px solid rgba(222,205,188,.65)}.coach-chatlog{display:flex;flex-direction:column;gap:9px;min-height:260px;max-height:52vh;overflow-y:auto;padding:16px;background:linear-gradient(180deg,#FFFDF9,#FBF5ED)}.coach-msg{max-width:84%;padding:10px 13px;border-radius:17px;font-size:13.5px;line-height:1.48}.coach-msg.user{align-self:flex-end;background:var(--rust);color:#fff;border-bottom-right-radius:6px}.coach-msg.coach{align-self:flex-start;background:#F1E7DB;color:var(--text);border:1px solid #E1D0C0;border-bottom-left-radius:6px}.coach-msg-time{font-size:10px;color:var(--muted);margin-top:6px}.coach-composer{display:grid;grid-template-columns:1fr 44px;gap:8px;padding:12px;border-top:1px solid rgba(222,205,188,.75);background:#FFFDF9}.coach-composer label{grid-column:1/-1;font-size:11px;color:var(--muted);font-weight:750}.coach-composer select{margin:0;min-height:46px;background:#FFF9F2}.coach-send{width:44px;height:44px;border:0;border-radius:14px;background:var(--rust);color:white;font-size:20px;font-weight:800;align-self:end}
+
+</style>
 </head>
 <body>
   <div id="app"></div>
@@ -1590,8 +1596,9 @@ function fsChooseActivity(type){state.ui.sheet={name:'manualLogV10',data:{type,d
 function fsToggleFocus(btn){btn.classList.toggle('selected')}
 function fsSaveActivityV10(){
   const g=id=>document.querySelector(id)?.value??'';const num=id=>{const x=g(id);return x===''?null:Number(x)};
-  const type=g('#a-type'),date=g('#a-date')||fsTodayKey(),title=g('#a-title')||type,location=g('#a-location')||'Manual entry',duration=num('#a-duration'),rpe=num('#a-rpe'),notes=g('#a-notes');
-  const focus=[...document.querySelectorAll('.focus-chip.selected')].map(x=>x.dataset.focus);const equipment=g('#a-equipment'),style=g('#a-style');
+  const type=g('#a-type'),date=g('#a-date')||fsTodayKey(),title=g('#a-title')||type,duration=num('#a-duration'),rpe=num('#a-rpe'),notes=g('#a-notes');
+  const locSelect=g('#a-location'),location=(locSelect==='Other'?(g('#a-location-other')||'Other'):locSelect)||'Manual entry';
+  const focus=[...new Set(state.ui.quickLogItems.flatMap(it=>it.muscles))];const equipment=g('#a-equipment'),style=g('#a-style');
   let cardio=null;const isCardio=['Walk','Hike','Cardio'].includes(type);
   if(isCardio){const distance=num('#a-distance'),speed=num('#a-speed'),incline=num('#a-incline'),gain=num('#a-gain'),loss=num('#a-loss'),avgHr=num('#a-avg'),peakHr=num('#a-peak'),endHr=num('#a-end'),hr60=num('#a-hr60');cardio={distance,speed,incline,minutes:duration,avgHr,peakHr,endHr,hr60,hrr60:(endHr&&hr60)?endHr-hr60:null,rpe,elevationGain:gain,elevationLoss:loss,note:notes,pain:false,type:type.toLowerCase(),manual:true};}
   const sessionMap={'Workout Video / Class':'video_class','Strength / Resistance':'strength','Mobility / Stretching':'mobility','Other':'other','Walk':'walk','Hike':'hike','Cardio':'cardio'};
@@ -1958,8 +1965,9 @@ function fsLockBodyMetrics(){state.ui.bodyUnlocked=false;closeSheet();}
 /* ---- 3) AI Coach chat (rule-based stub — real build wires this to a live model) ---- */
 state.fsCoachChat=state.fsCoachChat||[{who:'coach',text:"Hey — I'm your coach. Ask me things like \"what's my plan this week\" or \"reduce leg day intensity.\" I'll keep it to plan status, what's coming up, and preference changes."}];
 function renderFsCoachChat(){
-  return `<main class="shell"><div class="topbar"><div class="brand">Fitn<span>Smart</span></div></div><h1 class="page-title">Coach</h1><p class="subtle">Plan status, what's coming up, and preference changes. Rule-based for now — the real build connects this to a live model.</p>
+  return `<main class="shell"><div class="topbar"><div class="brand">Fitn<span>Smart</span></div></div><h1 class="page-title">Coach</h1><p class="subtle">Answers your real plan progress and muscle balance by reading your logs directly — running on your device, no external AI call.</p>
   <div class="card flat section" style="padding:16px"><div id="fs-chatlog" style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;margin-bottom:12px">${state.fsCoachChat.map(m=>`<div style="max-width:82%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.45;${m.who==='user'?'align-self:flex-end;background:var(--rust,#B86243);color:#fff':'align-self:flex-start;background:var(--surface2);border:1px solid var(--line)'}">${esc(m.text)}</div>`).join('')}</div>
+  <div class="row" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">${['Am I meeting my phase goals?','Which muscle groups am I hitting?','What\'s coming up?','How\'s my heart rate trending?'].map(q=>`<button class="ghost-btn" style="font-size:12px" onclick="document.querySelector('#fs-chat-in').value='${q.replace(/'/g,"\\'")}';fsCoachSend()">${esc(q)}</button>`).join('')}</div>
   <div class="input-row" style="grid-template-columns:1fr"><input id="fs-chat-in" placeholder="Type a message..."></div>
   <button class="primary-btn section" onclick="fsCoachSend()">Send</button></div>${nav('coach')}</main>`;
 }
@@ -1972,6 +1980,50 @@ function fsCoachSend(){
 }
 function fsCoachReply(text){
   const t=text.toLowerCase(), p=fsPhase(), w=fsWeek();
+  const recent=state.history.filter(h=>fsAgo(h.date)<=21);
+  const last7=state.history.filter(h=>fsAgo(h.date)<=7);
+
+  // --- "am I meeting my phase goals" / "how am I doing" ---
+  if((t.includes('meeting')||t.includes('goal')||t.includes('on track')||t.includes('how am i doing')||t.includes('how\'m i doing')) && !t.includes('weight')){
+    const longs=recent.filter(h=>h.cardioType==='long'&&h.cardio?.distance);
+    const hills=recent.filter(h=>h.cardioType==='hill');
+    const strengthCount=last7.filter(h=>(h.exercises||[]).length).length;
+    const parts=[];
+    if(longs.length){
+      const avgLong=Math.round((longs.reduce((s,h)=>s+h.cardio.distance,0)/longs.length)*10)/10;
+      const [lo,hi]=p.long;
+      const verdict = avgLong<lo?`below the ${lo}–${hi} mi target for ${p.name}`:avgLong>hi?`already past the ${lo}–${hi} mi target for ${p.name} — worth checking that's intentional`:`within the ${lo}–${hi} mi target for ${p.name}`;
+      parts.push(`Your long walks are averaging ${avgLong} mi over the last 3 weeks, which is ${verdict}.`);
+    } else {
+      parts.push(`No long-walk sessions logged in the last 3 weeks yet, so I can't assess that piece — ${p.name}'s target is ${p.long[0]}–${p.long[1]} mi.`);
+    }
+    if(hills.length){
+      const avgIncline=Math.round((hills.reduce((s,h)=>s+(h.cardio?.incline||0),0)/hills.length)*10)/10;
+      const [lo,hi]=p.hill;
+      const verdict = avgIncline<lo?`below the ${lo}–${hi}% target`:avgIncline>hi?`above the ${lo}–${hi}% target`:`right in the ${lo}–${hi}% target range`;
+      parts.push(`Hill sessions are averaging ${avgIncline}% incline, ${verdict}.`);
+    } else if(p.hill[1]>0){
+      parts.push(`No hill sessions logged in the last 3 weeks — ${p.name} calls for ${p.hill[0]}–${p.hill[1]}%.`);
+    }
+    parts.push(strengthCount>=2?`Strength frequency looks solid at ${strengthCount} session${strengthCount===1?'':'s'} this week.`:`Only ${strengthCount} strength session${strengthCount===1?'':'s'} this week — worth getting to at least 2 if this week allows it.`);
+    return parts.join(' ');
+  }
+
+  // --- muscle balance ---
+  if(t.includes('muscle')||t.includes('lacking')||t.includes('missing')||t.includes('balance')){
+    const tally={};
+    for(const h of last7){for(const e of (h.exercises||[])){const ex=EXERCISES[e.exerciseId];for(const m of (ex?.muscles||[]))tally[m]=(tally[m]||0)+1;}}
+    const entries=Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+    if(!entries.length) return `No strength sessions logged in the last 7 days yet, so there's nothing to tally. Log a session and ask again.`;
+    const top=entries.slice(0,3).map(([m,c])=>`${m} (${c}×)`).join(', ');
+    const allMuscleGroups=['Quads','Glutes','Hamstrings','Calves','Chest','Shoulders','Upper back','Lats','Core','Grip'];
+    const hit=new Set(entries.map(([m])=>m));
+    const under=allMuscleGroups.filter(m=>!hit.has(m) && !entries.some(([em])=>em.toLowerCase().includes(m.toLowerCase())));
+    let out=`This week's most-worked: ${top}.`;
+    if(under.length) out+=` Not seeing direct work for: ${under.join(', ')} — worth checking if that's intentional for this phase or a gap.`;
+    return out;
+  }
+
   if(t.includes('where')||t.includes('status'))return `You're in the ${p.name} phase, week ${w}. ${p.aim}`;
   if(t.includes('coming up')||t.includes('next')||t.includes('upcoming')){
     const idx=FITNSMART_PHASES.findIndex(x=>x.id===p.id); const next=FITNSMART_PHASES[idx+1];
@@ -1979,7 +2031,7 @@ function fsCoachReply(text){
   }
   if(t.includes('reduce')||t.includes('lighter')||t.includes('easier'))return `Got it — I'll bias suggested loads down a bit this week and hold off progressing until you tell me otherwise.`;
   if(t.includes('heart')||t.includes('hr'))return `Log a Standard Mile assessment under Progress with the same protocol each time — that's what lets me compare heart rate at an identical workload instead of guessing from variable walks.`;
-  return `Got it — for anything outside plan status, what's next, or a preference tweak, this works best once it's wired to a real conversational model.`;
+  return `I can give you a real answer on: how you're tracking against your current phase's targets, which muscle groups you've hit this week (and which you haven't), your plan status, what's coming up, or a heart-rate trend — try one of those. I don't yet understand fully open-ended questions, since that needs a live model rather than logic running on your device.`;
 }
 
 /* ---- 4) Visible phase roadmap on Progress ---- */
@@ -2119,12 +2171,9 @@ fsStrengthPlan=function(loc=state.ui.location,focus='Full Body'){
     const hip=gym?'hip_abductor_machine':(fsCaps(loc).loops?'band_lateral_walk':null);
     if(hip)ids=[...ids,hip];
   }
-  // Loaded carry follows the same timing as the eccentric step-down: once the
-  // phase turns on hiking-specific ("downhill") demand, and only for sessions
-  // that already include lower-body/full-body work.
-  if(p.downhill && ['Full Body','Lower Body'].includes(focus) && !ids.includes('loaded_carry')){
-    ids=[...ids,'loaded_carry'];
-  }
+  // Loaded carry has no machine equivalent, so it stays manual-only —
+  // browse it in Alternatives and fold it in yourself when you're ready,
+  // rather than it appearing in your plan automatically.
   ids=[...new Set(ids)].filter(id=>EXERCISES[id]);
   return ids;
 };
@@ -2250,6 +2299,1245 @@ exerciseSVG=function(id,large=false){
   </div>`;
 };
 
-  </script>
+/* =========================================================
+   v1.6 patch: the canyon rim-to-rim progress tracker, shown on
+   Today only while the Grand Canyon expedition toggle is on.
+   ========================================================= */
+function fsCanyonTrackerHTML(){
+  if(!state.profile.expedition?.active) return '';
+  const week=Math.min(fsWeek(),60), frac=week/60, phase=fsPhase();
+  // Trail path matches the concept mockup exactly; position is computed
+  // from real program week / real phase data, not placeholder numbers.
+  const pathD='M20,55 C90,150 160,190 240,195 C320,190 390,150 460,55';
+  return `<section class="section"><div class="card" style="padding:20px 18px 16px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px"><span style="font-weight:800;font-size:15px">${esc(phase.name)}</span><span style="font-weight:800;font-size:15px;color:var(--rust,#B2542E)">Week ${week} of 60</span></div>
+    <svg viewBox="0 0 480 220" width="100%" style="display:block">
+      <rect x="0" y="0" width="480" height="220" fill="#FBF6EF"/>
+      <path d="M0,60 C90,150 160,190 240,195 C320,190 390,150 480,60 L480,220 L0,220 Z" fill="#E7D2B8"/>
+      <path d="M0,90 C90,165 160,200 240,204 C320,200 390,165 480,90 L480,220 L0,220 Z" fill="#D9AE7E"/>
+      <path d="M0,120 C90,178 160,206 240,208 C320,206 390,178 480,120 L480,220 L0,220 Z" fill="#B2542E" opacity="0.55"/>
+      <path d="M0,150 C90,190 160,208 240,210 C320,208 390,190 480,150 L480,220 L0,220 Z" fill="#7A4B2E" opacity="0.6"/>
+      <ellipse cx="240" cy="205" rx="34" ry="6" fill="#5B8A82" opacity="0.85"/>
+      <path d="${pathD}" fill="none" stroke="#5C3018" stroke-width="2.5" stroke-dasharray="1 7" stroke-linecap="round"/>
+      ${FITNSMART_PHASES.slice(1).map(p=>{
+        const f=p.start/60, pt=fsPointOnPath(pathD,f);
+        return `<line x1="${pt.x}" y1="${pt.y}" x2="${pt.x}" y2="${pt.y-16}" stroke="#8A7863" stroke-width="1.5"/><circle cx="${pt.x}" cy="${pt.y-16}" r="3" fill="#8A7863"/>`;
+      }).join('')}
+      <text x="20" y="42" font-size="11" fill="#8A7863" font-weight="700">South Rim</text>
+      <text x="460" y="42" font-size="11" fill="#8A7863" font-weight="700" text-anchor="end">North Rim</text>
+      <text x="240" y="218" font-size="10" fill="#5B8A82" font-weight="700" text-anchor="middle">Colorado River</text>
+      ${(()=>{const pt=fsPointOnPath(pathD,frac);return `<circle cx="${pt.x}" cy="${pt.y}" r="9" fill="#B2542E"/><circle cx="${pt.x}" cy="${pt.y}" r="9" fill="none" stroke="#FBF6EF" stroke-width="2"/>`;})()}
+    </svg>
+    <p class="subtle small" style="text-align:center;margin-top:8px">${esc(phase.aim)}</p>
+  </div></section>`;
+}
+// Approximate a point at fraction f along the same cubic-bezier trail path
+// used in the concept mockup (sampled, since JS has no getTotalLength outside a real DOM SVG element).
+function fsPointOnPath(d,f){
+  const segs=[
+    {p0:[20,55],p1:[90,150],p2:[160,190],p3:[240,195]},
+    {p0:[240,195],p1:[320,190],p2:[390,150],p3:[460,55]}
+  ];
+  const seg = f<=0.5?segs[0]:segs[1];
+  const t = f<=0.5? f/0.5 : (f-0.5)/0.5;
+  const b=(a,b,c,d,t)=>Math.pow(1-t,3)*a+3*Math.pow(1-t,2)*t*b+3*(1-t)*t*t*c+t*t*t*d;
+  return {x:b(seg.p0[0],seg.p1[0],seg.p2[0],seg.p3[0],t), y:b(seg.p0[1],seg.p1[1],seg.p2[1],seg.p3[1],t)};
+}
+const fsV16TodayBase=renderToday;
+renderToday=function(){
+  let html=fsV16TodayBase();
+  const tracker=fsCanyonTrackerHTML();
+  if(tracker){
+    // Insert right after the page title / intro, before the first real section.
+    const idx=html.indexOf('<section class="section">');
+    html = idx>-1 ? html.slice(0,idx)+tracker+html.slice(idx) : html+tracker;
+  }
+  return html;
+};
+
+/* =========================================================
+   v1.7 patch:
+   1) Fix: Body metrics (weight/height/goal weight/body fat %/muscle
+      mass + goal) had no entry point anywhere — the feature existed
+      in code but nothing on screen opened it.
+   2) "Fold this into my regular plan" — promoting an alternative from
+      a one-time swap into a standing substitution, so free-weight
+      movements (or anything else) only enter your rotation when you
+      explicitly choose to, not automatically.
+   ========================================================= */
+
+/* ---- 1) Body metrics: real entry point + goal weight / body fat % / muscle mass ---- */
+const fsV17ProfileBase=renderProfile;
+renderProfile=function(){
+  let html=fsV17ProfileBase();
+  const row=`<section class="section"><h3>Body metrics</h3><div class="card flat"><button class="profile-row" style="width:100%;background:none;color:var(--text);border:0;text-align:left;display:flex;align-items:center;gap:10px" onclick="fsOpenBodyMetrics()"><span style="font-size:17px">🔒</span><div style="flex:1"><strong>Weight, body fat %, muscle mass</strong><div class="subtle small">PIN-protected</div></div><span class="value">›</span></button></div></section>`;
+  html=html.replace('<section class="section"><h3>Health data</h3>', row+'<section class="section"><h3>Health data</h3>');
+  return html;
+};
+const fsV17SheetBase=renderSheet;
+renderSheet=function(){
+  const s=state.ui.sheet;
+  if(s?.name==='bodyMetricsForm'){
+    const rows=[...state.bodyMetrics].reverse().slice(0,8);
+    const g=state.profile.bodyGoals||{};
+    return `<div class="sheet-backdrop" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sheet-head"><div><h2>Body metrics</h2></div><button class="icon-btn" onclick="fsLockBodyMetrics()">×</button></div>
+      <div class="field"><label>Height</label><input id="bm-height" placeholder="e.g. 5'6&quot;" value="${esc(state.profile.height||'')}"></div>
+      <div class="section-head section"><h3>Today's entry</h3></div>
+      <div class="input-row"><div class="field"><label>Weight (lb)</label><input id="bm-weight" type="number"></div><div class="field"><label>Body fat %</label><input id="bm-bf" type="number" step="0.1"></div></div>
+      <div class="field"><label>Muscle mass (lb)</label><input id="bm-mm" type="number" step="0.1"></div>
+      <button class="primary-btn section" onclick="fsSaveBodyMetric()">Save entry</button>
+      <div class="section-head section"><h3>Goals (optional)</h3></div>
+      <div class="input-row"><div class="field"><label>Goal weight (lb)</label><input id="bm-goal-weight" type="number" value="${g.weight||''}"></div><div class="field"><label>Goal body fat %</label><input id="bm-goal-bf" type="number" step="0.1" value="${g.bodyFat||''}"></div></div>
+      <div class="field"><label>Goal muscle mass (lb)</label><input id="bm-goal-mm" type="number" step="0.1" value="${g.muscleMass||''}"></div>
+      <button class="secondary-btn section" style="width:100%" onclick="fsSaveBodyGoals()">Save goals</button>
+      <div class="section-head section"><h3>Recent</h3></div>
+      ${rows.length?rows.map(r=>`<div class="profile-row"><div class="subtle small">${esc(r.date)}</div><div class="value">${r.weight?r.weight+' lb':''}${r.bodyFat?' · '+r.bodyFat+'% BF':''}${r.muscleMass?' · '+r.muscleMass+' lb muscle':''}</div></div>`).join(''):'<p class="subtle small">Nothing logged yet.</p>'}
+      <button class="secondary-btn section" style="width:100%" onclick="fsLockBodyMetrics()">Lock &amp; close</button></div></div>`;
+  }
+  return fsV17SheetBase();
+};
+fsSaveBodyMetric=function(){
+  const w=Number(document.querySelector('#bm-weight')?.value||0)||null;
+  const bf=Number(document.querySelector('#bm-bf')?.value||0)||null;
+  const mm=Number(document.querySelector('#bm-mm')?.value||0)||null;
+  const h=document.querySelector('#bm-height')?.value||'';
+  if(h)state.profile.height=h;
+  if(w||bf||mm)state.bodyMetrics.push({id:uid(),date:fsTodayKey(),weight:w,bodyFat:bf,muscleMass:mm});
+  saveState();render();
+};
+function fsSaveBodyGoals(){
+  state.profile.bodyGoals={
+    weight:Number(document.querySelector('#bm-goal-weight')?.value||0)||null,
+    bodyFat:Number(document.querySelector('#bm-goal-bf')?.value||0)||null,
+    muscleMass:Number(document.querySelector('#bm-goal-mm')?.value||0)||null,
+  };
+  saveState();render();toast('Goals saved.');
+}
+
+/* ---- 2) "Fold into my regular plan" — persistent, opt-in substitution ---- */
+state.profile.promotedAlts=state.profile.promotedAlts||{};
+const fsV17SwapSheetBase=renderSheet;
+renderSheet=function(){
+  let html=fsV17SwapSheetBase();
+  const s=state.ui.sheet;
+  if(s?.name==='swap' && s.data?.reason){
+    const subs=fsSubstitutes(s.data.id);
+    if(subs.length){
+      const foldBlock=`<button class="secondary-btn section" style="width:100%" onclick="fsPromptFold('${s.data.id}')">Fold one of these into my regular plan instead</button>`;
+      // The base wrapper always ends in exactly `</div></div>` (closing .sheet
+      // then .sheet-backdrop) — anchor to end-of-string so this can't match
+      // one of the many other </div></div> pairs inside the option rows above.
+      html=html.replace(/<\/div>\s*<\/div>\s*$/, foldBlock+'</div></div>');
+    }
+  }
+  return html;
+};
+function fsPromptFold(originalId){
+  state.ui.sheet={name:'foldPick',data:{id:originalId}};
+  render();
+}
+const fsV17SheetBase2=renderSheet;
+renderSheet=function(){
+  const s=state.ui.sheet;
+  if(s?.name==='foldPick'){
+    const subs=fsSubstitutes(s.data.id), ex=EXERCISES[s.data.id];
+    return `<div class="sheet-backdrop" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sheet-head"><div><h2>Fold into regular plan</h2><div class="subtle">Replaces ${esc(ex.name)} in your rotation from now on — undo any time from Profile.</div></div><button class="icon-btn" onclick="closeSheet()">×</button></div>
+      ${subs.map(sid=>{const sx=EXERCISES[sid];return `<button class="option" style="width:100%;color:var(--text);text-align:left" onclick="fsFoldAlt('${s.data.id}','${sid}')"><div class="row"><div class="exercise-thumb" style="width:68px;height:58px">${exerciseSVG(sid)}</div><div><strong>${esc(sx.name)}</strong><div class="subtle small" style="margin-top:4px">${esc(sx.why)}</div></div></div><span>›</span></button>`}).join('')}
+      </div></div>`;
+  }
+  return fsV17SheetBase2();
+};
+function fsFoldAlt(originalId,newId){
+  state.profile.promotedAlts[originalId]=newId;
+  saveState();closeSheet();render();toast(`${EXERCISES[newId].name} is now your regular pick — undo any time from Profile.`);
+}
+function fsUnfoldAlt(originalId){
+  delete state.profile.promotedAlts[originalId];
+  saveState();render();toast('Reverted to the default exercise.');
+}
+// Apply any standing promotions to whatever fsStrengthPlan produces, gym or not.
+const fsV17StrengthPlanBase=fsStrengthPlan;
+fsStrengthPlan=function(loc=state.ui.location,focus='Full Body'){
+  const ids=fsV17StrengthPlanBase(loc,focus);
+  const promoted=state.profile.promotedAlts||{};
+  return ids.map(id=>promoted[id]||id);
+};
+// Show current standing promotions in Profile, with a one-tap revert.
+const fsV17ProfileBase2=renderProfile;
+renderProfile=function(){
+  let html=fsV17ProfileBase2();
+  const promoted=state.profile.promotedAlts||{};
+  const entries=Object.entries(promoted);
+  if(entries.length){
+    const block=`<section class="section"><h3>Folded into your plan</h3><div class="card flat">${entries.map(([from,to])=>`<div class="profile-row"><div><strong>${esc(EXERCISES[to]?.name||to)}</strong><div class="subtle small">replacing ${esc(EXERCISES[from]?.name||from)}</div></div><button class="ghost-btn" onclick="fsUnfoldAlt('${from}')">Undo</button></div>`).join('')}</div></section>`;
+    html=html.replace('<section class="section"><h3>Body metrics</h3>', block+'<section class="section"><h3>Body metrics</h3>');
+  }
+  return html;
+};
+
+/* =========================================================
+   v1.8 patch: smart exercise-name recognition + multi-exercise
+   custom logging with muscle-group auto-tagging.
+
+   Data source: same free-exercise-db dataset used for the photos
+   (873 real exercises, each with real primary/secondary muscles).
+   A handful of very common exercises (plain Push-Up, Pull-Up,
+   Overhead Press, Burpee, Jumping Jack, Wall Sit, standard
+   Kettlebell Swing) are NOT in that dataset under expected names —
+   verified by direct search rather than assumed — so those are
+   hand-authored below from standard exercise-science muscle
+   attribution instead of forcing a misleading fuzzy match.
+   ========================================================= */
+const FS_MUSCLE_DB=[{"name":"3/4 Sit-Up","muscles":["Abdominals"]},{"name":"90/90 Hamstring","muscles":["Hamstrings","Calves"]},{"name":"Ab Crunch Machine","muscles":["Abdominals"]},{"name":"Ab Roller","muscles":["Abdominals","Shoulders"]},{"name":"Adductor","muscles":["Adductors"]},{"name":"Adductor/Groin","muscles":["Adductors"]},{"name":"Advanced Kettlebell Windmill","muscles":["Abdominals","Glutes","Hamstrings","Shoulders"]},{"name":"Air Bike","muscles":["Abdominals"]},{"name":"All Fours Quad Stretch","muscles":["Quadriceps"]},{"name":"Alternate Hammer Curl","muscles":["Biceps","Forearms"]},{"name":"Alternate Heel Touchers","muscles":["Abdominals"]},{"name":"Alternate Incline Dumbbell Curl","muscles":["Biceps","Forearms"]},{"name":"Alternate Leg Diagonal Bound","muscles":["Quadriceps","Abductors","Adductors","Calves","Glutes","Hamstrings"]},{"name":"Alternating Cable Shoulder Press","muscles":["Shoulders","Triceps"]},{"name":"Alternating Deltoid Raise","muscles":["Shoulders"]},{"name":"Alternating Floor Press","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"Alternating Hang Clean","muscles":["Hamstrings","Biceps","Calves","Forearms","Glutes","Lower Back","Traps"]},{"name":"Alternating Kettlebell Press","muscles":["Shoulders","Triceps"]},{"name":"Alternating Kettlebell Row","muscles":["Middle Back","Biceps","Lats"]},{"name":"Alternating Renegade Row","muscles":["Middle Back","Abdominals","Biceps","Chest","Lats","Triceps"]},{"name":"Ankle Circles","muscles":["Calves"]},{"name":"Ankle On The Knee","muscles":["Glutes"]},{"name":"Anterior Tibialis-SMR","muscles":["Calves"]},{"name":"Anti-Gravity Press","muscles":["Shoulders","Middle Back","Traps","Triceps"]},{"name":"Arm Circles","muscles":["Shoulders","Traps"]},{"name":"Arnold Dumbbell Press","muscles":["Shoulders","Triceps"]},{"name":"Around The Worlds","muscles":["Chest","Shoulders"]},{"name":"Atlas Stone Trainer","muscles":["Lower Back","Biceps","Forearms","Glutes","Hamstrings","Quadriceps"]},{"name":"Atlas Stones","muscles":["Lower Back","Abdominals","Adductors","Biceps","Calves","Forearms","Glutes","Hamstrings","Middle Back","Quadriceps","Traps"]},{"name":"Axle Deadlift","muscles":["Lower Back","Forearms","Glutes","Hamstrings","Middle Back","Quadriceps","Traps"]},{"name":"Back Flyes - With Bands","muscles":["Shoulders","Middle Back","Triceps"]},{"name":"Backward Drag","muscles":["Quadriceps","Calves","Forearms","Glutes","Hamstrings","Lower Back"]},{"name":"Backward Medicine Ball Throw","muscles":["Shoulders"]},{"name":"Balance Board","muscles":["Calves","Hamstrings","Quadriceps"]},{"name":"Ball Leg Curl","muscles":["Hamstrings","Calves","Glutes"]},{"name":"Band Assisted Pull-Up","muscles":["Lats","Abdominals","Forearms","Middle Back"]},{"name":"Band Good Morning","muscles":["Hamstrings","Glutes","Lower Back"]},{"name":"Band Good Morning (Pull Through)","muscles":["Hamstrings","Glutes","Lower Back"]},{"name":"Band Hip Adductions","muscles":["Adductors"]},{"name":"Band Pull Apart","muscles":["Shoulders","Middle Back","Traps"]},{"name":"Band Skull Crusher","muscles":["Triceps"]},{"name":"Barbell Ab Rollout","muscles":["Abdominals","Lower Back","Shoulders"]},{"name":"Barbell Ab Rollout - On Knees","muscles":["Abdominals","Lower Back","Shoulders"]},{"name":"Barbell Bench Press - Medium Grip","muscles":["Chest","Shoulders","Triceps"]},{"name":"Barbell Curl","muscles":["Biceps","Forearms"]},{"name":"Barbell Curls Lying Against An Incline","muscles":["Biceps"]},{"name":"Barbell Deadlift","muscles":["Lower Back","Calves","Forearms","Glutes","Hamstrings","Lats","Middle Back","Quadriceps","Traps"]},{"name":"Barbell Full Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Barbell Glute Bridge","muscles":["Glutes","Calves","Hamstrings"]},{"name":"Barbell Guillotine Bench Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Barbell Hack Squat","muscles":["Quadriceps","Calves","Forearms","Hamstrings"]},{"name":"Barbell Hip Thrust","muscles":["Glutes","Calves","Hamstrings"]},{"name":"Barbell Incline Bench Press - Medium Grip","muscles":["Chest","Shoulders","Triceps"]},{"name":"Barbell Incline Shoulder Raise","muscles":["Shoulders","Chest"]},{"name":"Barbell Lunge","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Barbell Rear Delt Row","muscles":["Shoulders","Biceps","Lats","Middle Back"]},{"name":"Barbell Rollout from Bench","muscles":["Abdominals","Glutes","Hamstrings","Lats","Shoulders"]},{"name":"Barbell Seated Calf Raise","muscles":["Calves"]},{"name":"Barbell Shoulder Press","muscles":["Shoulders","Chest","Triceps"]},{"name":"Barbell Shrug","muscles":["Traps"]},{"name":"Barbell Shrug Behind The Back","muscles":["Traps","Forearms","Middle Back"]},{"name":"Barbell Side Bend","muscles":["Abdominals","Lower Back"]},{"name":"Barbell Side Split Squat","muscles":["Quadriceps","Calves","Hamstrings","Lower Back"]},{"name":"Barbell Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Barbell Squat To A Bench","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Barbell Step Ups","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Barbell Walking Lunge","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Battling Ropes","muscles":["Shoulders","Chest","Forearms"]},{"name":"Bear Crawl Sled Drags","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Behind Head Chest Stretch","muscles":["Chest","Shoulders"]},{"name":"Bench Dips","muscles":["Triceps","Chest","Shoulders"]},{"name":"Bench Jump","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Bench Press - Powerlifting","muscles":["Triceps","Chest","Forearms","Lats","Shoulders"]},{"name":"Bench Press - With Bands","muscles":["Chest","Shoulders","Triceps"]},{"name":"Bench Press with Chains","muscles":["Triceps","Chest","Lats","Shoulders"]},{"name":"Bench Sprint","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Bent-Arm Barbell Pullover","muscles":["Lats","Chest","Shoulders","Triceps"]},{"name":"Bent-Arm Dumbbell Pullover","muscles":["Chest","Lats","Shoulders","Triceps"]},{"name":"Bent-Knee Hip Raise","muscles":["Abdominals"]},{"name":"Bent Over Barbell Row","muscles":["Middle Back","Biceps","Lats","Shoulders"]},{"name":"Bent Over Dumbbell Rear Delt Raise With Head On Bench","muscles":["Shoulders"]},{"name":"Bent Over Low-Pulley Side Lateral","muscles":["Shoulders","Lower Back","Middle Back","Traps"]},{"name":"Bent Over One-Arm Long Bar Row","muscles":["Middle Back","Biceps","Lats","Lower Back","Traps"]},{"name":"Bent Over Two-Arm Long Bar Row","muscles":["Middle Back","Biceps","Lats"]},{"name":"Bent Over Two-Dumbbell Row","muscles":["Middle Back","Biceps","Lats","Shoulders"]},{"name":"Bent Over Two-Dumbbell Row With Palms In","muscles":["Middle Back","Biceps","Lats"]},{"name":"Bent Press","muscles":["Abdominals","Glutes","Hamstrings","Lower Back","Quadriceps","Shoulders","Triceps"]},{"name":"Bicycling","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Bicycling, Stationary","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Board Press","muscles":["Triceps","Chest","Forearms","Lats","Shoulders"]},{"name":"Body-Up","muscles":["Triceps","Abdominals","Forearms"]},{"name":"Body Tricep Press","muscles":["Triceps"]},{"name":"Bodyweight Flyes","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"Bodyweight Mid Row","muscles":["Middle Back","Biceps","Lats"]},{"name":"Bodyweight Squat","muscles":["Quadriceps","Glutes","Hamstrings"]},{"name":"Bodyweight Walking Lunge","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Bosu Ball Cable Crunch With Side Bends","muscles":["Abdominals"]},{"name":"Bottoms-Up Clean From The Hang Position","muscles":["Forearms","Biceps","Shoulders"]},{"name":"Bottoms Up","muscles":["Abdominals"]},{"name":"Box Jump (Multiple Response)","muscles":["Hamstrings","Abductors","Adductors","Calves","Glutes","Quadriceps"]},{"name":"Box Skip","muscles":["Hamstrings","Abductors","Adductors","Calves","Glutes","Quadriceps"]},{"name":"Box Squat","muscles":["Quadriceps","Adductors","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Box Squat with Bands","muscles":["Quadriceps","Abductors","Adductors","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Box Squat with Chains","muscles":["Quadriceps","Abductors","Adductors","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Brachialis-SMR","muscles":["Biceps"]},{"name":"Bradford/Rocky Presses","muscles":["Shoulders","Triceps"]},{"name":"Butt-Ups","muscles":["Abdominals"]},{"name":"Butt Lift (Bridge)","muscles":["Glutes","Hamstrings"]},{"name":"Butterfly","muscles":["Chest"]},{"name":"Cable Chest Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Cable Crossover","muscles":["Chest","Shoulders"]},{"name":"Cable Crunch","muscles":["Abdominals"]},{"name":"Cable Deadlifts","muscles":["Quadriceps","Forearms","Glutes","Hamstrings","Lower Back"]},{"name":"Cable Hammer Curls - Rope Attachment","muscles":["Biceps"]},{"name":"Cable Hip Adduction","muscles":["Quadriceps"]},{"name":"Cable Incline Pushdown","muscles":["Lats"]},{"name":"Cable Incline Triceps Extension","muscles":["Triceps"]},{"name":"Cable Internal Rotation","muscles":["Shoulders"]},{"name":"Cable Iron Cross","muscles":["Chest"]},{"name":"Cable Judo Flip","muscles":["Abdominals"]},{"name":"Cable Lying Triceps Extension","muscles":["Triceps"]},{"name":"Cable One Arm Tricep Extension","muscles":["Triceps"]},{"name":"Cable Preacher Curl","muscles":["Biceps","Forearms"]},{"name":"Cable Rear Delt Fly","muscles":["Shoulders"]},{"name":"Cable Reverse Crunch","muscles":["Abdominals"]},{"name":"Cable Rope Overhead Triceps Extension","muscles":["Triceps"]},{"name":"Cable Rope Rear-Delt Rows","muscles":["Shoulders","Biceps","Middle Back"]},{"name":"Cable Russian Twists","muscles":["Abdominals"]},{"name":"Cable Seated Crunch","muscles":["Abdominals"]},{"name":"Cable Seated Lateral Raise","muscles":["Shoulders","Middle Back","Traps"]},{"name":"Cable Shoulder Press","muscles":["Shoulders","Triceps"]},{"name":"Cable Shrugs","muscles":["Traps"]},{"name":"Cable Wrist Curl","muscles":["Forearms"]},{"name":"Calf-Machine Shoulder Shrug","muscles":["Traps"]},{"name":"Calf Press","muscles":["Calves"]},{"name":"Calf Press On The Leg Press Machine","muscles":["Calves"]},{"name":"Calf Raise On A Dumbbell","muscles":["Calves"]},{"name":"Calf Raises - With Bands","muscles":["Calves"]},{"name":"Calf Stretch Elbows Against Wall","muscles":["Calves"]},{"name":"Calf Stretch Hands Against Wall","muscles":["Calves"]},{"name":"Calves-SMR","muscles":["Calves"]},{"name":"Car Deadlift","muscles":["Quadriceps","Forearms","Glutes","Hamstrings","Lower Back","Traps"]},{"name":"Car Drivers","muscles":["Shoulders","Forearms"]},{"name":"Carioca Quick Step","muscles":["Adductors","Abdominals","Abductors","Calves","Glutes","Hamstrings","Quadriceps"]},{"name":"Cat Stretch","muscles":["Lower Back","Middle Back","Traps"]},{"name":"Catch and Overhead Throw","muscles":["Lats","Abdominals","Chest","Shoulders"]},{"name":"Chain Handle Extension","muscles":["Triceps"]},{"name":"Chain Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Chair Leg Extended Stretch","muscles":["Hamstrings","Adductors"]},{"name":"Chair Lower Back Stretch","muscles":["Lats","Lower Back"]},{"name":"Chair Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Chair Upper Body Stretch","muscles":["Shoulders","Biceps","Chest"]},{"name":"Chest And Front Of Shoulder Stretch","muscles":["Chest","Shoulders"]},{"name":"Chest Push from 3 point stance","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"Chest Push (multiple response)","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"Chest Push (single response)","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"Chest Push with Run Release","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"Chest Stretch on Stability Ball","muscles":["Chest"]},{"name":"Child's Pose","muscles":["Lower Back","Glutes","Middle Back"]},{"name":"Chin-Up","muscles":["Lats","Biceps","Forearms","Middle Back"]},{"name":"Chin To Chest Stretch","muscles":["Neck","Traps"]},{"name":"Circus Bell","muscles":["Shoulders","Forearms","Glutes","Hamstrings","Lower Back","Traps","Triceps"]},{"name":"Clean","muscles":["Hamstrings","Calves","Forearms","Glutes","Lower Back","Quadriceps","Shoulders","Traps"]},{"name":"Clean Deadlift","muscles":["Hamstrings","Forearms","Glutes","Lower Back","Middle Back","Quadriceps","Traps"]},{"name":"Clean Pull","muscles":["Quadriceps","Forearms","Glutes","Hamstrings","Lower Back","Traps"]},{"name":"Clean Shrug","muscles":["Traps","Forearms","Shoulders"]},{"name":"Clean and Jerk","muscles":["Shoulders","Abdominals","Glutes","Hamstrings","Lower Back","Quadriceps","Traps","Triceps"]},{"name":"Clean and Press","muscles":["Shoulders","Abdominals","Calves","Glutes","Hamstrings","Lower Back","Middle Back","Quadriceps","Traps","Triceps"]},{"name":"Clean from Blocks","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Shoulders","Traps"]},{"name":"Clock Push-Up","muscles":["Chest","Shoulders","Triceps"]},{"name":"Close-Grip Barbell Bench Press","muscles":["Triceps","Chest","Shoulders"]},{"name":"Close-Grip Dumbbell Press","muscles":["Triceps","Chest","Shoulders"]},{"name":"Close-Grip EZ-Bar Curl with Band","muscles":["Biceps","Forearms"]},{"name":"Close-Grip EZ-Bar Press","muscles":["Triceps","Chest","Shoulders"]},{"name":"Close-Grip EZ Bar Curl","muscles":["Biceps","Forearms"]},{"name":"Close-Grip Front Lat Pulldown","muscles":["Lats","Biceps","Middle Back","Shoulders"]},{"name":"Close-Grip Push-Up off of a Dumbbell","muscles":["Triceps","Abdominals","Chest","Shoulders"]},{"name":"Close-Grip Standing Barbell Curl","muscles":["Biceps","Forearms"]},{"name":"Cocoons","muscles":["Abdominals"]},{"name":"Conan's Wheel","muscles":["Quadriceps","Abdominals","Biceps","Calves","Forearms","Lower Back","Shoulders","Traps"]},{"name":"Concentration Curls","muscles":["Biceps","Forearms"]},{"name":"Cross-Body Crunch","muscles":["Abdominals"]},{"name":"Cross Body Hammer Curl","muscles":["Biceps","Forearms"]},{"name":"Cross Over - With Bands","muscles":["Chest","Biceps","Shoulders"]},{"name":"Crossover Reverse Lunge","muscles":["Lower Back","Abdominals","Abductors","Glutes","Hamstrings","Quadriceps"]},{"name":"Crucifix","muscles":["Shoulders","Forearms"]},{"name":"Crunch - Hands Overhead","muscles":["Abdominals"]},{"name":"Crunch - Legs On Exercise Ball","muscles":["Abdominals"]},{"name":"Crunches","muscles":["Abdominals"]},{"name":"Cuban Press","muscles":["Shoulders","Traps"]},{"name":"Dancer's Stretch","muscles":["Lower Back","Abductors","Glutes"]},{"name":"Dead Bug","muscles":["Abdominals"]},{"name":"Deadlift with Bands","muscles":["Lower Back","Forearms","Glutes","Hamstrings","Middle Back","Quadriceps","Traps"]},{"name":"Deadlift with Chains","muscles":["Lower Back","Forearms","Glutes","Hamstrings","Middle Back","Quadriceps","Traps"]},{"name":"Decline Barbell Bench Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Decline Close-Grip Bench To Skull Crusher","muscles":["Triceps","Chest","Shoulders"]},{"name":"Decline Crunch","muscles":["Abdominals"]},{"name":"Decline Dumbbell Bench Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Decline Dumbbell Flyes","muscles":["Chest"]},{"name":"Decline Dumbbell Triceps Extension","muscles":["Triceps"]},{"name":"Decline EZ Bar Triceps Extension","muscles":["Triceps"]},{"name":"Decline Oblique Crunch","muscles":["Abdominals"]},{"name":"Decline Push-Up","muscles":["Chest","Shoulders","Triceps"]},{"name":"Decline Reverse Crunch","muscles":["Abdominals"]},{"name":"Decline Smith Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Deficit Deadlift","muscles":["Lower Back","Forearms","Glutes","Hamstrings","Middle Back","Quadriceps","Traps"]},{"name":"Depth Jump Leap","muscles":["Quadriceps","Abductors","Adductors","Calves","Glutes","Hamstrings"]},{"name":"Dip Machine","muscles":["Triceps","Chest","Shoulders"]},{"name":"Dips - Chest Version","muscles":["Chest","Shoulders","Triceps"]},{"name":"Dips - Triceps Version","muscles":["Triceps","Chest","Shoulders"]},{"name":"Donkey Calf Raises","muscles":["Calves"]},{"name":"Double Kettlebell Alternating Hang Clean","muscles":["Hamstrings","Biceps","Calves","Forearms","Glutes","Lower Back","Quadriceps","Traps"]},{"name":"Double Kettlebell Jerk","muscles":["Shoulders","Calves","Quadriceps","Triceps"]},{"name":"Double Kettlebell Push Press","muscles":["Shoulders","Calves","Quadriceps","Triceps"]},{"name":"Double Kettlebell Snatch","muscles":["Shoulders","Glutes","Hamstrings","Quadriceps"]},{"name":"Double Kettlebell Windmill","muscles":["Abdominals","Glutes","Hamstrings","Shoulders","Triceps"]},{"name":"Double Leg Butt Kick","muscles":["Quadriceps","Abductors","Adductors","Calves","Glutes","Hamstrings"]},{"name":"Downward Facing Balance","muscles":["Glutes","Abdominals","Hamstrings"]},{"name":"Drag Curl","muscles":["Biceps","Forearms"]},{"name":"Drop Push","muscles":["Chest","Shoulders","Triceps"]},{"name":"Dumbbell Alternate Bicep Curl","muscles":["Biceps","Forearms"]},{"name":"Dumbbell Bench Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Dumbbell Bench Press with Neutral Grip","muscles":["Chest","Shoulders","Triceps"]},{"name":"Dumbbell Bicep Curl","muscles":["Biceps","Forearms"]},{"name":"Dumbbell Clean","muscles":["Hamstrings","Calves","Forearms","Glutes","Lower Back","Quadriceps","Shoulders","Traps"]},{"name":"Dumbbell Floor Press","muscles":["Triceps","Chest","Shoulders"]},{"name":"Dumbbell Flyes","muscles":["Chest"]},{"name":"Dumbbell Incline Row","muscles":["Middle Back","Biceps","Forearms","Lats","Shoulders"]},{"name":"Dumbbell Incline Shoulder Raise","muscles":["Shoulders","Triceps"]},{"name":"Dumbbell Lunges","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Dumbbell Lying One-Arm Rear Lateral Raise","muscles":["Shoulders","Middle Back"]},{"name":"Dumbbell Lying Pronation","muscles":["Forearms"]},{"name":"Dumbbell Lying Rear Lateral Raise","muscles":["Shoulders"]},{"name":"Dumbbell Lying Supination","muscles":["Forearms"]},{"name":"Dumbbell One-Arm Shoulder Press","muscles":["Shoulders","Triceps"]},{"name":"Dumbbell One-Arm Triceps Extension","muscles":["Triceps"]},{"name":"Dumbbell One-Arm Upright Row","muscles":["Shoulders","Biceps","Traps"]},{"name":"Dumbbell Prone Incline Curl","muscles":["Biceps"]},{"name":"Dumbbell Raise","muscles":["Shoulders","Biceps"]},{"name":"Dumbbell Rear Lunge","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Dumbbell Scaption","muscles":["Shoulders","Traps"]},{"name":"Dumbbell Seated Box Jump","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Dumbbell Seated One-Leg Calf Raise","muscles":["Calves"]},{"name":"Dumbbell Shoulder Press","muscles":["Shoulders","Triceps"]},{"name":"Dumbbell Shrug","muscles":["Traps"]},{"name":"Dumbbell Side Bend","muscles":["Abdominals"]},{"name":"Dumbbell Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Dumbbell Squat To A Bench","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Dumbbell Step Ups","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Dumbbell Tricep Extension -Pronated Grip","muscles":["Triceps"]},{"name":"Dynamic Back Stretch","muscles":["Lats"]},{"name":"Dynamic Chest Stretch","muscles":["Chest","Middle Back"]},{"name":"EZ-Bar Curl","muscles":["Biceps"]},{"name":"EZ-Bar Skullcrusher","muscles":["Triceps","Forearms"]},{"name":"Elbow Circles","muscles":["Shoulders","Traps"]},{"name":"Elbow to Knee","muscles":["Abdominals"]},{"name":"Elbows Back","muscles":["Chest","Shoulders"]},{"name":"Elevated Back Lunge","muscles":["Quadriceps","Glutes","Hamstrings"]},{"name":"Elevated Cable Rows","muscles":["Lats","Middle Back","Traps"]},{"name":"Elliptical Trainer","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Exercise Ball Crunch","muscles":["Abdominals"]},{"name":"Exercise Ball Pull-In","muscles":["Abdominals"]},{"name":"Extended Range One-Arm Kettlebell Floor Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"External Rotation","muscles":["Shoulders"]},{"name":"External Rotation with Band","muscles":["Shoulders"]},{"name":"External Rotation with Cable","muscles":["Shoulders"]},{"name":"Face Pull","muscles":["Shoulders","Middle Back"]},{"name":"Farmer's Walk","muscles":["Forearms","Abdominals","Glutes","Hamstrings","Lower Back","Quadriceps","Traps"]},{"name":"Fast Skipping","muscles":["Quadriceps","Abductors","Adductors","Calves","Glutes","Hamstrings"]},{"name":"Finger Curls","muscles":["Forearms"]},{"name":"Flat Bench Cable Flyes","muscles":["Chest"]},{"name":"Flat Bench Leg Pull-In","muscles":["Abdominals"]},{"name":"Flat Bench Lying Leg Raise","muscles":["Abdominals"]},{"name":"Flexor Incline Dumbbell Curls","muscles":["Biceps"]},{"name":"Floor Glute-Ham Raise","muscles":["Hamstrings","Calves","Glutes"]},{"name":"Floor Press","muscles":["Triceps","Chest","Shoulders"]},{"name":"Floor Press with Chains","muscles":["Triceps","Chest","Shoulders"]},{"name":"Flutter Kicks","muscles":["Glutes","Hamstrings"]},{"name":"Foot-SMR","muscles":["Calves"]},{"name":"Forward Drag with Press","muscles":["Chest","Calves","Glutes","Hamstrings","Quadriceps","Shoulders","Triceps"]},{"name":"Frankenstein Squat","muscles":["Quadriceps","Abdominals","Calves","Glutes","Hamstrings"]},{"name":"Freehand Jump Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Frog Hops","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Frog Sit-Ups","muscles":["Abdominals"]},{"name":"Front Barbell Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Front Barbell Squat To A Bench","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Front Box Jump","muscles":["Hamstrings","Abductors","Adductors","Calves","Glutes","Quadriceps"]},{"name":"Front Cable Raise","muscles":["Shoulders"]},{"name":"Front Cone Hops (or hurdle hops)","muscles":["Quadriceps","Abductors","Adductors","Calves","Glutes","Hamstrings"]},{"name":"Front Dumbbell Raise","muscles":["Shoulders"]},{"name":"Front Incline Dumbbell Raise","muscles":["Shoulders"]},{"name":"Front Leg Raises","muscles":["Hamstrings"]},{"name":"Front Plate Raise","muscles":["Shoulders"]},{"name":"Front Raise And Pullover","muscles":["Chest","Lats","Shoulders","Triceps"]},{"name":"Front Squat (Clean Grip)","muscles":["Quadriceps","Abdominals","Glutes","Hamstrings"]},{"name":"Front Squats With Two Kettlebells","muscles":["Quadriceps","Calves","Glutes"]},{"name":"Front Two-Dumbbell Raise","muscles":["Shoulders"]},{"name":"Full Range-Of-Motion Lat Pulldown","muscles":["Lats","Biceps","Middle Back","Shoulders"]},{"name":"Gironda Sternum Chins","muscles":["Lats","Biceps","Middle Back"]},{"name":"Glute Ham Raise","muscles":["Hamstrings","Calves","Glutes"]},{"name":"Glute Kickback","muscles":["Glutes","Hamstrings"]},{"name":"Goblet Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Shoulders"]},{"name":"Good Morning","muscles":["Hamstrings","Abdominals","Glutes","Lower Back"]},{"name":"Good Morning off Pins","muscles":["Hamstrings","Abdominals","Glutes","Lower Back"]},{"name":"Gorilla Chin/Crunch","muscles":["Abdominals","Biceps","Lats"]},{"name":"Groin and Back Stretch","muscles":["Adductors"]},{"name":"Groiners","muscles":["Adductors"]},{"name":"Hack Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Hammer Curls","muscles":["Biceps"]},{"name":"Hammer Grip Incline DB Bench Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Hamstring-SMR","muscles":["Hamstrings"]},{"name":"Hamstring Stretch","muscles":["Hamstrings"]},{"name":"Handstand Push-Ups","muscles":["Shoulders","Triceps"]},{"name":"Hang Clean","muscles":["Quadriceps","Calves","Forearms","Glutes","Hamstrings","Lower Back","Shoulders","Traps"]},{"name":"Hang Clean - Below the Knees","muscles":["Quadriceps","Calves","Forearms","Glutes","Hamstrings","Lower Back","Shoulders","Traps"]},{"name":"Hang Snatch","muscles":["Hamstrings","Abdominals","Calves","Forearms","Glutes","Lower Back","Quadriceps","Shoulders","Traps"]},{"name":"Hang Snatch - Below Knees","muscles":["Hamstrings","Abdominals","Calves","Forearms","Glutes","Lower Back","Quadriceps","Shoulders","Traps"]},{"name":"Hanging Bar Good Morning","muscles":["Hamstrings","Abdominals","Glutes","Lower Back"]},{"name":"Hanging Leg Raise","muscles":["Abdominals"]},{"name":"Hanging Pike","muscles":["Abdominals"]},{"name":"Heaving Snatch Balance","muscles":["Quadriceps","Abdominals","Forearms","Glutes","Hamstrings","Shoulders","Triceps"]},{"name":"Heavy Bag Thrust","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"High Cable Curls","muscles":["Biceps"]},{"name":"Hip Circles (prone)","muscles":["Abductors","Adductors"]},{"name":"Hip Extension with Bands","muscles":["Glutes","Hamstrings"]},{"name":"Hip Flexion with Band","muscles":["Quadriceps"]},{"name":"Hip Lift with Band","muscles":["Glutes","Calves","Hamstrings"]},{"name":"Hug A Ball","muscles":["Lower Back","Calves","Glutes"]},{"name":"Hug Knees To Chest","muscles":["Lower Back","Glutes"]},{"name":"Hurdle Hops","muscles":["Hamstrings","Abductors","Adductors","Calves","Glutes"]},{"name":"Hyperextensions (Back Extensions)","muscles":["Lower Back","Glutes","Hamstrings"]},{"name":"Hyperextensions With No Hyperextension Bench","muscles":["Lower Back","Glutes","Hamstrings"]},{"name":"IT Band and Glute Stretch","muscles":["Abductors"]},{"name":"Iliotibial Tract-SMR","muscles":["Abductors"]},{"name":"Inchworm","muscles":["Hamstrings"]},{"name":"Incline Barbell Triceps Extension","muscles":["Triceps","Forearms"]},{"name":"Incline Bench Pull","muscles":["Middle Back","Lats","Shoulders"]},{"name":"Incline Cable Chest Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Incline Cable Flye","muscles":["Chest","Shoulders"]},{"name":"Incline Dumbbell Bench With Palms Facing In","muscles":["Chest","Shoulders","Triceps"]},{"name":"Incline Dumbbell Curl","muscles":["Biceps"]},{"name":"Incline Dumbbell Flyes","muscles":["Chest","Shoulders"]},{"name":"Incline Dumbbell Flyes - With A Twist","muscles":["Chest","Shoulders"]},{"name":"Incline Dumbbell Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Incline Hammer Curls","muscles":["Biceps"]},{"name":"Incline Inner Biceps Curl","muscles":["Biceps"]},{"name":"Incline Push-Up","muscles":["Chest","Shoulders","Triceps"]},{"name":"Incline Push-Up Close-Grip","muscles":["Triceps","Chest","Shoulders"]},{"name":"Incline Push-Up Depth Jump","muscles":["Chest","Shoulders","Triceps"]},{"name":"Incline Push-Up Medium","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"Incline Push-Up Reverse Grip","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"Incline Push-Up Wide","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"Intermediate Groin Stretch","muscles":["Hamstrings"]},{"name":"Intermediate Hip Flexor and Quad Stretch","muscles":["Quadriceps"]},{"name":"Internal Rotation with Band","muscles":["Shoulders"]},{"name":"Inverted Row","muscles":["Middle Back","Lats"]},{"name":"Inverted Row with Straps","muscles":["Middle Back","Biceps","Lats"]},{"name":"Iron Cross","muscles":["Shoulders","Chest","Glutes","Hamstrings","Lower Back","Quadriceps","Traps"]},{"name":"Iron Crosses (stretch)","muscles":["Quadriceps"]},{"name":"Isometric Chest Squeezes","muscles":["Chest","Shoulders","Triceps"]},{"name":"Isometric Neck Exercise - Front And Back","muscles":["Neck"]},{"name":"Isometric Neck Exercise - Sides","muscles":["Neck"]},{"name":"Isometric Wipers","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"JM Press","muscles":["Triceps","Chest","Shoulders"]},{"name":"Jackknife Sit-Up","muscles":["Abdominals"]},{"name":"Janda Sit-Up","muscles":["Abdominals"]},{"name":"Jefferson Squats","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back","Traps"]},{"name":"Jerk Balance","muscles":["Shoulders","Glutes","Hamstrings","Quadriceps","Triceps"]},{"name":"Jerk Dip Squat","muscles":["Quadriceps","Abdominals","Calves"]},{"name":"Jogging, Treadmill","muscles":["Quadriceps","Glutes","Hamstrings"]},{"name":"Keg Load","muscles":["Lower Back","Abdominals","Biceps","Calves","Forearms","Glutes","Hamstrings","Middle Back","Quadriceps","Shoulders","Traps"]},{"name":"Kettlebell Arnold Press","muscles":["Shoulders","Triceps"]},{"name":"Kettlebell Dead Clean","muscles":["Hamstrings","Calves","Glutes","Lower Back","Quadriceps","Traps"]},{"name":"Kettlebell Figure 8","muscles":["Abdominals","Hamstrings","Shoulders"]},{"name":"Kettlebell Hang Clean","muscles":["Hamstrings","Calves","Glutes","Lower Back","Shoulders","Traps"]},{"name":"Kettlebell One-Legged Deadlift","muscles":["Hamstrings","Glutes","Lower Back"]},{"name":"Kettlebell Pass Between The Legs","muscles":["Abdominals","Glutes","Hamstrings","Shoulders"]},{"name":"Kettlebell Pirate Ships","muscles":["Shoulders","Abdominals"]},{"name":"Kettlebell Pistol Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Shoulders"]},{"name":"Kettlebell Seated Press","muscles":["Shoulders","Triceps"]},{"name":"Kettlebell Seesaw Press","muscles":["Shoulders","Triceps"]},{"name":"Kettlebell Sumo High Pull","muscles":["Traps","Adductors","Glutes","Hamstrings","Quadriceps","Shoulders"]},{"name":"Kettlebell Thruster","muscles":["Shoulders","Quadriceps","Triceps"]},{"name":"Kettlebell Turkish Get-Up (Lunge style)","muscles":["Shoulders","Abdominals","Hamstrings","Quadriceps","Triceps"]},{"name":"Kettlebell Turkish Get-Up (Squat style)","muscles":["Shoulders","Abdominals","Calves","Hamstrings","Quadriceps","Triceps"]},{"name":"Kettlebell Windmill","muscles":["Abdominals","Glutes","Hamstrings","Shoulders","Triceps"]},{"name":"Kipping Muscle Up","muscles":["Lats","Abdominals","Biceps","Forearms","Middle Back","Shoulders","Traps","Triceps"]},{"name":"Knee Across The Body","muscles":["Glutes","Abductors","Lower Back"]},{"name":"Knee Circles","muscles":["Calves","Hamstrings","Quadriceps"]},{"name":"Knee/Hip Raise On Parallel Bars","muscles":["Abdominals"]},{"name":"Knee Tuck Jump","muscles":["Hamstrings","Abductors","Adductors","Calves","Glutes","Quadriceps"]},{"name":"Kneeling Arm Drill","muscles":["Shoulders","Abdominals"]},{"name":"Kneeling Cable Crunch With Alternating Oblique Twists","muscles":["Abdominals"]},{"name":"Kneeling Cable Triceps Extension","muscles":["Triceps"]},{"name":"Kneeling Forearm Stretch","muscles":["Forearms"]},{"name":"Kneeling High Pulley Row","muscles":["Lats","Biceps","Middle Back"]},{"name":"Kneeling Hip Flexor","muscles":["Quadriceps"]},{"name":"Kneeling Jump Squat","muscles":["Glutes","Calves","Hamstrings","Quadriceps"]},{"name":"Kneeling Single-Arm High Pulley Row","muscles":["Lats","Biceps","Middle Back"]},{"name":"Kneeling Squat","muscles":["Glutes","Abdominals","Hamstrings","Lower Back"]},{"name":"Landmine 180's","muscles":["Abdominals","Glutes","Lower Back","Shoulders"]},{"name":"Landmine Linear Jammer","muscles":["Shoulders","Abdominals","Calves","Chest","Hamstrings","Quadriceps","Triceps"]},{"name":"Lateral Bound","muscles":["Adductors","Abductors","Calves","Glutes","Hamstrings","Quadriceps"]},{"name":"Lateral Box Jump","muscles":["Adductors","Abductors","Calves","Glutes","Hamstrings","Quadriceps"]},{"name":"Lateral Cone Hops","muscles":["Adductors","Abductors","Calves","Glutes","Hamstrings","Quadriceps"]},{"name":"Lateral Raise - With Bands","muscles":["Shoulders"]},{"name":"Latissimus Dorsi-SMR","muscles":["Lats"]},{"name":"Leg-Over Floor Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Leg-Up Hamstring Stretch","muscles":["Hamstrings"]},{"name":"Leg Extensions","muscles":["Quadriceps"]},{"name":"Leg Lift","muscles":["Glutes","Hamstrings"]},{"name":"Leg Press","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Leg Pull-In","muscles":["Abdominals"]},{"name":"Leverage Chest Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Leverage Deadlift","muscles":["Quadriceps","Glutes","Hamstrings"]},{"name":"Leverage Decline Chest Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Leverage High Row","muscles":["Middle Back","Lats"]},{"name":"Leverage Incline Chest Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Leverage Iso Row","muscles":["Lats","Biceps","Middle Back"]},{"name":"Leverage Shoulder Press","muscles":["Shoulders","Triceps"]},{"name":"Leverage Shrug","muscles":["Traps","Forearms"]},{"name":"Linear 3-Part Start Technique","muscles":["Hamstrings","Calves","Quadriceps"]},{"name":"Linear Acceleration Wall Drill","muscles":["Hamstrings","Calves","Glutes","Quadriceps"]},{"name":"Linear Depth Jump","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Log Lift","muscles":["Shoulders","Abdominals","Chest","Glutes","Hamstrings","Lower Back","Middle Back","Quadriceps","Traps","Triceps"]},{"name":"London Bridges","muscles":["Lats","Biceps","Forearms","Middle Back"]},{"name":"Looking At Ceiling","muscles":["Quadriceps"]},{"name":"Low Cable Crossover","muscles":["Chest","Shoulders"]},{"name":"Low Cable Triceps Extension","muscles":["Triceps"]},{"name":"Low Pulley Row To Neck","muscles":["Shoulders","Biceps","Middle Back","Traps"]},{"name":"Lower Back-SMR","muscles":["Lower Back"]},{"name":"Lower Back Curl","muscles":["Abdominals"]},{"name":"Lunge Pass Through","muscles":["Hamstrings","Calves","Glutes","Quadriceps"]},{"name":"Lunge Sprint","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Lying Bent Leg Groin","muscles":["Adductors"]},{"name":"Lying Cable Curl","muscles":["Biceps"]},{"name":"Lying Cambered Barbell Row","muscles":["Middle Back","Biceps","Lats","Traps"]},{"name":"Lying Close-Grip Bar Curl On High Pulley","muscles":["Biceps"]},{"name":"Lying Close-Grip Barbell Triceps Extension Behind The Head","muscles":["Triceps"]},{"name":"Lying Close-Grip Barbell Triceps Press To Chin","muscles":["Triceps"]},{"name":"Lying Crossover","muscles":["Abductors"]},{"name":"Lying Dumbbell Tricep Extension","muscles":["Triceps","Chest","Shoulders"]},{"name":"Lying Face Down Plate Neck Resistance","muscles":["Neck"]},{"name":"Lying Face Up Plate Neck Resistance","muscles":["Neck"]},{"name":"Lying Glute","muscles":["Glutes","Abductors"]},{"name":"Lying Hamstring","muscles":["Hamstrings","Calves"]},{"name":"Lying High Bench Barbell Curl","muscles":["Biceps"]},{"name":"Lying Leg Curls","muscles":["Hamstrings"]},{"name":"Lying Machine Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Lying One-Arm Lateral Raise","muscles":["Shoulders"]},{"name":"Lying Prone Quadriceps","muscles":["Quadriceps"]},{"name":"Lying Rear Delt Raise","muscles":["Shoulders"]},{"name":"Lying Supine Dumbbell Curl","muscles":["Biceps"]},{"name":"Lying T-Bar Row","muscles":["Middle Back","Biceps","Lats"]},{"name":"Lying Triceps Press","muscles":["Triceps"]},{"name":"Machine Bench Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Machine Bicep Curl","muscles":["Biceps"]},{"name":"Machine Preacher Curls","muscles":["Biceps"]},{"name":"Machine Shoulder (Military) Press","muscles":["Shoulders","Triceps"]},{"name":"Machine Triceps Extension","muscles":["Triceps"]},{"name":"Medicine Ball Chest Pass","muscles":["Chest","Shoulders","Triceps"]},{"name":"Medicine Ball Full Twist","muscles":["Abdominals","Shoulders"]},{"name":"Medicine Ball Scoop Throw","muscles":["Shoulders","Abdominals","Hamstrings","Quadriceps"]},{"name":"Middle Back Shrug","muscles":["Middle Back"]},{"name":"Middle Back Stretch","muscles":["Middle Back","Abdominals","Lats","Lower Back"]},{"name":"Mixed Grip Chin","muscles":["Middle Back","Biceps","Lats"]},{"name":"Monster Walk","muscles":["Abductors"]},{"name":"Mountain Climbers","muscles":["Quadriceps","Chest","Hamstrings","Shoulders"]},{"name":"Moving Claw Series","muscles":["Hamstrings","Calves","Quadriceps"]},{"name":"Muscle Snatch","muscles":["Hamstrings","Glutes","Lower Back","Quadriceps","Shoulders","Triceps"]},{"name":"Muscle Up","muscles":["Lats","Abdominals","Biceps","Forearms","Middle Back","Shoulders","Traps","Triceps"]},{"name":"Narrow Stance Hack Squats","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Narrow Stance Leg Press","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Narrow Stance Squats","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Natural Glute Ham Raise","muscles":["Hamstrings","Calves","Glutes","Lower Back"]},{"name":"Neck-SMR","muscles":["Neck"]},{"name":"Neck Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Oblique Crunches","muscles":["Abdominals"]},{"name":"Oblique Crunches - On The Floor","muscles":["Abdominals"]},{"name":"Olympic Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"On-Your-Back Quad Stretch","muscles":["Quadriceps"]},{"name":"On Your Side Quad Stretch","muscles":["Quadriceps"]},{"name":"One-Arm Dumbbell Row","muscles":["Middle Back","Biceps","Lats","Shoulders"]},{"name":"One-Arm Flat Bench Dumbbell Flye","muscles":["Chest"]},{"name":"One-Arm High-Pulley Cable Side Bends","muscles":["Abdominals"]},{"name":"One-Arm Incline Lateral Raise","muscles":["Shoulders"]},{"name":"One-Arm Kettlebell Clean","muscles":["Hamstrings","Glutes","Lower Back","Shoulders","Traps"]},{"name":"One-Arm Kettlebell Clean and Jerk","muscles":["Shoulders"]},{"name":"One-Arm Kettlebell Floor Press","muscles":["Chest","Triceps"]},{"name":"One-Arm Kettlebell Jerk","muscles":["Shoulders","Calves","Quadriceps","Triceps"]},{"name":"One-Arm Kettlebell Military Press To The Side","muscles":["Shoulders","Triceps"]},{"name":"One-Arm Kettlebell Para Press","muscles":["Shoulders","Triceps"]},{"name":"One-Arm Kettlebell Push Press","muscles":["Shoulders","Calves","Quadriceps","Triceps"]},{"name":"One-Arm Kettlebell Row","muscles":["Middle Back","Biceps","Lats"]},{"name":"One-Arm Kettlebell Snatch","muscles":["Shoulders","Calves","Glutes","Hamstrings","Lower Back","Traps","Triceps"]},{"name":"One-Arm Kettlebell Split Jerk","muscles":["Shoulders","Glutes","Hamstrings","Quadriceps","Triceps"]},{"name":"One-Arm Kettlebell Split Snatch","muscles":["Shoulders","Hamstrings","Quadriceps"]},{"name":"One-Arm Kettlebell Swings","muscles":["Hamstrings","Calves","Glutes","Lower Back","Shoulders"]},{"name":"One-Arm Long Bar Row","muscles":["Middle Back","Biceps","Lats"]},{"name":"One-Arm Medicine Ball Slam","muscles":["Abdominals","Lats","Shoulders"]},{"name":"One-Arm Open Palm Kettlebell Clean","muscles":["Hamstrings","Forearms","Glutes","Lower Back","Quadriceps","Shoulders"]},{"name":"One-Arm Overhead Kettlebell Squats","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Shoulders"]},{"name":"One-Arm Side Deadlift","muscles":["Quadriceps","Abdominals","Calves","Glutes","Hamstrings","Lower Back","Traps"]},{"name":"One-Arm Side Laterals","muscles":["Shoulders"]},{"name":"One-Legged Cable Kickback","muscles":["Glutes","Hamstrings"]},{"name":"One Arm Against Wall","muscles":["Lats"]},{"name":"One Arm Chin-Up","muscles":["Middle Back","Biceps","Forearms","Lats"]},{"name":"One Arm Dumbbell Bench Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"One Arm Dumbbell Preacher Curl","muscles":["Biceps"]},{"name":"One Arm Floor Press","muscles":["Triceps","Chest","Shoulders"]},{"name":"One Arm Lat Pulldown","muscles":["Lats","Biceps","Middle Back"]},{"name":"One Arm Pronated Dumbbell Triceps Extension","muscles":["Triceps"]},{"name":"One Arm Supinated Dumbbell Triceps Extension","muscles":["Triceps"]},{"name":"One Half Locust","muscles":["Quadriceps","Abdominals","Biceps","Chest"]},{"name":"One Handed Hang","muscles":["Lats","Biceps"]},{"name":"One Knee To Chest","muscles":["Glutes","Hamstrings","Lower Back"]},{"name":"One Leg Barbell Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Open Palm Kettlebell Clean","muscles":["Hamstrings","Glutes","Lower Back","Quadriceps","Shoulders"]},{"name":"Otis-Up","muscles":["Abdominals","Chest","Shoulders","Triceps"]},{"name":"Overhead Cable Curl","muscles":["Biceps"]},{"name":"Overhead Lat","muscles":["Lats","Triceps"]},{"name":"Overhead Slam","muscles":["Lats"]},{"name":"Overhead Squat","muscles":["Quadriceps","Abdominals","Calves","Glutes","Hamstrings","Lower Back","Shoulders","Triceps"]},{"name":"Overhead Stretch","muscles":["Abdominals","Chest","Forearms","Lats","Triceps"]},{"name":"Overhead Triceps","muscles":["Triceps","Lats"]},{"name":"Pallof Press","muscles":["Abdominals","Chest","Shoulders","Triceps"]},{"name":"Pallof Press With Rotation","muscles":["Abdominals","Chest","Shoulders","Triceps"]},{"name":"Palms-Down Dumbbell Wrist Curl Over A Bench","muscles":["Forearms"]},{"name":"Palms-Down Wrist Curl Over A Bench","muscles":["Forearms"]},{"name":"Palms-Up Barbell Wrist Curl Over A Bench","muscles":["Forearms"]},{"name":"Palms-Up Dumbbell Wrist Curl Over A Bench","muscles":["Forearms"]},{"name":"Parallel Bar Dip","muscles":["Triceps","Chest","Shoulders"]},{"name":"Pelvic Tilt Into Bridge","muscles":["Lower Back"]},{"name":"Peroneals-SMR","muscles":["Calves"]},{"name":"Peroneals Stretch","muscles":["Calves"]},{"name":"Physioball Hip Bridge","muscles":["Glutes","Hamstrings"]},{"name":"Pin Presses","muscles":["Triceps","Chest","Forearms","Lats","Middle Back","Shoulders"]},{"name":"Piriformis-SMR","muscles":["Glutes"]},{"name":"Plank","muscles":["Abdominals"]},{"name":"Plate Pinch","muscles":["Forearms"]},{"name":"Plate Twist","muscles":["Abdominals"]},{"name":"Platform Hamstring Slides","muscles":["Hamstrings","Glutes"]},{"name":"Plie Dumbbell Squat","muscles":["Quadriceps","Abdominals","Calves","Glutes","Hamstrings"]},{"name":"Plyo Kettlebell Pushups","muscles":["Chest","Shoulders","Triceps"]},{"name":"Plyo Push-up","muscles":["Chest","Shoulders","Triceps"]},{"name":"Posterior Tibialis Stretch","muscles":["Calves"]},{"name":"Power Clean","muscles":["Hamstrings","Calves","Forearms","Glutes","Lower Back","Middle Back","Quadriceps","Shoulders","Traps","Triceps"]},{"name":"Power Clean from Blocks","muscles":["Hamstrings","Quadriceps"]},{"name":"Power Jerk","muscles":["Quadriceps","Abdominals","Calves","Glutes","Hamstrings","Shoulders","Triceps"]},{"name":"Power Partials","muscles":["Shoulders"]},{"name":"Power Snatch","muscles":["Hamstrings","Calves","Glutes","Lower Back","Quadriceps","Shoulders","Traps","Triceps"]},{"name":"Power Snatch from Blocks","muscles":["Quadriceps","Calves","Forearms","Glutes","Hamstrings","Lower Back","Shoulders","Traps","Triceps"]},{"name":"Power Stairs","muscles":["Hamstrings","Adductors","Calves","Glutes","Lower Back","Quadriceps","Shoulders","Traps"]},{"name":"Preacher Curl","muscles":["Biceps"]},{"name":"Preacher Hammer Dumbbell Curl","muscles":["Biceps","Forearms"]},{"name":"Press Sit-Up","muscles":["Abdominals","Chest","Shoulders","Triceps"]},{"name":"Prone Manual Hamstring","muscles":["Hamstrings"]},{"name":"Prowler Sprint","muscles":["Hamstrings","Calves","Chest","Glutes","Quadriceps","Shoulders"]},{"name":"Pull Through","muscles":["Glutes","Hamstrings","Lower Back"]},{"name":"Pullups","muscles":["Lats","Biceps","Middle Back"]},{"name":"Push-Up Wide","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"Push-Ups - Close Triceps Position","muscles":["Triceps","Chest","Shoulders"]},{"name":"Push-Ups With Feet Elevated","muscles":["Chest","Shoulders","Triceps"]},{"name":"Push-Ups With Feet On An Exercise Ball","muscles":["Chest","Shoulders","Triceps"]},{"name":"Push Press","muscles":["Shoulders","Quadriceps","Triceps"]},{"name":"Push Press - Behind the Neck","muscles":["Shoulders","Calves","Quadriceps","Triceps"]},{"name":"Push Up to Side Plank","muscles":["Chest","Abdominals","Shoulders","Triceps"]},{"name":"Pushups","muscles":["Chest","Shoulders","Triceps"]},{"name":"Pushups (Close and Wide Hand Positions)","muscles":["Chest","Shoulders","Triceps"]},{"name":"Pyramid","muscles":["Lower Back","Shoulders"]},{"name":"Quad Stretch","muscles":["Quadriceps"]},{"name":"Quadriceps-SMR","muscles":["Quadriceps"]},{"name":"Quick Leap","muscles":["Quadriceps","Calves","Hamstrings"]},{"name":"Rack Delivery","muscles":["Shoulders","Forearms","Traps"]},{"name":"Rack Pull with Bands","muscles":["Lower Back","Forearms","Glutes","Hamstrings","Quadriceps","Traps"]},{"name":"Rack Pulls","muscles":["Lower Back","Forearms","Glutes","Hamstrings","Traps"]},{"name":"Rear Leg Raises","muscles":["Quadriceps"]},{"name":"Recumbent Bike","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Return Push from Stance","muscles":["Shoulders","Chest","Triceps"]},{"name":"Reverse Band Bench Press","muscles":["Triceps","Chest","Forearms","Lats","Middle Back","Shoulders"]},{"name":"Reverse Band Box Squat","muscles":["Quadriceps","Abductors","Adductors","Calves","Forearms","Glutes","Hamstrings","Lower Back"]},{"name":"Reverse Band Deadlift","muscles":["Lower Back","Abductors","Adductors","Calves","Glutes","Hamstrings","Quadriceps"]},{"name":"Reverse Band Power Squat","muscles":["Quadriceps","Adductors","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Reverse Band Sumo Deadlift","muscles":["Hamstrings","Abductors","Adductors","Calves","Forearms","Glutes","Lower Back","Quadriceps","Traps"]},{"name":"Reverse Barbell Curl","muscles":["Biceps","Forearms"]},{"name":"Reverse Barbell Preacher Curls","muscles":["Biceps","Forearms"]},{"name":"Reverse Cable Curl","muscles":["Biceps","Forearms"]},{"name":"Reverse Crunch","muscles":["Abdominals"]},{"name":"Reverse Flyes","muscles":["Shoulders"]},{"name":"Reverse Flyes With External Rotation","muscles":["Shoulders"]},{"name":"Reverse Grip Bent-Over Rows","muscles":["Middle Back","Biceps","Lats","Shoulders"]},{"name":"Reverse Grip Triceps Pushdown","muscles":["Triceps"]},{"name":"Reverse Hyperextension","muscles":["Hamstrings","Calves","Glutes"]},{"name":"Reverse Machine Flyes","muscles":["Shoulders"]},{"name":"Reverse Plate Curls","muscles":["Biceps","Forearms"]},{"name":"Reverse Triceps Bench Press","muscles":["Triceps","Chest","Shoulders"]},{"name":"Rhomboids-SMR","muscles":["Middle Back","Traps"]},{"name":"Rickshaw Carry","muscles":["Forearms","Abdominals","Calves","Glutes","Hamstrings","Lower Back","Quadriceps","Traps"]},{"name":"Rickshaw Deadlift","muscles":["Quadriceps","Forearms","Glutes","Hamstrings","Lower Back","Traps"]},{"name":"Ring Dips","muscles":["Triceps","Chest","Shoulders"]},{"name":"Rocket Jump","muscles":["Quadriceps","Calves","Hamstrings"]},{"name":"Rocking Standing Calf Raise","muscles":["Calves"]},{"name":"Rocky Pull-Ups/Pulldowns","muscles":["Lats","Biceps","Middle Back","Shoulders"]},{"name":"Romanian Deadlift","muscles":["Hamstrings","Calves","Glutes","Lower Back"]},{"name":"Romanian Deadlift from Deficit","muscles":["Hamstrings","Forearms","Glutes","Lower Back","Traps"]},{"name":"Rope Climb","muscles":["Lats","Biceps","Forearms","Middle Back","Shoulders"]},{"name":"Rope Crunch","muscles":["Abdominals"]},{"name":"Rope Jumping","muscles":["Quadriceps","Calves","Hamstrings"]},{"name":"Rope Straight-Arm Pulldown","muscles":["Lats"]},{"name":"Round The World Shoulder Stretch","muscles":["Shoulders","Biceps","Chest"]},{"name":"Rowing, Stationary","muscles":["Quadriceps","Biceps","Calves","Glutes","Hamstrings","Lower Back","Middle Back"]},{"name":"Runner's Stretch","muscles":["Hamstrings","Calves"]},{"name":"Running, Treadmill","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Russian Twist","muscles":["Abdominals","Lower Back"]},{"name":"Sandbag Load","muscles":["Quadriceps","Abdominals","Biceps","Calves","Forearms","Glutes","Hamstrings","Lower Back","Middle Back","Shoulders","Traps"]},{"name":"Scapular Pull-Up","muscles":["Traps","Lats","Middle Back"]},{"name":"Scissor Kick","muscles":["Abdominals"]},{"name":"Scissors Jump","muscles":["Quadriceps","Glutes","Hamstrings"]},{"name":"Seated Band Hamstring Curl","muscles":["Hamstrings"]},{"name":"Seated Barbell Military Press","muscles":["Shoulders","Triceps"]},{"name":"Seated Barbell Twist","muscles":["Abdominals"]},{"name":"Seated Bent-Over One-Arm Dumbbell Triceps Extension","muscles":["Triceps"]},{"name":"Seated Bent-Over Rear Delt Raise","muscles":["Shoulders"]},{"name":"Seated Bent-Over Two-Arm Dumbbell Triceps Extension","muscles":["Triceps"]},{"name":"Seated Biceps","muscles":["Biceps","Chest","Shoulders"]},{"name":"Seated Cable Rows","muscles":["Middle Back","Biceps","Lats","Shoulders"]},{"name":"Seated Cable Shoulder Press","muscles":["Shoulders","Triceps"]},{"name":"Seated Calf Raise","muscles":["Calves"]},{"name":"Seated Calf Stretch","muscles":["Calves","Hamstrings","Lower Back"]},{"name":"Seated Close-Grip Concentration Barbell Curl","muscles":["Biceps"]},{"name":"Seated Dumbbell Curl","muscles":["Biceps"]},{"name":"Seated Dumbbell Inner Biceps Curl","muscles":["Biceps"]},{"name":"Seated Dumbbell Palms-Down Wrist Curl","muscles":["Forearms"]},{"name":"Seated Dumbbell Palms-Up Wrist Curl","muscles":["Forearms"]},{"name":"Seated Dumbbell Press","muscles":["Shoulders","Triceps"]},{"name":"Seated Flat Bench Leg Pull-In","muscles":["Abdominals"]},{"name":"Seated Floor Hamstring Stretch","muscles":["Hamstrings","Calves"]},{"name":"Seated Front Deltoid","muscles":["Shoulders","Chest"]},{"name":"Seated Glute","muscles":["Glutes","Adductors"]},{"name":"Seated Good Mornings","muscles":["Lower Back","Glutes"]},{"name":"Seated Hamstring","muscles":["Hamstrings","Calves"]},{"name":"Seated Hamstring and Calf Stretch","muscles":["Hamstrings","Calves"]},{"name":"Seated Head Harness Neck Resistance","muscles":["Neck"]},{"name":"Seated Leg Curl","muscles":["Hamstrings"]},{"name":"Seated Leg Tucks","muscles":["Abdominals"]},{"name":"Seated One-Arm Dumbbell Palms-Down Wrist Curl","muscles":["Forearms"]},{"name":"Seated One-Arm Dumbbell Palms-Up Wrist Curl","muscles":["Forearms"]},{"name":"Seated One-arm Cable Pulley Rows","muscles":["Middle Back","Biceps","Lats","Traps"]},{"name":"Seated Overhead Stretch","muscles":["Abdominals"]},{"name":"Seated Palm-Up Barbell Wrist Curl","muscles":["Forearms"]},{"name":"Seated Palms-Down Barbell Wrist Curl","muscles":["Forearms"]},{"name":"Seated Side Lateral Raise","muscles":["Shoulders"]},{"name":"Seated Triceps Press","muscles":["Triceps"]},{"name":"Seated Two-Arm Palms-Up Low-Pulley Wrist Curl","muscles":["Forearms"]},{"name":"See-Saw Press (Alternating Side Press)","muscles":["Shoulders","Abdominals","Triceps"]},{"name":"Shotgun Row","muscles":["Lats","Biceps","Middle Back"]},{"name":"Shoulder Circles","muscles":["Shoulders","Traps"]},{"name":"Shoulder Press - With Bands","muscles":["Shoulders","Triceps"]},{"name":"Shoulder Raise","muscles":["Shoulders","Lats"]},{"name":"Shoulder Stretch","muscles":["Shoulders"]},{"name":"Side-Lying Floor Stretch","muscles":["Lats"]},{"name":"Side Bridge","muscles":["Abdominals","Shoulders"]},{"name":"Side Hop-Sprint","muscles":["Quadriceps","Abductors","Adductors","Calves","Hamstrings"]},{"name":"Side Jackknife","muscles":["Abdominals"]},{"name":"Side Lateral Raise","muscles":["Shoulders"]},{"name":"Side Laterals to Front Raise","muscles":["Shoulders","Traps"]},{"name":"Side Leg Raises","muscles":["Adductors"]},{"name":"Side Lying Groin Stretch","muscles":["Adductors","Hamstrings"]},{"name":"Side Neck Stretch","muscles":["Neck"]},{"name":"Side Standing Long Jump","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Side To Side Chins","muscles":["Lats","Biceps","Forearms","Middle Back","Shoulders"]},{"name":"Side Wrist Pull","muscles":["Shoulders","Forearms","Lats"]},{"name":"Side to Side Box Shuffle","muscles":["Quadriceps","Abductors","Adductors","Calves","Hamstrings"]},{"name":"Single-Arm Cable Crossover","muscles":["Chest"]},{"name":"Single-Arm Linear Jammer","muscles":["Shoulders","Chest","Triceps"]},{"name":"Single-Arm Push-Up","muscles":["Chest","Shoulders","Triceps"]},{"name":"Single-Cone Sprint Drill","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Single-Leg High Box Squat","muscles":["Quadriceps","Glutes","Hamstrings"]},{"name":"Single-Leg Hop Progression","muscles":["Quadriceps","Abductors","Adductors","Calves","Hamstrings"]},{"name":"Single-Leg Lateral Hop","muscles":["Quadriceps","Abductors","Adductors","Calves","Hamstrings"]},{"name":"Single-Leg Leg Extension","muscles":["Quadriceps"]},{"name":"Single-Leg Stride Jump","muscles":["Quadriceps","Abductors","Adductors","Calves","Hamstrings"]},{"name":"Single Dumbbell Raise","muscles":["Shoulders","Forearms","Traps"]},{"name":"Single Leg Butt Kick","muscles":["Quadriceps","Calves","Hamstrings"]},{"name":"Single Leg Glute Bridge","muscles":["Glutes","Hamstrings"]},{"name":"Single Leg Push-off","muscles":["Quadriceps","Calves","Hamstrings"]},{"name":"Sit-Up","muscles":["Abdominals"]},{"name":"Sit Squats","muscles":["Quadriceps","Abductors","Glutes","Hamstrings"]},{"name":"Skating","muscles":["Quadriceps","Abductors","Adductors","Calves","Glutes","Hamstrings"]},{"name":"Sled Drag - Harness","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Sled Overhead Backward Walk","muscles":["Shoulders","Calves","Middle Back","Quadriceps"]},{"name":"Sled Overhead Triceps Extension","muscles":["Triceps"]},{"name":"Sled Push","muscles":["Quadriceps","Calves","Chest","Glutes","Hamstrings","Triceps"]},{"name":"Sled Reverse Flye","muscles":["Shoulders"]},{"name":"Sled Row","muscles":["Middle Back","Biceps","Lats"]},{"name":"Sledgehammer Swings","muscles":["Abdominals","Calves","Forearms","Lats","Middle Back","Shoulders"]},{"name":"Smith Incline Shoulder Raise","muscles":["Shoulders","Chest"]},{"name":"Smith Machine Behind the Back Shrug","muscles":["Traps","Shoulders"]},{"name":"Smith Machine Bench Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Smith Machine Bent Over Row","muscles":["Middle Back","Biceps","Lats","Shoulders"]},{"name":"Smith Machine Calf Raise","muscles":["Calves"]},{"name":"Smith Machine Close-Grip Bench Press","muscles":["Triceps","Chest","Shoulders"]},{"name":"Smith Machine Decline Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Smith Machine Hang Power Clean","muscles":["Hamstrings","Glutes","Lower Back","Quadriceps","Shoulders","Traps"]},{"name":"Smith Machine Hip Raise","muscles":["Abdominals"]},{"name":"Smith Machine Incline Bench Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Smith Machine Leg Press","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Smith Machine One-Arm Upright Row","muscles":["Shoulders","Biceps","Traps"]},{"name":"Smith Machine Overhead Shoulder Press","muscles":["Shoulders","Triceps"]},{"name":"Smith Machine Pistol Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Smith Machine Reverse Calf Raises","muscles":["Calves"]},{"name":"Smith Machine Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Smith Machine Stiff-Legged Deadlift","muscles":["Hamstrings","Glutes","Lower Back"]},{"name":"Smith Machine Upright Row","muscles":["Traps","Biceps","Middle Back","Shoulders"]},{"name":"Smith Single-Leg Split Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Snatch","muscles":["Quadriceps","Biceps","Glutes","Hamstrings","Lower Back","Shoulders","Traps","Triceps"]},{"name":"Snatch Balance","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Shoulders","Triceps"]},{"name":"Snatch Deadlift","muscles":["Hamstrings","Forearms","Glutes","Lower Back","Quadriceps","Traps"]},{"name":"Snatch Pull","muscles":["Hamstrings","Calves","Glutes","Lower Back","Quadriceps","Traps"]},{"name":"Snatch Shrug","muscles":["Traps","Forearms","Shoulders"]},{"name":"Snatch from Blocks","muscles":["Quadriceps","Calves","Forearms","Glutes","Hamstrings","Lower Back","Shoulders","Traps","Triceps"]},{"name":"Speed Band Overhead Triceps","muscles":["Triceps"]},{"name":"Speed Box Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Speed Squats","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Spell Caster","muscles":["Abdominals","Glutes","Shoulders"]},{"name":"Spider Crawl","muscles":["Abdominals","Chest","Shoulders","Triceps"]},{"name":"Spider Curl","muscles":["Biceps"]},{"name":"Spinal Stretch","muscles":["Middle Back","Lats","Lower Back","Neck","Traps"]},{"name":"Split Clean","muscles":["Quadriceps","Calves","Forearms","Glutes","Hamstrings","Lower Back","Shoulders","Traps"]},{"name":"Split Jerk","muscles":["Quadriceps","Glutes","Hamstrings","Shoulders","Triceps"]},{"name":"Split Jump","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Split Snatch","muscles":["Hamstrings","Calves","Forearms","Glutes","Lower Back","Quadriceps","Shoulders","Traps","Triceps"]},{"name":"Split Squat with Dumbbells","muscles":["Quadriceps","Glutes","Hamstrings"]},{"name":"Split Squats","muscles":["Hamstrings","Calves","Glutes","Quadriceps"]},{"name":"Squat Jerk","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Shoulders","Triceps"]},{"name":"Squat with Bands","muscles":["Quadriceps","Adductors","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Squat with Chains","muscles":["Quadriceps","Adductors","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Squat with Plate Movers","muscles":["Quadriceps","Abductors","Adductors","Calves","Glutes","Hamstrings"]},{"name":"Squats - With Bands","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Stairmaster","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Standing Alternating Dumbbell Press","muscles":["Shoulders","Triceps"]},{"name":"Standing Barbell Calf Raise","muscles":["Calves"]},{"name":"Standing Barbell Press Behind Neck","muscles":["Shoulders","Triceps"]},{"name":"Standing Bent-Over One-Arm Dumbbell Triceps Extension","muscles":["Triceps","Shoulders"]},{"name":"Standing Bent-Over Two-Arm Dumbbell Triceps Extension","muscles":["Triceps"]},{"name":"Standing Biceps Cable Curl","muscles":["Biceps"]},{"name":"Standing Biceps Stretch","muscles":["Biceps","Chest","Shoulders"]},{"name":"Standing Bradford Press","muscles":["Shoulders","Triceps"]},{"name":"Standing Cable Chest Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Standing Cable Lift","muscles":["Abdominals","Shoulders"]},{"name":"Standing Cable Wood Chop","muscles":["Abdominals","Shoulders"]},{"name":"Standing Calf Raises","muscles":["Calves"]},{"name":"Standing Concentration Curl","muscles":["Biceps","Forearms"]},{"name":"Standing Dumbbell Calf Raise","muscles":["Calves"]},{"name":"Standing Dumbbell Press","muscles":["Shoulders","Triceps"]},{"name":"Standing Dumbbell Reverse Curl","muscles":["Biceps","Forearms"]},{"name":"Standing Dumbbell Straight-Arm Front Delt Raise Above Head","muscles":["Shoulders"]},{"name":"Standing Dumbbell Triceps Extension","muscles":["Triceps"]},{"name":"Standing Dumbbell Upright Row","muscles":["Traps","Biceps","Shoulders"]},{"name":"Standing Elevated Quad Stretch","muscles":["Quadriceps"]},{"name":"Standing Front Barbell Raise Over Head","muscles":["Shoulders"]},{"name":"Standing Gastrocnemius Calf Stretch","muscles":["Calves","Hamstrings"]},{"name":"Standing Hamstring and Calf Stretch","muscles":["Hamstrings"]},{"name":"Standing Hip Circles","muscles":["Abductors","Adductors"]},{"name":"Standing Hip Flexors","muscles":["Quadriceps"]},{"name":"Standing Inner-Biceps Curl","muscles":["Biceps"]},{"name":"Standing Lateral Stretch","muscles":["Abdominals"]},{"name":"Standing Leg Curl","muscles":["Hamstrings"]},{"name":"Standing Long Jump","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Standing Low-Pulley Deltoid Raise","muscles":["Shoulders","Forearms"]},{"name":"Standing Low-Pulley One-Arm Triceps Extension","muscles":["Triceps","Chest","Shoulders"]},{"name":"Standing Military Press","muscles":["Shoulders","Triceps"]},{"name":"Standing Olympic Plate Hand Squeeze","muscles":["Forearms","Biceps"]},{"name":"Standing One-Arm Cable Curl","muscles":["Biceps"]},{"name":"Standing One-Arm Dumbbell Curl Over Incline Bench","muscles":["Biceps"]},{"name":"Standing One-Arm Dumbbell Triceps Extension","muscles":["Triceps","Chest","Shoulders"]},{"name":"Standing Overhead Barbell Triceps Extension","muscles":["Triceps","Shoulders"]},{"name":"Standing Palm-In One-Arm Dumbbell Press","muscles":["Shoulders","Triceps"]},{"name":"Standing Palms-In Dumbbell Press","muscles":["Shoulders","Triceps"]},{"name":"Standing Palms-Up Barbell Behind The Back Wrist Curl","muscles":["Forearms"]},{"name":"Standing Pelvic Tilt","muscles":["Lower Back","Glutes"]},{"name":"Standing Rope Crunch","muscles":["Abdominals"]},{"name":"Standing Soleus And Achilles Stretch","muscles":["Calves"]},{"name":"Standing Toe Touches","muscles":["Hamstrings","Calves"]},{"name":"Standing Towel Triceps Extension","muscles":["Triceps"]},{"name":"Standing Two-Arm Overhead Throw","muscles":["Shoulders","Chest","Lats"]},{"name":"Star Jump","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Shoulders"]},{"name":"Step-up with Knee Raise","muscles":["Glutes","Hamstrings","Quadriceps"]},{"name":"Step Mill","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Stiff-Legged Barbell Deadlift","muscles":["Hamstrings","Glutes","Lower Back"]},{"name":"Stiff-Legged Dumbbell Deadlift","muscles":["Hamstrings","Glutes","Lower Back"]},{"name":"Stiff Leg Barbell Good Morning","muscles":["Lower Back","Glutes","Hamstrings"]},{"name":"Stomach Vacuum","muscles":["Abdominals"]},{"name":"Straight-Arm Dumbbell Pullover","muscles":["Chest","Lats","Shoulders","Triceps"]},{"name":"Straight-Arm Pulldown","muscles":["Lats"]},{"name":"Straight Bar Bench Mid Rows","muscles":["Middle Back","Biceps","Lats"]},{"name":"Straight Raises on Incline Bench","muscles":["Shoulders","Traps"]},{"name":"Stride Jump Crossover","muscles":["Quadriceps","Abductors","Adductors","Calves","Hamstrings"]},{"name":"Sumo Deadlift","muscles":["Hamstrings","Adductors","Forearms","Glutes","Lower Back","Middle Back","Quadriceps","Traps"]},{"name":"Sumo Deadlift with Bands","muscles":["Hamstrings","Adductors","Forearms","Glutes","Lower Back","Middle Back","Quadriceps","Traps"]},{"name":"Sumo Deadlift with Chains","muscles":["Hamstrings","Abductors","Adductors","Forearms","Glutes","Lower Back","Middle Back","Quadriceps","Traps"]},{"name":"Superman","muscles":["Lower Back","Glutes","Hamstrings"]},{"name":"Supine Chest Throw","muscles":["Triceps","Chest","Shoulders"]},{"name":"Supine One-Arm Overhead Throw","muscles":["Abdominals","Chest","Lats","Shoulders"]},{"name":"Supine Two-Arm Overhead Throw","muscles":["Abdominals","Chest","Lats","Shoulders"]},{"name":"Suspended Fallout","muscles":["Abdominals","Chest","Lower Back","Shoulders"]},{"name":"Suspended Push-Up","muscles":["Chest","Shoulders","Triceps"]},{"name":"Suspended Reverse Crunch","muscles":["Abdominals"]},{"name":"Suspended Row","muscles":["Middle Back","Biceps","Lats"]},{"name":"Suspended Split Squat","muscles":["Quadriceps","Abductors","Adductors","Calves","Glutes","Hamstrings"]},{"name":"Svend Press","muscles":["Chest","Forearms","Shoulders","Triceps"]},{"name":"T-Bar Row with Handle","muscles":["Middle Back","Biceps","Lats"]},{"name":"Tate Press","muscles":["Triceps","Chest","Shoulders"]},{"name":"The Straddle","muscles":["Hamstrings","Adductors","Calves"]},{"name":"Thigh Abductor","muscles":["Abductors","Glutes"]},{"name":"Thigh Adductor","muscles":["Adductors","Glutes","Hamstrings"]},{"name":"Tire Flip","muscles":["Quadriceps","Calves","Chest","Forearms","Glutes","Hamstrings","Lower Back","Shoulders","Traps","Triceps"]},{"name":"Toe Touchers","muscles":["Abdominals"]},{"name":"Torso Rotation","muscles":["Abdominals"]},{"name":"Trail Running/Walking","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Trap Bar Deadlift","muscles":["Quadriceps","Glutes","Hamstrings"]},{"name":"Tricep Dumbbell Kickback","muscles":["Triceps"]},{"name":"Tricep Side Stretch","muscles":["Triceps","Shoulders"]},{"name":"Triceps Overhead Extension with Rope","muscles":["Triceps"]},{"name":"Triceps Pushdown","muscles":["Triceps"]},{"name":"Triceps Pushdown - Rope Attachment","muscles":["Triceps"]},{"name":"Triceps Pushdown - V-Bar Attachment","muscles":["Triceps"]},{"name":"Triceps Stretch","muscles":["Triceps","Lats"]},{"name":"Tuck Crunch","muscles":["Abdominals"]},{"name":"Two-Arm Dumbbell Preacher Curl","muscles":["Biceps"]},{"name":"Two-Arm Kettlebell Clean","muscles":["Shoulders","Calves","Glutes","Hamstrings","Lower Back","Traps"]},{"name":"Two-Arm Kettlebell Jerk","muscles":["Shoulders","Calves","Quadriceps","Triceps"]},{"name":"Two-Arm Kettlebell Military Press","muscles":["Shoulders","Triceps"]},{"name":"Two-Arm Kettlebell Row","muscles":["Middle Back","Biceps","Lats"]},{"name":"Underhand Cable Pulldowns","muscles":["Lats","Biceps","Middle Back","Shoulders"]},{"name":"Upper Back-Leg Grab","muscles":["Hamstrings","Lower Back","Middle Back"]},{"name":"Upper Back Stretch","muscles":["Middle Back"]},{"name":"Upright Barbell Row","muscles":["Shoulders","Traps"]},{"name":"Upright Cable Row","muscles":["Traps","Shoulders"]},{"name":"Upright Row - With Bands","muscles":["Traps","Shoulders"]},{"name":"Upward Stretch","muscles":["Shoulders","Chest","Lats"]},{"name":"V-Bar Pulldown","muscles":["Lats","Biceps","Middle Back","Shoulders"]},{"name":"V-Bar Pullup","muscles":["Lats","Biceps","Middle Back","Shoulders"]},{"name":"Vertical Swing","muscles":["Hamstrings","Glutes","Quadriceps","Shoulders"]},{"name":"Walking, Treadmill","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Weighted Ball Hyperextension","muscles":["Lower Back","Glutes","Hamstrings","Middle Back"]},{"name":"Weighted Ball Side Bend","muscles":["Abdominals"]},{"name":"Weighted Bench Dip","muscles":["Triceps","Chest","Shoulders"]},{"name":"Weighted Crunches","muscles":["Abdominals"]},{"name":"Weighted Jump Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Weighted Pull Ups","muscles":["Lats","Biceps","Middle Back"]},{"name":"Weighted Sissy Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Weighted Sit-Ups - With Bands","muscles":["Abdominals"]},{"name":"Weighted Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Wide-Grip Barbell Bench Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Wide-Grip Decline Barbell Bench Press","muscles":["Chest","Shoulders","Triceps"]},{"name":"Wide-Grip Decline Barbell Pullover","muscles":["Chest","Shoulders","Triceps"]},{"name":"Wide-Grip Lat Pulldown","muscles":["Lats","Biceps","Middle Back","Shoulders"]},{"name":"Wide-Grip Pulldown Behind The Neck","muscles":["Lats","Biceps","Middle Back","Shoulders"]},{"name":"Wide-Grip Rear Pull-Up","muscles":["Lats","Biceps","Middle Back","Shoulders"]},{"name":"Wide-Grip Standing Barbell Curl","muscles":["Biceps"]},{"name":"Wide Stance Barbell Squat","muscles":["Quadriceps","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Wide Stance Stiff Legs","muscles":["Hamstrings","Adductors","Glutes","Lower Back"]},{"name":"Wind Sprints","muscles":["Abdominals"]},{"name":"Windmills","muscles":["Abductors","Glutes","Hamstrings","Lower Back"]},{"name":"World's Greatest Stretch","muscles":["Hamstrings","Calves","Glutes","Quadriceps"]},{"name":"Wrist Circles","muscles":["Forearms"]},{"name":"Wrist Roller","muscles":["Forearms","Shoulders"]},{"name":"Wrist Rotations with Straight Bar","muscles":["Forearms"]},{"name":"Yoke Walk","muscles":["Quadriceps","Abdominals","Abductors","Adductors","Calves","Glutes","Hamstrings","Lower Back"]},{"name":"Zercher Squats","muscles":["Quadriceps","Calves","Glutes","Hamstrings"]},{"name":"Zottman Curl","muscles":["Biceps","Forearms"]},{"name":"Zottman Preacher Curl","muscles":["Biceps","Forearms"]}];
+const FS_SUPPLEMENTAL_EXERCISES=[
+  {name:'Push-Up',muscles:['Chest','Triceps','Shoulders','Abdominals']},
+  {name:'Pull-Up',muscles:['Lats','Biceps','Middle Back']},
+  {name:'Overhead Press',muscles:['Shoulders','Triceps','Abdominals']},
+  {name:'Burpee',muscles:['Quadriceps','Glutes','Chest','Shoulders','Abdominals','Calves']},
+  {name:'Jumping Jack',muscles:['Calves','Shoulders','Abdominals']},
+  {name:'Wall Sit',muscles:['Quadriceps','Glutes']},
+  {name:'Kettlebell Swing',muscles:['Glutes','Hamstrings','Lower Back','Shoulders','Abdominals']},
+  {name:'Calf Raise',muscles:['Calves']},
+];
+const FS_ALL_MUSCLE_ENTRIES=[...FS_MUSCLE_DB,...FS_SUPPLEMENTAL_EXERCISES];
+
+/* Broad alias list — common/casual names mapped to a verified canonical
+   entry above. Checked against the actual dataset rather than guessed;
+   a few common terms (push-ups, burpees, etc.) route to the hand-authored
+   supplemental list above since the dataset itself lacks a plain entry. */
+const FS_EXERCISE_ALIASES={
+  'air squat':'Bodyweight Squat','air squats':'Bodyweight Squat','bodyweight squats':'Bodyweight Squat','freehand squat':'Bodyweight Squat','squat':'Bodyweight Squat','squats':'Bodyweight Squat',
+  'push up':'Push-Up','push ups':'Push-Up','pushup':'Push-Up','pushups':'Push-Up','press up':'Push-Up','press ups':'Push-Up',
+  'pull up':'Pull-Up','pull ups':'Pull-Up','pullup':'Pull-Up','pullups':'Pull-Up',
+  'chin up':'Chin-Up','chinup':'Chin-Up','chin ups':'Chin-Up','chinups':'Chin-Up',
+  'ohp':'Overhead Press','overhead press':'Overhead Press','shoulder press':'Overhead Press','military press':'Overhead Press','standing press':'Overhead Press',
+  'rdl':'Romanian Deadlift','romanian deadlift':'Romanian Deadlift','romanian deadlifts':'Romanian Deadlift',
+  'deadlift':'Barbell Deadlift','deadlifts':'Barbell Deadlift','dl':'Barbell Deadlift',
+  'bicep curl':'Dumbbell Bicep Curl','bicep curls':'Dumbbell Bicep Curl','curls':'Dumbbell Bicep Curl','arm curls':'Dumbbell Bicep Curl','dumbbell curls':'Dumbbell Bicep Curl',
+  'tricep pushdown':'Triceps Pushdown','tricep pushdowns':'Triceps Pushdown','cable pushdown':'Triceps Pushdown','pushdowns':'Triceps Pushdown','triceps pushdowns':'Triceps Pushdown',
+  'lat pulldown':'Wide-Grip Lat Pulldown','lat pulldowns':'Wide-Grip Lat Pulldown','pulldown':'Wide-Grip Lat Pulldown','pulldowns':'Wide-Grip Lat Pulldown',
+  'burpee':'Burpee','burpees':'Burpee',
+  'jumping jack':'Jumping Jack','jumping jacks':'Jumping Jack','star jumps':'Jumping Jack',
+  'kettlebell swing':'Kettlebell Swing','kettlebell swings':'Kettlebell Swing','kb swing':'Kettlebell Swing','kb swings':'Kettlebell Swing',
+  'farmer carry':"Farmer's Walk",'farmers carry':"Farmer's Walk",'farmers walk':"Farmer's Walk",'loaded carry':"Farmer's Walk",'loaded carries':"Farmer's Walk",
+  'hip thrust':'Barbell Hip Thrust','hip thrusts':'Barbell Hip Thrust',
+  'glute bridge':'Barbell Glute Bridge','glute bridges':'Barbell Glute Bridge','bridges':'Barbell Glute Bridge','bridge':'Barbell Glute Bridge',
+  'lunge':'Bodyweight Walking Lunge','lunges':'Bodyweight Walking Lunge','walking lunges':'Bodyweight Walking Lunge','bodyweight lunges':'Bodyweight Walking Lunge',
+  'plank':'Plank','planks':'Plank',
+  'situp':'Sit-Up','situps':'Sit-Up','sit up':'Sit-Up','sit ups':'Sit-Up',
+  'crunch':'Crunches','crunches':'Crunches',
+  'mountain climber':'Mountain Climbers','mountain climbers':'Mountain Climbers',
+  'bench press':'Barbell Bench Press - Medium Grip','bench':'Barbell Bench Press - Medium Grip','flat bench':'Barbell Bench Press - Medium Grip',
+  'dumbbell row':'One-Arm Dumbbell Row','db row':'One-Arm Dumbbell Row','one arm row':'One-Arm Dumbbell Row',
+  'box jump':'Front Box Jump','box jumps':'Front Box Jump',
+  'wall sit':'Wall Sit','wall sits':'Wall Sit',
+  'calf raise':'Calf Raise','calf raises':'Calf Raise',
+  'step up':'Dumbbell Step Ups','step ups':'Dumbbell Step Ups',
+  'goblet squat':'Goblet Squat','goblet squats':'Goblet Squat',
+  'dip':'Dips - Triceps Version','dips':'Dips - Triceps Version','tricep dip':'Dips - Triceps Version','tricep dips':'Dips - Triceps Version','triceps dip':'Dips - Triceps Version',
+};
+
+function fsNormalizeExName(s){return (s||'').toLowerCase().trim().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ');}
+function fsTokenScore(a,b){
+  const at=new Set(fsNormalizeExName(a).split(' ').filter(Boolean));
+  const bt=new Set(fsNormalizeExName(b).split(' ').filter(Boolean));
+  if(!at.size||!bt.size)return 0;
+  let shared=0;for(const x of at)if(bt.has(x))shared++;
+  return shared/Math.max(at.size,bt.size);
+}
+/* Main lookup. Checks in order: FitnSmart's own library (best — links to
+   real photos/cues) -> alias table -> exact dataset name -> fuzzy match.
+   Returns {matched:true, source, name, muscles, exId?} for a confident
+   hit, or {matched:false, candidates:[...]} to prompt a pick. */
+function fsMatchExerciseName(text){
+  const norm=fsNormalizeExName(text);
+  if(!norm)return {matched:false,candidates:[]};
+  // 1) FitnSmart's own exercise library — exact or near-exact name match
+  for(const ex of Object.values(EXERCISES)){
+    if(fsNormalizeExName(ex.name)===norm) return {matched:true,source:'fitnsmart',name:ex.name,muscles:ex.muscles||[],exId:ex.id};
+  }
+  // 2) alias table
+  if(FS_EXERCISE_ALIASES[norm]){
+    const canon=FS_EXERCISE_ALIASES[norm];
+    const entry=FS_ALL_MUSCLE_ENTRIES.find(e=>e.name===canon);
+    if(entry)return {matched:true,source:'alias',name:entry.name,muscles:entry.muscles};
+  }
+  // 3) exact name match against the full dataset
+  const exact=FS_ALL_MUSCLE_ENTRIES.find(e=>fsNormalizeExName(e.name)===norm);
+  if(exact)return {matched:true,source:'dataset',name:exact.name,muscles:exact.muscles};
+  // 4) fuzzy — score every candidate, return top 5 for the user to pick from
+  const scored=FS_ALL_MUSCLE_ENTRIES.map(e=>({e,score:fsTokenScore(norm,e.name)}))
+    .filter(o=>o.score>0.3).sort((a,b)=>b.score-a.score).slice(0,5);
+  if(scored.length===1 && scored[0].score>=0.75) return {matched:true,source:'fuzzy',name:scored[0].e.name,muscles:scored[0].e.muscles};
+  return {matched:false,candidates:scored.map(o=>({name:o.e.name,muscles:o.e.muscles}))};
+}
+
+/* ---- Multi-exercise quick log (added to the custom-activity flow) ---- */
+state.ui.quickLogItems=state.ui.quickLogItems||[];
+function fsQuickLogAddAttempt(){
+  const name=document.querySelector('#ql-name')?.value?.trim();
+  const sets=document.querySelector('#ql-sets')?.value||'';
+  const reps=document.querySelector('#ql-reps')?.value||'';
+  if(!name)return;
+  const result=fsMatchExerciseName(name);
+  if(result.matched){
+    state.ui.quickLogItems.push({name:result.name,muscles:result.muscles,sets,reps,typedAs:name});
+    state.ui.sheet={name:'manualLogV10'}; render();
+    setTimeout(()=>{const el=document.querySelector('#ql-name');if(el)el.value='';},0);
+  } else if(result.candidates.length){
+    state.ui._pendingQuickLog={name,sets,reps};
+    state.ui.sheet={name:'quickLogPick',data:{candidates:result.candidates}};
+    render();
+  } else {
+    toast(`No close match for "${name}" — try a different name or spelling.`);
+  }
+}
+function fsQuickLogPick(name){
+  const entry=FS_ALL_MUSCLE_ENTRIES.find(e=>e.name===name);
+  const pending=state.ui._pendingQuickLog||{};
+  state.ui.quickLogItems.push({name,muscles:entry?.muscles||[],sets:pending.sets,reps:pending.reps,typedAs:pending.name});
+  state.ui._pendingQuickLog=null;
+  state.ui.sheet={name:'manualLogV10'}; render();
+}
+function fsQuickLogRemove(idx){ state.ui.quickLogItems.splice(idx,1); render(); }
+function fsQuickLogMuscleSummary(){
+  const tally={};
+  for(const item of state.ui.quickLogItems)for(const m of item.muscles)tally[m]=(tally[m]||0)+1;
+  return Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+}
+
+const fsV18SheetBase=renderSheet;
+renderSheet=function(){
+  const s=state.ui.sheet;
+  if(s?.name==='quickLogPick'){
+    const {candidates}=s.data;
+    return `<div class="sheet-backdrop" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sheet-head"><div><h2>Which one did you mean?</h2><div class="subtle">No exact match — pick the closest.</div></div><button class="icon-btn" onclick="closeSheet()">×</button></div>${candidates.map(c=>`<button class="option" style="width:100%;color:var(--text);text-align:left" onclick="fsQuickLogPick('${c.name.replace(/'/g,"\\'")}')"><div><strong>${esc(c.name)}</strong><div class="subtle small" style="margin-top:3px">${esc(c.muscles.join(', '))}</div></div><span>›</span></button>`).join('')}</div></div>`;
+  }
+  let html=fsV18SheetBase();
+  if(s?.name==='manualLogV10'){
+    const items=state.ui.quickLogItems, summary=fsQuickLogMuscleSummary();
+    const block=`<div class="section-head section"><h3>Exercises performed</h3></div>
+      ${items.length?items.map((it,i)=>`<div class="profile-row"><div><strong>${esc(it.name)}</strong><div class="subtle small">${esc(it.sets||'?')}×${esc(it.reps||'?')} · ${esc(it.muscles.join(', '))}</div></div><button class="ghost-btn" onclick="fsQuickLogRemove(${i})">Remove</button></div>`).join(''):'<p class="subtle small">Add each exercise you did — I\'ll figure out the muscles.</p>'}
+      <div class="input-row" style="margin-top:8px"><input id="ql-name" placeholder="Exercise name, e.g. air squats"><input id="ql-sets" placeholder="Sets" type="number" style="max-width:70px"><input id="ql-reps" placeholder="Reps" type="number" style="max-width:70px"></div>
+      <button class="secondary-btn section" style="width:100%" onclick="fsQuickLogAddAttempt()">+ Add exercise</button>
+      ${summary.length?`<div class="notice section"><strong>This session hit:</strong> ${summary.map(([m,c])=>`${esc(m)} (${c}×)`).join(', ')}</div>`:''}`;
+    html=html.replace('<button class="primary-btn section" onclick="fsSaveActivityV10()">Save activity</button>', block+'<button class="primary-btn section" onclick="fsSaveActivityV10()">Save activity</button>');
+  }
+  return html;
+};
+const fsV18SaveActivityBase=fsSaveActivityV10;
+fsSaveActivityV10=function(){
+  const items=[...state.ui.quickLogItems];
+  const before=state.history.length;
+  fsV18SaveActivityBase();
+  if(items.length && state.history.length>before){
+    const entry=state.history[state.history.length-1];
+    entry.customExercises=items;
+  }
+  state.ui.quickLogItems=[];
+};
+// Feed quick-logged exercises into the same muscle-balance tally the Coach already uses.
+const fsV18CoachReplyBase=fsCoachReply;
+fsCoachReply=function(text){
+  const t=text.toLowerCase();
+  if(t.includes('muscle')||t.includes('lacking')||t.includes('missing')||t.includes('balance')){
+    const last7=state.history.filter(h=>fsAgo(h.date)<=7);
+    const tally={};
+    for(const h of last7){
+      for(const e of (h.exercises||[])){const ex=EXERCISES[e.exerciseId];for(const m of (ex?.muscles||[]))tally[m]=(tally[m]||0)+1;}
+      for(const c of (h.customExercises||[])){for(const m of (c.muscles||[]))tally[m]=(tally[m]||0)+1;}
+    }
+    const entries=Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+    if(!entries.length) return `No strength sessions logged in the last 7 days yet, so there's nothing to tally. Log a session and ask again.`;
+    const top=entries.slice(0,3).map(([m,c])=>`${m} (${c}×)`).join(', ');
+    const allMuscleGroups=['Quads','Quadriceps','Glutes','Hamstrings','Calves','Chest','Shoulders','Upper back','Middle Back','Lats','Core','Abdominals','Grip','Forearms'];
+    const hit=new Set(entries.map(([m])=>m.toLowerCase()));
+    const under=allMuscleGroups.filter(m=>!hit.has(m.toLowerCase()));
+    let out=`This week's most-worked: ${top}.`;
+    if(under.length) out+=` Not seeing direct work for: ${[...new Set(under)].slice(0,5).join(', ')} — worth checking if that's intentional for this phase or a gap.`;
+    return out;
+  }
+  return fsV18CoachReplyBase(text);
+};
+
+/* =========================================================
+   v1.9 patch:
+   1) Real bug fix: adding an exercise was resetting the sheet's
+      type/date, silently reverting the form to Walk-type fields.
+   2) Redesigned log form: title only editable for "Other", location
+      is a dropdown (+ custom "Other"), the redundant global muscle
+      chips / equipment / style fields are gone now that each exercise
+      carries its own equipment and muscles, and the session summary
+      renders as clean tags instead of a run-on sentence.
+   3) Logged workouts now open to a clean VIEW (exercises, muscles,
+      notes) with an explicit Edit action, instead of jumping straight
+      into an edit form — and editing now shows/lets you change the
+      individual exercises, which it silently dropped before.
+   ========================================================= */
+
+const FS_EQUIPMENT_OPTIONS=['Machine / Cable','Dumbbell','Kettlebell','Bodyweight','Bench','Bands','Other'];
+
+/* ---- 1) Fix: preserve sheet data across "+ Add exercise" ---- */
+fsQuickLogAddAttempt=function(){
+  const name=document.querySelector('#ql-name')?.value?.trim();
+  const sets=document.querySelector('#ql-sets')?.value||'';
+  const reps=document.querySelector('#ql-reps')?.value||'';
+  const equipment=document.querySelector('#ql-equipment')?.value||'';
+  if(!name)return;
+  const prevData=state.ui.sheet?.data;
+  const result=fsMatchExerciseName(name);
+  if(result.matched){
+    state.ui.quickLogItems.push({name:result.name,muscles:result.muscles,sets,reps,equipment,typedAs:name});
+    state.ui.sheet={name:'manualLogV10',data:prevData}; render();
+    setTimeout(()=>{const el=document.querySelector('#ql-name');if(el)el.value='';},0);
+  } else if(result.candidates.length){
+    state.ui._pendingQuickLog={name,sets,reps,equipment,prevData};
+    state.ui.sheet={name:'quickLogPick',data:{candidates:result.candidates}};
+    render();
+  } else {
+    toast(`No close match for "${name}" — try a different name or spelling.`);
+  }
+};
+fsQuickLogPick=function(name){
+  const entry=FS_ALL_MUSCLE_ENTRIES.find(e=>e.name===name);
+  const pending=state.ui._pendingQuickLog||{};
+  state.ui.quickLogItems.push({name,muscles:entry?.muscles||[],sets:pending.sets,reps:pending.reps,equipment:pending.equipment,typedAs:pending.name});
+  state.ui._pendingQuickLog=null;
+  state.ui.sheet={name:'manualLogV10',data:pending.prevData}; render();
+};
+
+function fsHistoryExerciseRowHTML(it){
+  const setsReps = it.sets? (esc(it.sets)+'×'+esc(it.reps)+' · ') : '';
+  const equip = it.equipment? (esc(it.equipment)+' · ') : '';
+  return '<div class="profile-row"><div><strong>'+esc(it.name)+'</strong><div class="subtle small">'+setsReps+equip+esc(it.muscles.join(', '))+'</div></div></div>';
+}
+function fsMuscleTags(summary){
+  if(!summary.length)return '';
+  return `<div class="notice section"><strong style="display:block;margin-bottom:6px">This session hit:</strong><div class="row" style="flex-wrap:wrap;gap:6px">${summary.map(([m,c])=>`<span class="tag">${esc(m)}${c>1?` ×${c}`:''}</span>`).join('')}</div></div>`;
+}
+function fsExerciseRowsHTML(items,removeFn){
+  return items.map((it,i)=>`<div class="profile-row"><div><strong>${esc(it.name)}</strong><div class="subtle small">${esc(it.sets||'?')}×${esc(it.reps||'?')}${it.equipment?` · ${esc(it.equipment)}`:''} · ${esc(it.muscles.join(', '))}</div></div><button class="ghost-btn" onclick="${removeFn}(${i})">Remove</button></div>`).join('');
+}
+function fsExerciseAddRowHTML(namePrefix,addFn){
+  return `<div class="input-row" style="margin-top:8px"><input id="${namePrefix}-name" placeholder="Exercise name, e.g. air squats"><input id="${namePrefix}-sets" placeholder="Sets" type="number" style="max-width:70px"></div><div class="input-row" style="margin-top:8px"><input id="${namePrefix}-reps" placeholder="Reps" type="number" style="max-width:70px"><select id="${namePrefix}-equipment"><option value="">Equipment (optional)</option>${FS_EQUIPMENT_OPTIONS.map(o=>`<option>${o}</option>`).join('')}</select></div><button class="secondary-btn section" style="width:100%" onclick="${addFn}()">+ Add exercise</button>`;
+}
+
+/* ---- 2) Redesigned manualLogV10 sheet ---- */
+const fsV19SheetBase=renderSheet;
+renderSheet=function(){
+  const s=state.ui.sheet;
+  if(s?.name==='manualLogV10'){
+    const type=s.data?.type||'Strength / Resistance';
+    const cardio=['Walk','Hike','Cardio'].includes(type);
+    const resistance=['Strength / Resistance','Workout Video / Class'].includes(type);
+    const isOther=type==='Other';
+    const autoTitle=type==='Walk'?'1 Mile Walk':type==='Workout Video / Class'?'Workout Video / Class':type;
+    const items=state.ui.quickLogItems, summary=fsQuickLogMuscleSummary();
+    const locOptions=[...state.profile.locations,'Other'];
+    return `<div class="sheet-backdrop" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sheet-head"><div><h2>${esc(type)}</h2><div class="subtle">Log enough for Coach to understand the training dose.</div></div><button class="icon-btn" onclick="closeSheet()">×</button></div>
+    <input id="a-type" type="hidden" value="${esc(type)}">
+    <div class="field"><label>Date</label><input id="a-date" type="date" value="${esc(s.data?.date||fsTodayKey())}"></div>
+    <div class="field section"><label>Duration (min)</label><input id="a-duration" type="number" step="0.1" placeholder="6"></div>
+    ${isOther?`<div class="field section"><label>Title</label><input id="a-title" placeholder="What did you do?"></div>`:`<input id="a-title" type="hidden" value="${esc(autoTitle)}">`}
+    <div class="field section"><label>Location</label><select id="a-location" onchange="document.querySelector('#a-location-other-wrap').style.display=this.value==='Other'?'block':'none'">${locOptions.map(l=>`<option>${esc(l)}</option>`).join('')}</select></div>
+    <div id="a-location-other-wrap" class="field section" style="display:none"><label>Custom location</label><input id="a-location-other" placeholder="Where?"></div>
+    ${resistance?`<div class="section"><h3>Exercises performed</h3><p class="subtle small">Add each exercise you did — I'll figure out the muscles.</p>${fsExerciseRowsHTML(items,'fsQuickLogRemove')}${fsExerciseAddRowHTML('ql','fsQuickLogAddAttempt')}${fsMuscleTags(summary)}</div><input id="a-equipment" type="hidden"><input id="a-style" type="hidden">`:`<input id="a-equipment" type="hidden"><input id="a-style" type="hidden">`}
+    ${cardio?`<div class="section"><h3>Cardio details</h3><div class="input-row"><div class="field"><label>Distance (mi)</label><input id="a-distance" type="number" step="0.01" value="${type==='Walk'?'1':''}"></div><div class="field"><label>Speed (mph)</label><input id="a-speed" type="number" step="0.1"></div><div class="field"><label>Incline (%)</label><input id="a-incline" type="number" step="0.5" value="${type==='Walk'?'0':''}"></div><div class="field"><label>Elevation gain (ft)</label><input id="a-gain" type="number"></div><div class="field"><label>Elevation loss (ft)</label><input id="a-loss" type="number"></div></div><div class="section"><h3>Heart response <span class="subtle small">optional</span></h3><div class="input-row"><div class="field"><label>Average HR</label><input id="a-avg" inputmode="numeric"></div><div class="field"><label>Peak HR</label><input id="a-peak" inputmode="numeric"></div><div class="field"><label>End HR</label><input id="a-end" inputmode="numeric"></div><div class="field"><label>HR after 1 min</label><input id="a-hr60" inputmode="numeric"></div></div></div>`:`<input id="a-distance" type="hidden"><input id="a-speed" type="hidden"><input id="a-incline" type="hidden"><input id="a-gain" type="hidden"><input id="a-loss" type="hidden"><input id="a-avg" type="hidden"><input id="a-peak" type="hidden"><input id="a-end" type="hidden"><input id="a-hr60" type="hidden">`}
+    <div class="field section"><label>How hard did it feel? (RPE)</label><select id="a-rpe"><option value="">Optional</option>${[1,2,3,4,5,6,7,8,9,10].map(x=>`<option>${x}</option>`).join('')}</select></div>
+    <div class="field"><label>Notes</label><textarea id="a-notes" placeholder="Anything Coach should remember?"></textarea></div>
+    <button class="primary-btn section" onclick="fsSaveActivityV10()">Save activity</button></div></div>`;
+  }
+  if(s?.name==='historyView'){
+    const h=state.history.find(x=>x.id===s.data.id); if(!h)return '';
+    const customList=h.customExercises||[];
+    const generatedList=(h.exercises||[]).map(e=>({name:EXERCISES[e.exerciseId]?.name||e.exerciseId,muscles:EXERCISES[e.exerciseId]?.muscles||[],sets:(e.sets||[]).length,reps:e.sets?.[0]?.reps||'',equipment:''}));
+    const all=[...generatedList,...customList];
+    const tally={}; for(const it of all)for(const m of it.muscles)tally[m]=(tally[m]||0)+1;
+    const summary=Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+    return `<div class="sheet-backdrop" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sheet-head"><div><h2>${esc(h.workoutTitle||'Training')}</h2><div class="subtle">${fmtDate(new Date(h.date))}${h.location?` · ${esc(h.location)}`:''}${h.actualMinutes?` · ${h.actualMinutes} min`:''}</div></div><button class="icon-btn" onclick="closeSheet()">×</button></div>
+      ${h.cardio?.distance?`<div class="notice"><strong>${h.cardio.distance} mi</strong>${h.cardio.incline?` · ${h.cardio.incline}% incline`:''}${h.cardio.avgHr?` · avg HR ${h.cardio.avgHr}`:''}</div>`:''}
+      ${all.length?`<div class="section-head section"><h3>Exercises</h3></div>${all.map(fsHistoryExerciseRowHTML).join('')}`:''}
+      ${fsMuscleTags(summary)}
+      ${h.notes?`<div class="section-head section"><h3>Notes</h3></div><p class="subtle small">${esc(h.notes)}</p>`:''}
+      <button class="primary-btn section" onclick="fsOpenHistoryEdit('${h.id}')">Edit</button>
+      <button class="danger-btn" style="width:100%;margin-top:10px" onclick="fsDeleteHistory('${h.id}')">Delete</button></div></div>`;
+  }
+  return fsV19SheetBase();
+};
+function fsOpenHistoryView(id){state.ui.sheet={name:'historyView',data:{id}};render();}
+// Route every place that used to jump straight into edit, into the view first.
+const fsV19RenderHistoryBase=renderHistory;
+renderHistory=function(){ return fsV19RenderHistoryBase().split('fsOpenHistoryEdit(').join('fsOpenHistoryView('); };
+const fsV19DayAgendaBase=fsRenderDayAgenda;
+fsRenderDayAgenda=function(date){ return fsV19DayAgendaBase(date).split('fsOpenHistoryEdit(').join('fsOpenHistoryView('); };
+const fsV19TodayActBase=fsTodayActivities;
+fsTodayActivities=function(){ return fsV19TodayActBase().split('fsOpenHistoryEdit(').join('fsOpenHistoryView('); };
+
+/* ---- 3) Edit sheet now shows/edits the actual exercises, not just old muscle chips ---- */
+function fsEditQuickLogAddAttempt(){
+  const name=document.querySelector('#eql-name')?.value?.trim();
+  const sets=document.querySelector('#eql-sets')?.value||'';
+  const reps=document.querySelector('#eql-reps')?.value||'';
+  const equipment=document.querySelector('#eql-equipment')?.value||'';
+  if(!name)return;
+  const id=state.ui.sheet?.data?.id;
+  const result=fsMatchExerciseName(name);
+  if(result.matched){
+    state.ui.editQuickLogItems.push({name:result.name,muscles:result.muscles,sets,reps,equipment,typedAs:name});
+    state.ui.sheet={name:'editHistory',data:{id}}; render();
+  } else if(result.candidates.length){
+    state.ui._pendingEditQuickLog={name,sets,reps,equipment,id};
+    state.ui.sheet={name:'editQuickLogPick',data:{candidates:result.candidates}};
+    render();
+  } else {
+    toast(`No close match for "${name}" — try a different name or spelling.`);
+  }
+}
+function fsEditQuickLogPick(name){
+  const entry=FS_ALL_MUSCLE_ENTRIES.find(e=>e.name===name);
+  const pending=state.ui._pendingEditQuickLog||{};
+  state.ui.editQuickLogItems.push({name,muscles:entry?.muscles||[],sets:pending.sets,reps:pending.reps,equipment:pending.equipment,typedAs:pending.name});
+  state.ui._pendingEditQuickLog=null;
+  state.ui.sheet={name:'editHistory',data:{id:pending.id}}; render();
+}
+function fsEditQuickLogRemove(idx){ state.ui.editQuickLogItems.splice(idx,1); render(); }
+
+const fsV19SheetBase2=renderSheet;
+renderSheet=function(){
+  const s=state.ui.sheet;
+  if(s?.name==='editQuickLogPick'){
+    const {candidates}=s.data;
+    return `<div class="sheet-backdrop" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sheet-head"><div><h2>Which one did you mean?</h2></div><button class="icon-btn" onclick="closeSheet()">×</button></div>${candidates.map(c=>`<button class="option" style="width:100%;color:var(--text);text-align:left" onclick="fsEditQuickLogPick('${c.name.replace(/'/g,"\\'")}')"><div><strong>${esc(c.name)}</strong><div class="subtle small">${esc(c.muscles.join(', '))}</div></div></button>`).join('')}</div></div>`;
+  }
+  let html=fsV19SheetBase2();
+  if(s?.name==='editHistory'){
+    const h=state.history.find(x=>x.id===s.data.id);
+    if(h && h.source==='manual'){
+      if(!state.ui._editQuickLogFor || state.ui._editQuickLogFor!==h.id){
+        state.ui.editQuickLogItems=[...(h.customExercises||[])];
+        state.ui._editQuickLogFor=h.id;
+      }
+      const block=`<div class="section-head section"><h3>Exercises</h3></div>${fsExerciseRowsHTML(state.ui.editQuickLogItems,'fsEditQuickLogRemove')}${fsExerciseAddRowHTML('eql','fsEditQuickLogAddAttempt')}${fsMuscleTags(fsQuickLogMuscleSummaryFor(state.ui.editQuickLogItems))}`;
+      html=html.replace(/(<div class="section"><h3>Muscle focus<\/h3>[\s\S]*?<\/div><\/div>)/, block+'$1');
+    }
+  }
+  return html;
+};
+function fsQuickLogMuscleSummaryFor(items){
+  const tally={}; for(const item of items)for(const m of item.muscles)tally[m]=(tally[m]||0)+1;
+  return Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+}
+const fsV19SaveHistoryEditBase=fsSaveHistoryEdit;
+fsSaveHistoryEdit=function(id){
+  const h=state.history.find(x=>x.id===id);
+  if(h && h.source==='manual'){ h.customExercises=[...(state.ui.editQuickLogItems||h.customExercises||[])]; }
+  state.ui._editQuickLogFor=null;
+  fsV19SaveHistoryEditBase(id);
+};
+
+/* =========================================================
+   v1.10 patch:
+   1) Date field still visually oversized vs other fields — iOS
+      renders native date inputs with their own height/padding
+      regardless of surrounding CSS; explicitly normalized here.
+   2) Live typeahead while typing an exercise name (top 3-5 matches,
+      tap to confirm) instead of only resolving on Add. Implemented
+      via one delegated input listener (not a full state re-render
+      per keystroke, which would blur the field on every letter).
+   3) Reordered: Exercise name -> Sets+Reps (same row) ->
+      Equipment+Weight (same row) -> Add. Weight (lb) is a new field,
+      added alongside Equipment.
+   ========================================================= */
+
+/* ---- 1) Normalize date input sizing ---- */
+const fsV110DateCSS=document.createElement('style');
+fsV110DateCSS.textContent=`input[type=date]{-webkit-appearance:none;appearance:none;height:48px;padding:13px 14px;font-size:15px;line-height:1;box-sizing:border-box}`;
+document.head.appendChild(fsV110DateCSS);
+
+/* ---- 2) Live typeahead ---- */
+window._fsPendingMatch={};
+function fsLiveMatchCandidates(query){
+  const q=fsNormalizeExName(query);
+  if(q.length<2)return [];
+  const pool=[];
+  for(const ex of Object.values(EXERCISES)) pool.push({name:ex.name,muscles:ex.muscles||[],searchText:ex.name});
+  for(const e of FS_ALL_MUSCLE_ENTRIES) pool.push({name:e.name,muscles:e.muscles,searchText:e.name});
+  for(const [alias,canon] of Object.entries(FS_EXERCISE_ALIASES)){
+    const entry=FS_ALL_MUSCLE_ENTRIES.find(e=>e.name===canon);
+    if(entry)pool.push({name:entry.name,muscles:entry.muscles,searchText:alias});
+  }
+  const scored=pool.map(p=>{
+    const norm=fsNormalizeExName(p.searchText);
+    let score=0;
+    if(norm===q)score=100;
+    else if(norm.startsWith(q))score=90-Math.min(30,norm.length-q.length);
+    else if(norm.includes(q))score=70-Math.min(20,norm.length-q.length);
+    else score=fsTokenScore(q,p.searchText)*60;
+    return {p,score};
+  }).filter(o=>o.score>25).sort((a,b)=>b.score-a.score);
+  const seen=new Set(),out=[];
+  for(const {p} of scored){ const key=fsNormalizeExName(p.name); if(seen.has(key))continue; seen.add(key); out.push(p); if(out.length>=5)break; }
+  return out;
+}
+function fsSuggestionsHTML(matches){
+  return matches.map(m=>`<button type="button" class="suggestion-item" data-name="${esc(m.name)}" data-muscles="${esc(m.muscles.join('|'))}" style="display:block;width:100%;text-align:left;background:var(--surface2);border:1px solid var(--line);border-top:0;padding:10px 14px;color:var(--text)">${esc(m.name)} <span class="subtle small">— ${esc(m.muscles.join(', '))}</span></button>`).join('');
+}
+document.addEventListener('input', function(e){
+  const id=e.target.id;
+  if(id!=='ql-name' && id!=='eql-name')return;
+  const prefix=id.split('-')[0];
+  const box=document.querySelector('#'+prefix+'-suggestions');
+  if(!box)return;
+  window._fsPendingMatch[prefix]=null;
+  const matches=fsLiveMatchCandidates(e.target.value);
+  box.innerHTML=matches.length?fsSuggestionsHTML(matches):'';
+  box.style.display=matches.length?'block':'none';
+});
+document.addEventListener('click', function(e){
+  const btn=e.target.closest('.suggestion-item');
+  if(!btn)return;
+  const box=btn.closest('[id$="-suggestions"]');
+  const prefix=box.id.split('-')[0];
+  const input=document.querySelector('#'+prefix+'-name');
+  if(input)input.value=btn.dataset.name;
+  window._fsPendingMatch[prefix]={name:btn.dataset.name,muscles:btn.dataset.muscles.split('|').filter(Boolean)};
+  box.innerHTML=''; box.style.display='none';
+});
+
+/* ---- 3) Reordered row layout + weight field ---- */
+fsExerciseAddRowHTML=function(namePrefix,addFn){
+  return `<div class="field" style="position:relative"><input id="${namePrefix}-name" placeholder="Exercise name, e.g. air squats" autocomplete="off"><div id="${namePrefix}-suggestions" style="display:none;position:relative;z-index:5;border-radius:0 0 12px 12px;overflow:hidden"></div></div>
+  <div class="input-row" style="margin-top:8px"><input id="${namePrefix}-sets" placeholder="Sets" type="number"><input id="${namePrefix}-reps" placeholder="Reps" type="number"></div>
+  <div class="input-row" style="margin-top:8px"><select id="${namePrefix}-equipment"><option value="">Equipment (optional)</option>${FS_EQUIPMENT_OPTIONS.map(o=>`<option>${o}</option>`).join('')}</select><input id="${namePrefix}-weight" placeholder="Weight (lb, optional)" type="number" step="0.5"></div>
+  <button class="secondary-btn section" style="width:100%" onclick="${addFn}()">+ Add exercise</button>`;
+};
+
+/* Add functions re-wired to use a confirmed typeahead pick when present,
+   and to carry the new weight field through. */
+fsQuickLogAddAttempt=function(){
+  const name=document.querySelector('#ql-name')?.value?.trim();
+  const sets=document.querySelector('#ql-sets')?.value||'';
+  const reps=document.querySelector('#ql-reps')?.value||'';
+  const equipment=document.querySelector('#ql-equipment')?.value||'';
+  const weight=document.querySelector('#ql-weight')?.value||'';
+  if(!name)return;
+  const prevData=state.ui.sheet?.data;
+  const confirmed=window._fsPendingMatch.ql;
+  if(confirmed){
+    state.ui.quickLogItems.push({name:confirmed.name,muscles:confirmed.muscles,sets,reps,equipment,weight,typedAs:name});
+    window._fsPendingMatch.ql=null;
+    state.ui.sheet={name:'manualLogV10',data:prevData}; render();
+    setTimeout(()=>{const el=document.querySelector('#ql-name');if(el)el.value='';},0);
+    return;
+  }
+  const result=fsMatchExerciseName(name);
+  if(result.matched){
+    state.ui.quickLogItems.push({name:result.name,muscles:result.muscles,sets,reps,equipment,weight,typedAs:name});
+    state.ui.sheet={name:'manualLogV10',data:prevData}; render();
+    setTimeout(()=>{const el=document.querySelector('#ql-name');if(el)el.value='';},0);
+  } else if(result.candidates.length){
+    state.ui._pendingQuickLog={name,sets,reps,equipment,weight,prevData};
+    state.ui.sheet={name:'quickLogPick',data:{candidates:result.candidates}};
+    render();
+  } else {
+    toast(`No close match for "${name}" — try a different name or spelling.`);
+  }
+};
+fsQuickLogPick=function(name){
+  const entry=FS_ALL_MUSCLE_ENTRIES.find(e=>e.name===name);
+  const pending=state.ui._pendingQuickLog||{};
+  state.ui.quickLogItems.push({name,muscles:entry?.muscles||[],sets:pending.sets,reps:pending.reps,equipment:pending.equipment,weight:pending.weight,typedAs:pending.name});
+  state.ui._pendingQuickLog=null;
+  state.ui.sheet={name:'manualLogV10',data:pending.prevData}; render();
+};
+fsEditQuickLogAddAttempt=function(){
+  const name=document.querySelector('#eql-name')?.value?.trim();
+  const sets=document.querySelector('#eql-sets')?.value||'';
+  const reps=document.querySelector('#eql-reps')?.value||'';
+  const equipment=document.querySelector('#eql-equipment')?.value||'';
+  const weight=document.querySelector('#eql-weight')?.value||'';
+  if(!name)return;
+  const id=state.ui.sheet?.data?.id;
+  const confirmed=window._fsPendingMatch.eql;
+  if(confirmed){
+    state.ui.editQuickLogItems.push({name:confirmed.name,muscles:confirmed.muscles,sets,reps,equipment,weight,typedAs:name});
+    window._fsPendingMatch.eql=null;
+    state.ui.sheet={name:'editHistory',data:{id}}; render();
+    return;
+  }
+  const result=fsMatchExerciseName(name);
+  if(result.matched){
+    state.ui.editQuickLogItems.push({name:result.name,muscles:result.muscles,sets,reps,equipment,weight,typedAs:name});
+    state.ui.sheet={name:'editHistory',data:{id}}; render();
+  } else if(result.candidates.length){
+    state.ui._pendingEditQuickLog={name,sets,reps,equipment,weight,id};
+    state.ui.sheet={name:'editQuickLogPick',data:{candidates:result.candidates}};
+    render();
+  } else {
+    toast(`No close match for "${name}" — try a different name or spelling.`);
+  }
+};
+fsEditQuickLogPick=function(name){
+  const entry=FS_ALL_MUSCLE_ENTRIES.find(e=>e.name===name);
+  const pending=state.ui._pendingEditQuickLog||{};
+  state.ui.editQuickLogItems.push({name,muscles:entry?.muscles||[],sets:pending.sets,reps:pending.reps,equipment:pending.equipment,weight:pending.weight,typedAs:pending.name});
+  state.ui._pendingEditQuickLog=null;
+  state.ui.sheet={name:'editHistory',data:{id:pending.id}}; render();
+};
+// Show weight alongside equipment/sets/reps everywhere it's displayed.
+fsExerciseRowsHTML=function(items,removeFn){
+  return items.map((it,i)=>`<div class="profile-row"><div><strong>${esc(it.name)}</strong><div class="subtle small">${esc(it.sets||'?')}×${esc(it.reps||'?')}${it.weight?` @ ${esc(it.weight)} lb`:''}${it.equipment?` · ${esc(it.equipment)}`:''} · ${esc(it.muscles.join(', '))}</div></div><button class="ghost-btn" onclick="${removeFn}(${i})">Remove</button></div>`).join('');
+};
+fsHistoryExerciseRowHTML=function(it){
+  const setsReps = it.sets? (esc(it.sets)+'×'+esc(it.reps)+(it.weight?' @ '+esc(it.weight)+' lb':'')+' · ') : '';
+  const equip = it.equipment? (esc(it.equipment)+' · ') : '';
+  return '<div class="profile-row"><div><strong>'+esc(it.name)+'</strong><div class="subtle small">'+setsReps+equip+esc(it.muscles.join(', '))+'</div></div></div>';
+};
+
+/* =========================================================
+   v1.11 patch:
+   1) Hike is North Rim -> South Rim, not the reverse — fixes the
+      canyon tracker's rim labels.
+   2) Real target hike date (late Sept/early Oct 2027 default) —
+      phases now scale proportionally to the actual weeks remaining
+      instead of a fixed, disconnected 60-week count.
+   3) Readiness check from ~5 months in: if recent long-walk average
+      is meaningfully behind the current phase's target, progression
+      speeds up automatically (bigger steps, one comfortable session
+      instead of two) rather than the plan just running out the clock.
+   4) Pack-weight target suggested as a % of logged bodyweight,
+      scaled up by phase, shown as a placeholder on the existing
+      pack-weight field.
+   ========================================================= */
+
+/* ---- 1) Rim direction fix ---- */
+const fsV111CanyonBase=fsCanyonTrackerHTML;
+fsCanyonTrackerHTML=function(){
+  let html=fsV111CanyonBase();
+  if(!html)return html;
+  html=html.replace('South Rim</text>','__TMP_NORTH__</text>').replace('North Rim</text>','South Rim</text>').replace('__TMP_NORTH__</text>','North Rim</text>');
+  return html;
+};
+
+/* ---- 2) Target hike date drives phase scaling ---- */
+state.profile.targetHikeDate=state.profile.targetHikeDate||'2027-09-25';
+const FS_PHASE_TEMPLATE=FITNSMART_PHASES.map(p=>({...p}));
+function fsPlanTotalWeeks(){
+  const start=new Date(state.v06.programStart), target=new Date(state.profile.targetHikeDate);
+  return Math.max(20, Math.round((target-start)/(7*86400000)));
+}
+function fsRescalePhases(){
+  const total=fsPlanTotalWeeks(), scale=total/60;
+  let cursor=1;
+  FITNSMART_PHASES.forEach((p,i)=>{
+    const tmpl=FS_PHASE_TEMPLATE[i];
+    const span=Math.max(1,Math.round((tmpl.end-tmpl.start+1)*scale));
+    p.start=cursor; p.end=cursor+span-1; cursor+=span;
+  });
+  FITNSMART_PHASES[FITNSMART_PHASES.length-1].end=Math.max(FITNSMART_PHASES[FITNSMART_PHASES.length-1].end,total);
+}
+fsRescalePhases();
+fsSaveProgram=function(){
+  const d=document.querySelector('#fs-start')?.value; if(d)state.v06.programStart=d;
+  const target=document.querySelector('#fs-target')?.value; if(target)state.profile.targetHikeDate=target;
+  const active=document.querySelector('#fs-exp-active')?.checked; state.profile.expedition.active=!!active;
+  fsRescalePhases();
+  saveState();closeSheet();render();toast('Program settings saved.');
+};
+const fsV111SheetBase=renderSheet;
+renderSheet=function(){
+  let html=fsV111SheetBase();
+  const s=state.ui.sheet;
+  if(s?.name==='program'){
+    html=html.replace('<label class="option section"><span>Grand Canyon expedition active</span>',
+      `<div class="field section"><label>Target hike date</label><input id="fs-target" type="date" value="${esc(state.profile.targetHikeDate)}"></div><p class="subtle small">Plan phases are scaled to fit the time between your program start and this date — North Rim closes for the season roughly mid-Oct through mid-May, so this date should land before that.</p><label class="option section"><span>Grand Canyon expedition active</span>`);
+  }
+  return html;
+};
+
+/* ---- 3) Readiness check — push harder instead of writing her off ---- */
+function fsReadinessCheckAndMaybeNotify(){
+  if(fsWeek()<22) return state.profile.readinessBoost||false;
+  const p=fsPhase();
+  const recent=state.history.filter(h=>fsAgo(h.date)<=21);
+  const longs=recent.filter(h=>h.cardioType==='long'&&h.cardio?.distance);
+  if(!longs.length) return state.profile.readinessBoost||false;
+  const avg=longs.reduce((s,h)=>s+h.cardio.distance,0)/longs.length;
+  const behind=avg<p.long[0]*0.8;
+  if(behind && !state.profile.readinessBoost){
+    state.profile.readinessBoost=true; saveState();
+    state.fsCoachChat.push({who:'coach',text:`Heads up — your recent long-walk average (${Math.round(avg*10)/10} mi) is behind the ${p.name} target of ${p.long[0]}–${p.long[1]} mi. Rather than risk not being ready for ${fsDateLabelShort(state.profile.targetHikeDate)}, I'm progressing your hill and long-walk distance a bit faster from here — bigger steps, less waiting for a second confirming session.`});
+  } else if(!behind && state.profile.readinessBoost && avg>=p.long[0]){
+    state.profile.readinessBoost=false; saveState();
+    state.fsCoachChat.push({who:'coach',text:`You're back on pace for ${p.name} — dropping the accelerated progression and returning to the normal rate.`});
+  }
+  return state.profile.readinessBoost||false;
+}
+function fsDateLabelShort(iso){ try{return new Date(iso+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'});}catch(e){return iso;} }
+
+fsAdaptiveCardio=function(kind,base){
+  const p=fsPhase(), hist=fsCardioHistory(kind,3), last=hist[0], prev=hist[1];
+  const boost=fsReadinessCheckAndMaybeNotify();
+  let note='First exposure at this workload. Coach will hold it long enough to learn how you respond.';
+  if(kind==='hill'){
+    let current=last?.cardio?.incline ?? Math.max(2,p.hill[0]);
+    const floor=Math.max(2,p.hill[0]),cap=Math.max(floor,p.hill[1]);
+    const step=boost?1:.5;
+    if(last && fsHardCardio(last)){current=Math.max(floor,current-.5);note=last.cardio.pain?'The last hill session included pain, so automatic progression is paused and grade is reduced.':'The last hill session was very hard, so grade is reduced rather than progressed.'}
+    else if(last && fsComfortableCardio(last) && (boost || (prev&&fsSameWorkload(last,prev,'hill')&&fsComfortableCardio(prev))) && current<cap){
+      current=Math.min(cap,current+step);
+      note=boost?`Behind pace for the hike timeline, so Coach progressed incline after one comfortable session instead of waiting for two.`:'Two comparable hill sessions were completed comfortably, so Coach progressed incline by one small step while keeping distance stable.';
+    }
+    else if(last){note='Coach is holding the current incline until there are repeated comfortable exposures at the same workload.'}
+    return {...base,incline:fsRound(current,.5),distance:last?.cardio?.distance||base.distance||1,progressionNote:note};
+  }
+  if(kind==='long'){
+    const floor=Math.max(.5,p.long[0]),cap=Math.max(floor,p.long[1]);
+    let current=last?.cardio?.distance ?? floor; const baseStep=fsWeek()<17?.25:.5; const step=boost?fsRound(baseStep*1.5,.25):baseStep;
+    if(last&&fsHardCardio(last)){current=Math.max(floor,current-baseStep);note=last.cardio.pain?'The last long session included pain, so distance progression is paused and reduced.':'The last long session was very hard, so distance is reduced slightly.'}
+    else if(last && fsComfortableCardio(last) && (boost || (prev&&fsSameWorkload(last,prev,'long')&&fsComfortableCardio(prev))) && current<cap){
+      current=Math.min(cap,current+step);
+      note=boost?`Behind pace for the hike timeline, so Coach added ${step} mile${step===1?'':'s'} after one comfortable session instead of waiting for two.`:`Two comparable long sessions were completed comfortably, so Coach added ${step} mile${step===1?'':'s'} and left terrain/load unchanged.`;
+    }
+    else if(last){note='Coach is holding long-session distance until repeated exposures show that the current demand is well tolerated.'}
+    return {...base,distance:fsRound(current,.25),progressionNote:note};
+  }
+  if(last&&fsHardCardio(last)) note='The last easy session was unusually hard, so Coach is deliberately keeping this workload easy.';
+  else if(last) note='Easy endurance is being held steady on purpose; progression happens mainly through your hill and long sessions.';
+  return {...base,progressionNote:note};
+};
+
+/* ---- 4) Pack-weight suggestion, % of logged bodyweight, scaled by phase ---- */
+function fsPackWeightTarget(){
+  const entries=state.bodyMetrics||[]; const latest=[...entries].reverse().find(e=>e.weight);
+  if(!latest)return null;
+  const p=fsPhase();
+  const pct=p.id==='expedition'?0.18:p.id==='advanced'?0.15:p.id==='hiking'?0.12:0.10;
+  return Math.round(latest.weight*pct);
+}
+const fsV111CardioActiveBase=renderActiveCardio;
+renderActiveCardio=function(item,ex){
+  let html=fsV111CardioActiveBase(item,ex);
+  const target=fsPackWeightTarget();
+  if(target) html=html.replace('id="cardio-pack" type="number" step="0.5" placeholder="optional"', `id="cardio-pack" type="number" step="0.5" placeholder="~${target} lb suggested"`);
+  return html;
+};
+
+/* =========================================================
+   v1.12 patch:
+   1) Real taper — final 10 days before the target hike date: strength
+      drops to 1 set/exercise, cardio holds or reduces instead of
+      progressing. Borrowed from reviewing a friend's MTI companion
+      app, which showed a clear step-down in its last few days.
+   2) Weekday long walks capped to a realistic duration (~70 min);
+      full phase-target mileage reserved for weekends. From Advanced
+      Hiking Capacity onward, a genuine Saturday long walk triggers a
+      second long walk Sunday — back-to-back days, matching the actual
+      two-day fatigue of a North Rim -> South Rim crossing.
+   ========================================================= */
+
+/* ---- 1) Taper ---- */
+const FS_ORIGINAL_SETS={};
+for(const ex of Object.values(EXERCISES)) if(ex.type==='strength') FS_ORIGINAL_SETS[ex.id]=ex.sets;
+function fsInTaper(){
+  const target=new Date(state.profile.targetHikeDate+'T12:00:00');
+  const days=(target-new Date())/86400000;
+  return days>=0 && days<=10;
+}
+function fsApplyTaperIfNeeded(){
+  const inTaper=fsInTaper();
+  if(inTaper && !state.profile._taperApplied){
+    for(const id of Object.keys(FS_ORIGINAL_SETS)) EXERCISES[id].sets=1;
+    state.profile._taperApplied=true; saveState();
+    state.fsCoachChat.push({who:'coach',text:`You're within 10 days of your target hike date — cutting strength to 1 set per exercise and holding cardio steady rather than progressing. This is a taper: the goal now is arriving fresh, not fitter.`});
+  } else if(!inTaper && state.profile._taperApplied){
+    for(const [id,orig] of Object.entries(FS_ORIGINAL_SETS)) EXERCISES[id].sets=orig;
+    state.profile._taperApplied=false; saveState();
+  }
+}
+const fsV112PlanMetaBase=fsPlanMeta;
+fsPlanMeta=function(){ fsApplyTaperIfNeeded(); return fsV112PlanMetaBase(); };
+
+/* ---- 2) Weekday cap / weekend full mileage / back-to-back later phases ---- */
+function fsIsWeekend(d=new Date()){const day=d.getDay();return day===0||day===6;}
+function fsWeekdayLongCap(){const pace=state.v06.usualPace||3;return fsRound(Math.max(1.5,pace*1.15),.25);}
+function fsIsSameLocalDate(iso,ref){const a=new Date(iso),b=ref;return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
+
+const fsV112AdaptiveCardioBase=fsAdaptiveCardio;
+fsAdaptiveCardio=function(kind,base){
+  if(fsInTaper() && (kind==='hill'||kind==='long')){
+    const p=fsPhase(), hist=fsCardioHistory(kind,1), last=hist[0];
+    const floor=kind==='hill'?Math.max(2,p.hill[0]):Math.max(.5,p.long[0]);
+    const held=last?.cardio?.[kind==='hill'?'incline':'distance'] ?? floor;
+    const reduced=fsRound(held*0.7, kind==='hill'?.5:.25);
+    const note='Tapering — volume reduced rather than progressed so you arrive at the hike fresh.';
+    return kind==='hill'
+      ? {...base,incline:Math.max(0,reduced),distance:last?.cardio?.distance||base.distance||1,progressionNote:note}
+      : {...base,distance:Math.max(1,reduced),progressionNote:note};
+  }
+  const out=fsV112AdaptiveCardioBase(kind,base);
+  if(kind==='long' && !fsIsWeekend() && out.distance!=null){
+    const cap=fsWeekdayLongCap();
+    if(out.distance>cap){
+      return {...out,distance:cap,progressionNote:'Capped for a realistic weekday session — full long-distance progression happens on weekends, when there is actually time for it.'};
+    }
+  }
+  return out;
+};
+
+const fsV112RecBase=fsRecommendation;
+fsRecommendation=function(){
+  if(fsWeek()>=41 && new Date().getDay()===0){
+    const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1);
+    const satLong=state.history.find(h=>h.cardioType==='long' && fsIsSameLocalDate(h.date,yesterday));
+    if(satLong) return {type:'long',title:'Long Walk / Hike (Day 2)',reason:'Back-to-back long days build the consecutive-day fatigue resistance a real North Rim to South Rim crossing demands.'};
+  }
+  return fsV112RecBase();
+};
+
+  
+/* =========================================================
+   v1.13 patch — preparedness + 3-day strength split + deterministic Coach
+   Keeps the existing phase, hill, long-walk, weekday/weekend, back-to-back,
+   readiness-boost, and taper systems intact. Changes only the agreed pieces:
+   - Strength target becomes 3 exposures/week outside taper.
+   - Strength rotates Upper Body + Core / Lower Body / Hiking Support + Core.
+   - Progress gains a five-axis preparedness radar + explicit weekly rhythm.
+   - Coach becomes fixed-question/dropdown based (no AI/free-text claim).
+   - Final phase week can be treated as a transition/catch-up week at 4/5 readiness.
+   ========================================================= */
+
+state.v113=state.v113||{coachHistory:[],lastPhaseId:fsPhase().id};
+
+const FS_STRENGTH_SPLITS=['Upper Body + Core','Lower Body / Legs','Hiking Support + Core'];
+function fsIsStrengthHistory(h){
+  const t=String(h?.sessionType||'').toLowerCase();
+  return !!((h?.exercises||[]).length || ['strength','video_class','workout_video','circuit'].includes(t));
+}
+function fsStrengthTargetThisWeek(){ if(fsInTaper())return 2; return fsRecoveryRaw(14)<=2?2:3; }
+function fsLastStrengthAny(){ return [...state.history].reverse().find(fsIsStrengthHistory)||null; }
+function fsHistorySplit(h){
+  if(h?.strengthSplit)return h.strengthSplit;
+  const t=String(h?.workoutTitle||'').toLowerCase();
+  if(t.includes('upper body'))return 'Upper Body + Core';
+  if(t.includes('lower body')||t.includes('legs'))return 'Lower Body / Legs';
+  if(t.includes('hiking support'))return 'Hiking Support + Core';
+  return null;
+}
+function fsNextStrengthSplit(){
+  const recent=[...state.history].reverse().filter(h=>fsIsStrengthHistory(h)&&fsAgo(h.date)<=10);
+  const seen=new Map();
+  for(const h of recent){const s=fsHistorySplit(h);if(s&&!seen.has(s))seen.set(s,new Date(h.date).getTime());}
+  const missing=FS_STRENGTH_SPLITS.find(s=>!seen.has(s));
+  if(missing)return missing;
+  return [...FS_STRENGTH_SPLITS].sort((a,b)=>(seen.get(a)||0)-(seen.get(b)||0))[0];
+}
+function fsStrengthFocusFromSplit(split){return split;}
+function fsStrengthTitle(split){return `${split} + Easy Endurance`;}
+
+/* Custom split plans. Machine-first remains the default at both gyms. */
+const fsV113StrengthPlanBase=fsStrengthPlan;
+fsStrengthPlan=function(loc=state.ui.location,focus='Full Body'){
+  if(!FS_STRENGTH_SPLITS.includes(focus))return fsV113StrengthPlanBase(loc,focus);
+  const gym=['Work Gym','Commercial Gym'].includes(loc),c=fsCaps(loc),p=fsPhase();
+  let ids=[];
+  if(focus==='Upper Body + Core'){
+    if(gym) ids=['machine_row','machine_chest_press','machine_shoulder_press','cable_curl','cable_pressdown','cable_pallof'];
+    else ids=[c.dumbbells?'one_arm_db_row':c.loops?'band_row':'standing_march',c.loops?'standing_band_press':'wall_pushup',c.dumbbells?'db_overhead_press':'wall_pushup',c.dumbbells?'db_biceps_curl':null,c.dumbbells?'db_triceps_extension':null,c.dumbbells?'suitcase_hold':'standing_march'];
+  } else if(focus==='Lower Body / Legs'){
+    if(gym) ids=['leg_press','seated_leg_curl','hip_abductor_machine','machine_calf_raise'];
+    else ids=[c.dumbbells?'goblet_squat':'bodyweight_squat',c.dumbbells?'dumbbell_rdl':c.loops?'band_rdl':'supported_split_squat',c.loops?'band_lateral_walk':null,'calf_raise'];
+  } else {
+    if(gym) ids=['step_up','hip_abductor_machine','machine_calf_raise','loaded_carry','cable_pallof'];
+    else ids=[c.step?'step_up':'supported_split_squat',c.loops?'band_lateral_walk':null,'calf_raise',c.dumbbells?'suitcase_hold':'standing_march'];
+    if(p.downhill&&c.step)ids.splice(1,0,'low_step_down');
+  }
+  ids=[...new Set(ids.filter(Boolean))].filter(id=>EXERCISES[id]);
+  const promoted=state.profile.promotedAlts||{};
+  ids=ids.map(id=>promoted[id]||id);
+  for(const id of ids){
+    const ex=EXERCISES[id]; if(!ex||ex.type!=='strength')continue;
+    if(fsInTaper())ex.sets=1;
+    else ex.sets=(p.sets===3&&ex.priority<=3)?3:2;
+  }
+  return ids;
+};
+
+/* Add the third strength exposure without stealing overdue hill/long sessions. */
+const fsV113RecBase=fsRecommendation;
+fsRecommendation=function(){
+  let r=fsV113RecBase();
+  const target=fsStrengthTargetThisWeek(),count=fsStrengthThisWeek();
+  const last=fsLastStrengthAny(),since=last?fsAgo(last.date):99;
+  const due=count<target&&since>=2;
+  const attachSplit=out=>{const split=fsNextStrengthSplit();return {...out,type:'strength',title:fsStrengthTitle(split),focus:fsStrengthFocusFromSplit(split),strengthSplit:split,reason:(out.reason?out.reason+' ':'')+`This is strength exposure ${Math.min(count+1,target)} of ${target} for the current 7-day window.`};};
+  if(r.type==='strength')r=attachSplit(r);
+  else if(due&&r.type==='easy')r=attachSplit({reason:'Hill and long-endurance work are not currently more overdue, so the third strength exposure fits here without replacing them.'});
+  else if(due&&r.type==='override'&&['Home Strength','Core + Mobility'].includes(r.title))r=attachSplit({reason:r.reason});
+  const prep=fsPreparedness();
+  if(prep.transition&&r.reason)r.reason+=` Transition week: ${prep.onTrackCount}/5 preparedness areas are on track, so the next phase can begin to appear while ${prep.weakest.label.toLowerCase()} stays in the catch-up queue.`;
+  return r;
+};
+
+/* Preserve the chosen split in workout history. */
+const fsV113StartBase=startWorkout;
+startWorkout=function(){
+  const meta=fsPlanMeta();
+  state.ui._v113PendingSplit=meta.strengthSplit||null;
+  fsV113StartBase();
+  if(state.activeWorkout&&state.ui._v113PendingSplit){state.activeWorkout.meta=state.activeWorkout.meta||{};state.activeWorkout.meta.strengthSplit=state.ui._v113PendingSplit;saveState();}
+  state.ui._v113PendingSplit=null;
+};
+const fsV113FinalizeBase=fsFinalizeWorkout;
+fsFinalizeWorkout=function(reason='completed'){
+  const split=state.activeWorkout?.meta?.strengthSplit||null,before=state.history.length;
+  const swapMap=(state.activeWorkout?.plan||[]).filter(p=>p.prescribedExerciseId&&p.prescribedExerciseId!==p.exerciseId).map(p=>({performed:p.exerciseId,prescribed:p.prescribedExerciseId}));
+  fsV113FinalizeBase(reason);
+  if(state.history.length>before){
+    const item=state.history[state.history.length-1];
+    if(split)item.strengthSplit=split;
+    for(const sw of swapMap){const e=(item.exercises||[]).find(x=>x.exerciseId===sw.performed&&!x.prescribedExerciseId);if(e)e.prescribedExerciseId=sw.prescribed;}
+    saveState();
+  }
+};
+finishWorkout=function(){fsFinalizeWorkout('completed')};
+
+/* ---------- Preparedness engine ---------- */
+function fsClamp(v,a=1,b=5){return Math.max(a,Math.min(b,v));}
+function fsScoreFromRatio(r){return fsClamp(1+4*Math.max(0,Math.min(1,r)));}
+function fsRecentAny(days){return state.history.filter(h=>fsAgo(h.date)<=days);}
+function fsActivityDays(days=7){return new Set(fsRecentAny(days).map(h=>fsLocalDateKey(new Date(h.date)))).size;}
+function fsCardioRows(days=14){return fsRecentAny(days).filter(h=>h.cardio||['walk','hike','cardio','easy','hill','long'].includes(String(h.sessionType||'').toLowerCase()));}
+function fsSessionRpes(days=14){
+  const vals=[];for(const h of fsRecentAny(days)){if(h.cardio?.rpe)vals.push(Number(h.cardio.rpe));if(h.activityDetails?.rpe)vals.push(Number(h.activityDetails.rpe));for(const e of (h.exercises||[]))if(e.avgRpe)vals.push(Number(e.avgRpe));}return vals.filter(Number.isFinite);
+}
+function fsPainCount(days=14){let n=0;for(const h of fsRecentAny(days)){if(h.cardio?.pain)n++;for(const e of (h.exercises||[]))if(e.pain||e.feedback==='pain')n++;}return n;}
+function fsRecoveryRaw(days=14){const rpes=fsSessionRpes(days),pain=fsPainCount(days),avg=rpes.length?rpes.reduce((a,b)=>a+b,0)/rpes.length:null,hard=rpes.filter(x=>x>=8.5).length;if(pain>=2)return 1;if(pain===1||hard>=3)return 2;if(avg!=null&&avg>8)return 3;if(avg!=null&&avg>7.25)return 4;if(avg!=null)return 5;return 4;}
+function fsPhaseProgress(p=fsPhase()){return fsClamp((fsWeek()-p.start)/Math.max(1,p.end-p.start),0,1);}
+function fsPreparedness(phase=fsPhase()){
+  const t=Math.max(0,Math.min(1,(fsWeek()-phase.start)/Math.max(1,phase.end-phase.start)));
+  const days=fsActivityDays(7);
+  const consistency=fsScoreFromRatio(days/5);
+
+  const cardio7=fsCardioRows(7),cardio21=fsCardioRows(21);
+  const enduranceDays=new Set(cardio7.map(h=>fsLocalDateKey(new Date(h.date)))).size;
+  const maxDistance=Math.max(0,...cardio21.map(h=>Number(h.cardio?.distance||0)));
+  const expectedLong=Math.max(1,fsLerp(phase.long[0],phase.long[1],t));
+  const enduranceRatio=.55*Math.min(1,enduranceDays/4)+.45*Math.min(1,maxDistance/expectedLong);
+  const endurance=fsScoreFromRatio(enduranceRatio);
+
+  const strengthCount=fsStrengthThisWeek(),strengthTarget=fsStrengthTargetThisWeek();
+  const strength=fsScoreFromRatio(strengthCount/strengthTarget);
+
+  const rpes=fsSessionRpes(14),pain=fsPainCount(14),avgRpe=rpes.length?rpes.reduce((a,b)=>a+b,0)/rpes.length:null,hard=rpes.filter(x=>x>=8.5).length;
+  const recovery=fsRecoveryRaw(14);
+
+  const hills=fsRecentAny(14).filter(h=>h.cardioType==='hill'||h.cardio?.type==='hill');
+  const expectedHill=fsLerp(phase.hill[0],phase.hill[1],t);
+  let climbing;
+  if(phase.id==='foundation'&&fsWeek()<5){climbing=4.2;}
+  else if(!hills.length){climbing=1.4;}
+  else {
+    const inclines=hills.map(h=>Number(h.cardio?.incline)).filter(x=>Number.isFinite(x)&&x>0);
+    const grade=inclines.length?inclines.reduce((a,b)=>a+b,0)/inclines.length:null;
+    const outdoorEvidence=hills.some(h=>Number(h.cardio?.elevationGain||0)>0);
+    const loadRatio=grade!=null?Math.min(1,grade/Math.max(1,expectedHill)):(outdoorEvidence ? .85 : .65);
+    const freqRatio=Math.min(1,hills.length/2);
+    climbing=fsScoreFromRatio(.65*loadRatio+.35*freqRatio);
+  }
+
+  const areas=[
+    {key:'consistency',label:'Consistency',score:consistency,detail:`${days} active day${days===1?'':'s'} in the last 7; 4–5 keeps the plan moving without requiring hard training every day.`},
+    {key:'endurance',label:'Endurance',score:endurance,detail:`${enduranceDays} endurance day${enduranceDays===1?'':'s'} this week; longest recent walk/hike ${maxDistance?maxDistance.toFixed(1):'0'} mi vs ~${expectedLong.toFixed(1)} mi expected at this point.`},
+    {key:'strength',label:'Strength',score:strength,detail:`${strengthCount}/${strengthTarget} strength exposures in the current 7-day window.`},
+    {key:'recovery',label:'Recovery',score:recovery,detail:rpes.length?`Average logged effort ${avgRpe.toFixed(1)}/10 with ${pain} pain flag${pain===1?'':'s'} in the last 14 days.`:'Limited RPE/recovery data so far; Coach is treating recovery as acceptable, not perfect.'},
+    {key:'climbing',label:'Climbing',score:climbing,detail:(phase.id==='foundation'&&fsWeek()<5)?'Dedicated hill work is not required yet; it enters the Foundation queue from about week 5.':`${hills.length} hill exposure${hills.length===1?'':'s'} in 14 days; current phase expectation is building toward about ${expectedHill.toFixed(1)}% treadmill grade or comparable outdoor climbing.`}
+  ];
+  const onTrack=areas.filter(a=>a.score>=3.8),weakest=[...areas].sort((a,b)=>a.score-b.score)[0];
+  const nearEnd=fsWeek()>=phase.end-1;
+  const transition=nearEnd&&onTrack.length>=4;
+  const programStatus=onTrack.length>=4?'On track':onTrack.length===3?'Catch-up needed':'Behind the current timeline';
+  return {areas,onTrackCount:onTrack.length,weakest,transition,programStatus,strengthCount,strengthTarget,enduranceDays,maxDistance,avgRpe,pain};
+}
+function fsPrepStatus(score){return score>=4.6?'Strong':score>=3.8?'On track':score>=3?'Building':'Needs attention';}
+function fsNextPhase(){const p=fsPhase(),i=FITNSMART_PHASES.findIndex(x=>x.id===p.id);return FITNSMART_PHASES[i+1]||null;}
+function fsPhaseWeeklyRhythm(){
+  const w=fsWeek(),p=fsPhase();
+  const hill=w<5?'Not required yet':w<9?'~1–2× / week':'~1–2× / week when due';
+  const long=w<9?'Begins in Aerobic Base':'~1× / week; full mileage mainly weekends';
+  return {strength:`${fsStrengthTargetThisWeek()}× / week`,easy:'Most days, kept genuinely easy',hill,long,recovery:'Easy days stay easy; frequency can back off if recovery worsens'};
+}
+function fsRadarHTML(prep=fsPreparedness()){
+  const cx=150,cy=140,R=102,n=5,target=4;
+  const pt=(i,val)=>{const a=-Math.PI/2+i*2*Math.PI/n,r=R*(val/5);return [cx+Math.cos(a)*r,cy+Math.sin(a)*r];};
+  const poly=vals=>vals.map((v,i)=>pt(i,v).map(x=>x.toFixed(1)).join(',')).join(' ');
+  const grid=[1,2,3,4,5].map(v=>`<polygon points="${poly(Array(5).fill(v))}" fill="none" stroke="#DCCBBB" stroke-width="1" opacity="${v===4?.9:.55}"/>`).join('');
+  const axes=prep.areas.map((a,i)=>{const e=pt(i,5),l=pt(i,5.9);return `<line x1="${cx}" y1="${cy}" x2="${e[0]}" y2="${e[1]}" stroke="#DDCDBD"/><text x="${l[0]}" y="${l[1]}" text-anchor="middle" dominant-baseline="middle" font-size="10.5" font-weight="700" fill="#665348">${esc(a.label)}</text>`}).join('');
+  return `<svg viewBox="0 0 300 285" role="img" aria-label="Preparedness radar chart" style="width:100%;max-width:390px;display:block;margin:0 auto">${grid}${axes}<polygon points="${poly(Array(5).fill(target))}" fill="rgba(116,132,109,.08)" stroke="#74846D" stroke-width="2" stroke-dasharray="5 5"/><polygon points="${poly(prep.areas.map(a=>a.score))}" fill="rgba(178,84,46,.18)" stroke="#B2542E" stroke-width="2.5"/>${prep.areas.map((a,i)=>{const p=pt(i,a.score);return `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#B2542E"/><text x="${p[0]}" y="${p[1]-9}" text-anchor="middle" font-size="10" font-weight="800" fill="#5C3018">${a.score.toFixed(1)}</text>`}).join('')}<g transform="translate(38 270)"><line x1="0" y1="0" x2="20" y2="0" stroke="#B2542E" stroke-width="3"/><text x="26" y="4" font-size="10" fill="#7C6C61">You now</text><line x1="105" y1="0" x2="125" y2="0" stroke="#74846D" stroke-width="2" stroke-dasharray="4 3"/><text x="131" y="4" font-size="10" fill="#7C6C61">On-track line</text></g></svg>`;
+}
+
+/* Save a snapshot when a phase boundary is crossed. */
+state.preparednessSnapshots=state.preparednessSnapshots||[];
+function fsMaybeSavePhaseSnapshot(){
+  const cur=fsPhase();
+  if(state.v113.lastPhaseId&&state.v113.lastPhaseId!==cur.id){
+    const prev=FITNSMART_PHASES.find(p=>p.id===state.v113.lastPhaseId);
+    if(prev&&!state.preparednessSnapshots.some(s=>s.phaseId===prev.id)){
+      const p=fsPreparedness(prev);state.preparednessSnapshots.push({id:uid(),date:new Date().toISOString(),phaseId:prev.id,phaseName:prev.name,areas:p.areas.map(a=>({key:a.key,label:a.label,score:a.score})),onTrackCount:p.onTrackCount});
+    }
+  }
+  state.v113.lastPhaseId=cur.id;saveState();
+}
+
+/* ---------- Progress UI ---------- */
+const fsV113ProgressBase=renderProgress;
+renderProgress=function(){
+  fsMaybeSavePhaseSnapshot();
+  let html=fsV113ProgressBase();const prep=fsPreparedness(),p=fsPhase(),next=fsNextPhase(),rh=fsPhaseWeeklyRhythm();
+  const rows=prep.areas.map(a=>`<div class="profile-row"><div><strong>${esc(a.label)}</strong><div class="subtle small" style="margin-top:4px;line-height:1.4">${esc(a.detail)}</div></div><div class="value"><strong style="color:${a.score>=3.8?'var(--green)':'var(--rust)'}">${a.score.toFixed(1)}/5</strong><br>${fsPrepStatus(a.score)}</div></div>`).join('');
+  const prepBlock=`<section class="section" id="preparedness"><div class="section-head"><div><h3>Preparedness</h3><div class="section-label">${esc(p.name)} · week ${fsWeek()} of ${p.end}</div></div><span class="tag">${prep.onTrackCount}/5 on track</span></div><div class="card flat"><div class="row between" style="align-items:flex-start"><div><div class="eyebrow">Program status</div><strong style="font-size:22px">${esc(prep.programStatus)}</strong><div class="subtle small" style="margin-top:5px">Compared with what the plan expects at this point — not final-hike readiness.</div></div></div>${fsRadarHTML(prep)}<div class="soft-banner">${prep.transition&&next?`Transition week: ${prep.onTrackCount}/5 areas are ready. ${esc(next.name)} can begin to appear while Coach keeps ${esc(prep.weakest.label)} in the catch-up queue.`:`Current priority: ${esc(prep.weakest.label)} is the area with the most room to improve right now.`}</div><div style="margin-top:10px">${rows}</div></div></section>`;
+  const rhythm=`<section class="section"><div class="section-head"><h3>Expected weekly rhythm</h3><span class="section-label">Current phase</span></div><div class="card flat"><div class="profile-row"><strong>Strength</strong><div class="value">${rh.strength}<br><span class="subtle tiny">Upper + Core · Lower / Legs · Hiking Support + Core</span></div></div><div class="profile-row"><strong>Easy walking</strong><div class="value">${rh.easy}</div></div><div class="profile-row"><strong>Hill / climbing</strong><div class="value">${rh.hill}</div></div><div class="profile-row"><strong>Long walk / hike</strong><div class="value">${rh.long}</div></div><div class="profile-row"><strong>Recovery rule</strong><div class="value">${rh.recovery}</div></div></div></section>`;
+  const snaps=(state.preparednessSnapshots||[]).slice().reverse();
+  const snapshots=snaps.length?`<section class="section"><div class="section-head"><h3>Phase snapshots</h3><span class="section-label">Saved at transitions</span></div><div class="card flat">${snaps.map(s=>`<div class="profile-row"><div><strong>${esc(s.phaseName)}</strong><div class="subtle small">${s.areas.map(a=>`${esc(a.label)} ${Number(a.score).toFixed(1)}`).join(' · ')}</div></div><div class="value">${s.onTrackCount}/5</div></div>`).join('')}</div></section>`:'';
+  const firstSectionEnd=html.indexOf('</section>');
+  if(firstSectionEnd>-1)html=html.slice(0,firstSectionEnd+10)+prepBlock+rhythm+snapshots+html.slice(firstSectionEnd+10);else html+=prepBlock+rhythm+snapshots;
+  return html;
+};
+
+/* ---------- Fixed-question Coach ---------- */
+const FS_COACH_QUESTIONS=[
+  ['phase','How am I doing in my current phase?'],
+  ['grand_canyon','Am I on track for the Grand Canyon?'],
+  ['behind','What am I behind on?'],
+  ['strong','What am I doing especially well?'],
+  ['improve','What would improve my preparedness?'],
+  ['today','Why is Coach recommending today’s workout?'],
+  ['next_ready','Am I ready for the next phase?'],
+  ['next','What happens in the next phase?'],
+  ['endurance','How is my endurance progressing?'],
+  ['strength','How is my strength progressing?'],
+  ['recovery','How is my recovery / tolerance?'],
+  ['week','What should I focus on this week?'],
+  ['rhythm','How often should I be training right now?']
+];
+function fsCoachPreparednessReply(key){
+  const prep=fsPreparedness(),p=fsPhase(),next=fsNextPhase();
+  const area=k=>prep.areas.find(a=>a.key===k),best=[...prep.areas].sort((a,b)=>b.score-a.score)[0],weak=prep.weakest;
+  if(key==='phase')return `You’re in ${p.name}, week ${fsWeek()} of ${p.end}, with ${prep.onTrackCount}/5 preparedness areas currently on track. ${best.label} is strongest at ${best.score.toFixed(1)}/5. ${weak.label} is lowest at ${weak.score.toFixed(1)}/5. ${weak.detail}`;
+  if(key==='grand_canyon')return `${prep.programStatus}. I’m judging you against where the program expects you to be now, not asking whether you could do the final hike today. ${prep.onTrackCount}/5 areas are on track; the main gap is ${weak.label.toLowerCase()}. ${state.profile.readinessBoost?'Accelerated catch-up progression is currently active because recent long-walk capacity fell behind the phase timeline.':'No accelerated catch-up flag is active right now.'}`;
+  if(key==='behind')return `${weak.label} is currently the clearest gap at ${weak.score.toFixed(1)}/5. ${weak.detail} ${weak.score>=3.8?'It is still technically on track, but it is the least-developed of the five areas.':'Coach will keep this in the priority queue rather than letting the calendar hide the deficit.'}`;
+  if(key==='strong')return `${best.label} is currently strongest at ${best.score.toFixed(1)}/5. ${best.detail}`;
+  if(key==='improve'){const low=[...prep.areas].sort((a,b)=>a.score-b.score).slice(0,2);return `The fastest way to improve preparedness is to address ${low[0].label.toLowerCase()} first, then ${low[1].label.toLowerCase()}. ${low[0].detail} You do not need to make every easy walk harder; hill, long-endurance, and strength sessions carry most of the progression.`;}
+  if(key==='today'){const r=fsRecommendation();return `${r.title}: ${r.reason}`;}
+  if(key==='next_ready'){if(!next)return `You’re already in the final phase.`;return prep.onTrackCount===5?`Yes — 5/5 areas are on track for this point in ${p.name}. The transition to ${next.name} can happen normally.`:prep.onTrackCount===4?`Nearly. You’re 4/5 on track. In the final transition week, ${next.name} can start to appear while ${weak.label.toLowerCase()} remains a specific catch-up target.`:`Not yet: ${prep.onTrackCount}/5 areas are on track. The calendar still matters, so Coach will keep progressing the plan, but ${weak.label.toLowerCase()} needs targeted catch-up rather than being ignored.`;}
+  if(key==='next')return next?`${next.name} begins around week ${next.start}. ${next.aim} The existing hill/long-walk progression remains in place; the program becomes more specific rather than replacing the foundation you already built.`:`You’re in Expedition Specific, the final phase. The emphasis is event-specific duration, vertical, descents, pack, fueling and recovery.`;
+  if(key==='endurance'){const a=area('endurance');return `Endurance is ${a.score.toFixed(1)}/5 (${fsPrepStatus(a.score)}). ${a.detail} Easy walking stays easy; progression is concentrated in designated hill and long sessions.`;}
+  if(key==='strength'){const a=area('strength');return `Strength is ${a.score.toFixed(1)}/5. You have ${prep.strengthCount}/${prep.strengthTarget} strength exposures in the current 7-day window. The rotation is Upper Body + Core, Lower Body / Legs, and Hiking Support + Core so the third day adds useful capacity instead of repeating the same full-body workout.`;}
+  if(key==='recovery'){const a=area('recovery');return `Recovery is ${a.score.toFixed(1)}/5 (${fsPrepStatus(a.score)}). ${a.detail} If this drops, Coach should protect recovery before adding more walking intensity or strength volume.`;}
+  if(key==='week')return `This week, protect the three strength exposures without displacing overdue hill or long work. Your most important catch-up area is ${weak.label.toLowerCase()}. Easy walking can continue most days as long as recovery remains acceptable.`;
+  if(key==='rhythm'){const r=fsPhaseWeeklyRhythm();return `Current rhythm: strength ${r.strength}; easy walking ${r.easy.toLowerCase()}; hill/climbing ${r.hill.toLowerCase()}; long walk/hike ${r.long.toLowerCase()}. ${r.recovery}.`;}
+  return 'Choose a question from the menu and I’ll answer it from your logged training and current phase.';
+}
+function fsCoachAsk(){
+  const sel=document.querySelector('#fs-coach-question'),key=sel?.value;if(!key)return;
+  const label=FS_COACH_QUESTIONS.find(x=>x[0]===key)?.[1]||key,answer=fsCoachPreparednessReply(key);
+  state.v113.coachHistory.unshift({id:uid(),date:new Date().toISOString(),key,label,answer});state.v113.coachHistory=state.v113.coachHistory.slice(0,10);saveState();render();
+}
+renderFsCoachChat=function(){
+  const prep=fsPreparedness(),hist=state.v113.coachHistory||[];
+  return `<main class="shell"><div class="topbar"><div class="brand">Fitn<span>Smart</span></div></div><h1 class="page-title">Coach</h1><p class="subtle">Coach reads your plan and logs with fixed questions, so the answers stay deterministic and grounded in the training engine.</p><section class="section"><div class="card flat"><div class="row between"><div><div class="eyebrow">Right now</div><strong>${esc(fsPhase().name)} · ${prep.onTrackCount}/5 on track</strong></div><span class="tag">${esc(prep.programStatus)}</span></div><div class="field section"><label>What do you want to know?</label><select id="fs-coach-question"><option value="">Choose a question…</option>${FS_COACH_QUESTIONS.map(([k,q])=>`<option value="${k}">${esc(q)}</option>`).join('')}</select></div><button class="primary-btn" onclick="fsCoachAsk()">Ask Coach</button></div></section>${hist.length?`<section class="section"><div class="section-head"><h3>Recent answers</h3></div><div class="stack">${hist.map(h=>`<div class="coach-note"><div class="coach-kicker">${esc(h.label)}</div><p>${esc(h.answer)}</p><div class="subtle tiny" style="margin-top:8px">${fmtDate(new Date(h.date))}</div></div>`).join('')}</div></section>`:`<section class="section"><div class="coach-note"><div class="coach-kicker">Coach</div><p>Choose a question above. I can explain your phase preparedness, timeline status, gaps, weekly training rhythm, recovery, strength, endurance, and what comes next.</p></div></section>`}${nav('coach')}</main>`;
+};
+
+/* Remove the old AI wording if it appears in legacy explanatory UI. */
+const fsV113ProfileBase=renderProfile;
+renderProfile=function(){return fsV113ProfileBase().replace(/AI Coach/gi,'Coach');};
+
+saveState();
+
+
+/* =========================================================
+   v7.1 — preparedness-view toggle + calmer Coach chat UI
+   - Does not alter training prescription/progression logic.
+   - Progress can switch between current-phase preparedness and
+     long-range hike preparedness.
+   - Coach returns to chat bubbles, with a fixed question dropdown
+     replacing free-text input.
+   ========================================================= */
+state.v113=state.v113||{};
+state.v113.prepView=state.v113.prepView||'phase';
+
+function fsHikePreparedness(){
+  const current=fsPreparedness();
+  const finalPhase=FITNSMART_PHASES[FITNSMART_PHASES.length-1];
+  const days=fsActivityDays(7);
+  const cardio7=fsCardioRows(7), cardio42=fsCardioRows(42);
+  const enduranceDays=new Set(cardio7.map(h=>fsLocalDateKey(new Date(h.date)))).size;
+  const maxDistance=Math.max(0,...cardio42.map(h=>Number(h.cardio?.distance||0)));
+  const finalLong=Math.max(1,finalPhase.long?.[1]||15);
+  const consistency=fsScoreFromRatio(days/5);
+  const endurance=fsScoreFromRatio(.30*Math.min(1,enduranceDays/4)+.70*Math.min(1,maxDistance/finalLong));
+  const strengthCount=fsStrengthThisWeek(), strengthTarget=3;
+  const strength=fsScoreFromRatio(strengthCount/strengthTarget);
+  const recovery=fsRecoveryRaw(14);
+  const hills=fsRecentAny(42).filter(h=>h.cardioType==='hill'||h.cardio?.type==='hill'||Number(h.cardio?.elevationGain||0)>0);
+  const inclines=hills.map(h=>Number(h.cardio?.incline)).filter(x=>Number.isFinite(x)&&x>0);
+  const maxIncline=inclines.length?Math.max(...inclines):0;
+  const maxGain=Math.max(0,...hills.map(h=>Number(h.cardio?.elevationGain||0)));
+  const finalHill=Math.max(1,finalPhase.hill?.[1]||15);
+  const hillLoad=Math.max(Math.min(1,maxIncline/finalHill), maxGain>0?Math.min(1,maxGain/3000):0);
+  const hillFreq=Math.min(1,hills.length/6);
+  const climbing=fsScoreFromRatio(.75*hillLoad+.25*hillFreq);
+  const areas=[
+    {key:'consistency',label:'Consistency',score:consistency,detail:`${days} active day${days===1?'':'s'} in the last 7. Final preparation still depends on sustaining regular training rather than cramming.`},
+    {key:'endurance',label:'Endurance',score:endurance,detail:`Longest recorded walk/hike in the last 6 weeks: ${maxDistance?maxDistance.toFixed(1):'0'} mi. Long-range benchmark: roughly ${finalLong} mi of durable time-on-feet capacity before taper.`},
+    {key:'strength',label:'Strength',score:strength,detail:`${strengthCount}/${strengthTarget} strength exposures in the current 7-day window. The long-range plan keeps Upper, Lower, and Hiking Support strength in the mix.`},
+    {key:'recovery',label:'Recovery',score:recovery,detail:current.areas.find(a=>a.key==='recovery')?.detail||'Recovery is based on recent effort and pain/tolerance data.'},
+    {key:'climbing',label:'Climbing',score:climbing,detail:maxGain>0?`Recent hill/hike evidence includes up to ${Math.round(maxGain)} ft elevation gain; long-range readiness also depends on sustained climbing and descending tolerance.`:`Recent climbing evidence is being compared with the final-phase incline/elevation demands, so this score is intentionally conservative early in the program.`}
+  ];
+  const avg=areas.reduce((s,a)=>s+a.score,0)/areas.length;
+  const weakest=[...areas].sort((a,b)=>a.score-b.score)[0];
+  const onTrackCount=areas.filter(a=>a.score>=3.8).length;
+  let programStatus=avg>=4.4?'Hike-ready range':avg>=3.6?'Building toward hike readiness':avg>=2.6?'Early-to-mid preparation':'Foundation still developing';
+  return {areas,onTrackCount,weakest,average:avg,programStatus,mode:'hike'};
+}
+function fsSetPrepView(v){state.v113.prepView=v==='hike'?'hike':'phase';saveState();render();}
+function fsPreparednessForView(){return state.v113.prepView==='hike'?fsHikePreparedness():fsPreparedness();}
+
+const fsV714ProgressBase=renderProgress;
+renderProgress=function(){
+  let html=fsV714ProgressBase();
+  const phase=fsPhase(), view=state.v113.prepView||'phase';
+  const prep=view==='hike'?fsHikePreparedness():fsPreparedness();
+  const oldStart='<section class="section" id="preparedness">';
+  const start=html.indexOf(oldStart);
+  if(start<0)return html;
+  let depth=0,end=-1,pos=start;
+  const re=/<section\b|<\/section>/g;re.lastIndex=start;
+  let m;while((m=re.exec(html))){if(m[0].startsWith('<section'))depth++;else depth--;if(depth===0){end=re.lastIndex;break;}}
+  if(end<0)return html;
+  const rows=prep.areas.map(a=>`<div class="profile-row"><div><strong>${esc(a.label)}</strong><div class="subtle small" style="margin-top:4px;line-height:1.4">${esc(a.detail)}</div></div><div class="value"><strong style="color:${a.score>=3.8?'var(--green)':'var(--rust)'}">${a.score.toFixed(1)}/5</strong><br>${fsPrepStatus(a.score)}</div></div>`).join('');
+  const phasePrep=fsPreparedness(), next=fsNextPhase();
+  const banner=view==='phase'
+    ? (phasePrep.transition&&next?`Transition week: ${phasePrep.onTrackCount}/5 areas are ready. ${esc(next.name)} can begin to appear while Coach keeps ${esc(phasePrep.weakest.label)} in the catch-up queue.`:`Current priority: ${esc(phasePrep.weakest.label)} is the area with the most room to improve right now.`)
+    : `Long-range view: this compares today’s capacity with the demands FitnSmart is building toward near the hike. Low early scores are expected; this view does not change today’s phase or accelerate the plan by itself.`;
+  const subtitle=view==='phase'?`${esc(phase.name)} · week ${fsWeek()} of ${phase.end}`:`North Rim → South Rim · target ${esc(fsDateLabelShort(state.profile.targetHikeDate))}`;
+  const statusNote=view==='phase'?'Compared with what the plan expects at this point.':'Compared with end-of-program hiking demands, not just this phase.';
+  const block=`<section class="section" id="preparedness"><div class="section-head"><div><h3>Preparedness</h3><div class="section-label">${subtitle}</div></div><span class="tag">${prep.onTrackCount}/5 at 3.8+</span></div><div class="prep-toggle" role="group" aria-label="Preparedness view"><button class="${view==='phase'?'active':''}" onclick="fsSetPrepView('phase')">Current phase</button><button class="${view==='hike'?'active':''}" onclick="fsSetPrepView('hike')">Hike preparedness</button></div><div class="card flat"><div class="row between" style="align-items:flex-start"><div><div class="eyebrow">${view==='phase'?'Program status':'Long-range status'}</div><strong style="font-size:22px">${esc(prep.programStatus)}</strong><div class="subtle small" style="margin-top:5px">${statusNote}</div></div></div>${fsRadarHTML(prep)}<div class="soft-banner">${banner}</div><div style="margin-top:10px">${rows}</div></div></section>`;
+  return html.slice(0,start)+block+html.slice(end);
+};
+
+/* Coach: restore message-bubble feel, keep deterministic fixed questions. */
+renderFsCoachChat=function(){
+  const prep=fsPreparedness(), hist=(state.v113.coachHistory||[]).slice().reverse();
+  const messages=hist.length?hist.map(h=>`<div class="coach-msg user">${esc(h.label)}</div><div class="coach-msg coach">${esc(h.answer)}<div class="coach-msg-time">${fmtDate(new Date(h.date))}</div></div>`).join(''):`<div class="coach-msg coach">Hi. Pick a question below and I’ll answer from your actual training history, current phase, and preparedness data.</div>`;
+  return `<main class="shell"><div class="topbar"><div class="brand">Fitn<span>Smart</span></div></div><h1 class="page-title">Coach</h1><p class="subtle">No free-text guessing — choose what you want to know and Coach will answer from the plan.</p><section class="section"><div class="coach-chat-card"><div class="coach-chat-status"><div><div class="eyebrow">Right now</div><strong>${esc(fsPhase().name)} · ${prep.onTrackCount}/5 on track</strong></div><span class="tag">${esc(prep.programStatus)}</span></div><div id="fs-chatlog" class="coach-chatlog">${messages}</div><div class="coach-composer"><label for="fs-coach-question">Ask Coach</label><select id="fs-coach-question"><option value="">Choose a question…</option>${FS_COACH_QUESTIONS.map(([k,q])=>`<option value="${k}">${esc(q)}</option>`).join('')}</select><button class="coach-send" onclick="fsCoachAsk()" aria-label="Ask Coach">↑</button></div></div></section>${nav('coach')}</main>`;
+};
+
+const fsV714CoachAskBase=fsCoachAsk;
+fsCoachAsk=function(){fsV714CoachAskBase();setTimeout(()=>{const log=document.querySelector('#fs-chatlog');if(log)log.scrollTop=log.scrollHeight;},0);};
+
+saveState();
+
+</script>
 </body>
 </html>
