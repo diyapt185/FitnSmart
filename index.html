@@ -4461,7 +4461,7 @@ renderProgress=function(){
   let out=fsV8ProgressBase();
   const view=state.v113.prepView||'phase',prep=view==='hike'?fsHikePreparedness():fsPreparedness(),phase=fsPhase(),next=fsNextPhase();
   const start=out.indexOf('<section class="section" id="preparedness">');if(start<0)return out;
-  let depth=0,end=-1,re=/<section\b|<\/section>/g;re.lastIndex=start,m;
+  let depth=0,end=-1,re=/<section\b|<\/section>/g,m;re.lastIndex=start;
   while((m=re.exec(out))){if(m[0].startsWith('<section'))depth++;else depth--;if(depth===0){end=re.lastIndex;break;}}
   if(end<0)return out;
   const rows=prep.areas.map(a=>`<div class="profile-row"><div><strong>${esc(a.label)}</strong><div class="subtle small" style="margin-top:4px;line-height:1.4">${esc(a.detail)}</div></div><div class="value"><strong>${a.score.toFixed(1)}/5</strong><br>${view==='hike'?fsV8HikeStatus(a.score):fsPrepStatus(a.score)}</div></div>`).join('');
@@ -4635,6 +4635,74 @@ renderToday=function(){
   }
   return out;
 };
+
+saveState();render();
+
+
+
+/* =========================================================
+   v8.1 interaction hardening
+   Runtime-tested fixes for Progress + Coach controls.
+   ========================================================= */
+
+/* Keep Coach menu privacy-safe even after importing older state. */
+for(let i=FS_COACH_QUESTIONS.length-1;i>=0;i--){
+  if(FS_COACH_QUESTIONS[i]?.[0]==='body')FS_COACH_QUESTIONS.splice(i,1);
+}
+if(!FS_COACH_QUESTIONS.some(x=>x[0]==='cardio_fitness')){
+  FS_COACH_QUESTIONS.push(['cardio_fitness','How is my cardiovascular fitness progressing?']);
+}
+state.v113=state.v113||{};
+state.v113.coachHistory=Array.isArray(state.v113.coachHistory)?state.v113.coachHistory.filter(h=>h?.key!=='body'):[];
+
+/* Direct Coach action: no legacy wrapper chain. */
+fsCoachAsk=function(){
+  const sel=document.getElementById('fs-coach-question');
+  const key=sel?.value||'';
+  if(!key){toast('Choose a question first.');return;}
+  const row=FS_COACH_QUESTIONS.find(x=>x[0]===key);
+  const label=row?.[1]||key;
+  let answer='';
+  try{answer=fsCoachPreparednessReply(key);}catch(err){
+    console.error('Coach reply error',err);
+    toast('Coach could not read that question. Try again.');
+    return;
+  }
+  state.v113.coachHistory.unshift({id:uid(),date:new Date().toISOString(),key,label,answer});
+  state.v113.coachHistory=state.v113.coachHistory.filter(h=>h?.key!=='body').slice(0,10);
+  saveState();
+  render();
+  requestAnimationFrame(()=>{const log=document.getElementById('fs-chatlog');if(log)log.scrollTop=log.scrollHeight;});
+};
+
+renderFsCoachChat=function(){
+  const prep=fsPreparedness();
+  const hist=(state.v113.coachHistory||[]).filter(h=>h?.key!=='body').slice(0,3).reverse();
+  const messages=hist.length
+    ? hist.map(h=>`<div class="coach-msg user">${esc(h.label)}</div><div class="coach-msg coach">${esc(h.answer)}<div class="coach-msg-time">${fmtDate(new Date(h.date))}</div></div>`).join('')
+    : `<div class="coach-msg coach">Choose a question below and I’ll answer from your training history and current plan.</div>`;
+  return `<main class="shell"><div class="topbar"><div class="brand">Fitn<span>Smart</span></div></div><h1 class="page-title">Coach</h1><section class="section"><div class="coach-chat-card"><div class="coach-chat-status"><div><div class="eyebrow">Right now</div><strong>${esc(fsPhase().name)} · ${prep.onTrackCount}/5 on track</strong></div><span class="tag">${esc(prep.programStatus)}</span></div><div id="fs-chatlog" class="coach-chatlog">${messages}</div><div class="coach-composer"><label for="fs-coach-question">Ask Coach</label><select id="fs-coach-question"><option value="">Choose a question…</option>${FS_COACH_QUESTIONS.map(([k,q])=>`<option value="${k}">${esc(q)}</option>`).join('')}</select><button type="button" class="coach-send" style="touch-action:manipulation" onclick="fsCoachAsk()" aria-label="Send question">↑</button></div></div></section>${nav('coach')}</main>`;
+};
+
+/* Defensive Progress view switch: if one scoring view ever throws, do not leave
+   the whole app in an unusable half-rendered state. */
+fsSetPrepView=function(v){
+  const previous=state.v113.prepView||'phase';
+  state.v113.prepView=v==='hike'?'hike':'phase';
+  try{
+    saveState();render();
+  }catch(err){
+    console.error('Preparedness render error',err);
+    state.v113.prepView=previous;saveState();
+    try{render();}catch(_e){}
+    toast('That preparedness view could not load.');
+  }
+};
+
+/* Explicit touch behavior for the two controls that are heavily used on iPhone. */
+const fsV81Style=document.createElement('style');
+fsV81Style.textContent=`.prep-toggle button,.coach-send{touch-action:manipulation;-webkit-tap-highlight-color:transparent}.prep-toggle button{min-height:44px}.coach-send{min-width:48px;min-height:48px}`;
+document.head.appendChild(fsV81Style);
 
 saveState();render();
 
