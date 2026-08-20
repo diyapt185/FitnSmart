@@ -4706,6 +4706,469 @@ document.head.appendChild(fsV81Style);
 
 saveState();render();
 
+
+
+/* =========================================================
+   v8.2 — weekly objectives + clean daily-walk habit +
+   strength double-progression
+   ========================================================= */
+
+/* ---------- Daily walking habit is baseline movement, not part of strength ---------- */
+state.v82=state.v82||{};
+state.v82.dailyWalkHabit=state.v82.dailyWalkHabit||{};
+state.v82.dailyWalkHabit.enabled=state.v10.dailyMileHabitActive!==false;
+state.v82.dailyWalkHabit.distance=Number(state.v82.dailyWalkHabit.distance||1);
+state.v82.dailyWalkHabit.incline=Number(state.v82.dailyWalkHabit.incline||0);
+function fsV82Habit(){
+  const h=state.v82.dailyWalkHabit||{};
+  return {enabled:h.enabled!==false,distance:Math.max(.25,Number(h.distance)||1),incline:Math.max(0,Number(h.incline)||0)};
+}
+function fsV82SaveHabit(){
+  const enabled=!!document.querySelector('#fs-habit-enabled')?.checked;
+  const distance=Math.max(.25,Number(document.querySelector('#fs-habit-distance')?.value)||1);
+  const incline=Math.max(0,Number(document.querySelector('#fs-habit-incline')?.value)||0);
+  state.v82.dailyWalkHabit={enabled,distance:fsRound(distance,.25),incline:fsRound(incline,.5)};
+  state.v10.dailyMileHabitActive=enabled;saveState();render();toast('Daily walking habit updated.');
+}
+
+/* A completed walk/hike can satisfy the habit, but the saved habit does not
+   automatically become harder. The user controls that prescription. */
+fsDailyMileLogged=function(date=fsTodayKey()){
+  const habit=fsV82Habit(); if(!habit.enabled)return false;
+  return fsHistOn(date).some(h=>{
+    const dist=Number(h.cardio?.distance||0); if(dist+1e-9<habit.distance)return false;
+    const title=String(h.workoutTitle||'').toLowerCase();
+    const type=String(h.sessionType||h.cardioType||h.cardio?.type||'').toLowerCase();
+    const isWalk=/walk|easy|standard_mile|cardio/.test(type+' '+title);
+    const isHike=/hike/.test(type+' '+title);
+    if(!isWalk&&!isHike)return false;
+    if(isHike)return true;
+    const inc=Number(h.cardio?.incline);
+    if(habit.incline<=0)return true;
+    return Number.isFinite(inc)&&inc+0.01>=habit.incline;
+  });
+};
+
+/* Dedicated exercise id lets a scheduled habit walk use its own editable
+   distance/incline without changing every easy-endurance prescription. */
+EXERCISES.daily_habit_walk=EXERCISES.daily_habit_walk||{
+  id:'daily_habit_walk',name:'Daily Walking Habit',type:'cardio',movement:'endurance',
+  prescription:'Your saved daily walking habit',duration:20,priority:1,
+  why:'Builds a reliable gym-going and aerobic habit while dedicated hill/long work carries the program-specific progression.',standing:true
+};
+const fsV82CardioRxBase=fsCardioRx;
+fsCardioRx=function(type){
+  if(type==='daily_habit_walk'){
+    const h=fsV82Habit();
+    return {name:'Daily Walking Habit',distance:h.distance,speed:state.v06.usualPace||null,incline:h.incline,
+      purpose:'Baseline consistency and aerobic volume. This habit is tracked separately from dedicated hill and long-endurance training.',
+      progressionNote:'Coach tracks how this workload feels over time; change the saved distance/incline in Profile when you intentionally raise your baseline.'};
+  }
+  return fsV82CardioRxBase(type);
+};
+
+/* Strength title + plan: when the daily walking habit is enabled, strength is
+   strength-only. No hidden/prepended easy mile. */
+fsStrengthTitle=function(split){return fsV82Habit().enabled?split:`${split} + Easy Endurance`;};
+const fsV82PlanMetaBase=fsPlanMeta;
+
+/* ---------- Weekly objectives ---------- */
+function fsV82WeekStart(dateKey=fsTodayKey()){
+  const d=new Date(dateKey+'T12:00:00');const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return fsLocalDateKey(d);
+}
+function fsV82WeekDates(dateKey=fsTodayKey()){
+  const start=new Date(fsV82WeekStart(dateKey)+'T12:00:00');return Array.from({length:7},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return fsLocalDateKey(d)});
+}
+function fsV82WeekLabel(dateKey=fsTodayKey()){
+  const dates=fsV82WeekDates(dateKey),a=new Date(dates[0]+'T12:00:00'),b=new Date(dates[6]+'T12:00:00');
+  const sameMonth=a.getMonth()===b.getMonth();
+  const left=a.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  const right=b.toLocaleDateString(undefined,sameMonth?{day:'numeric'}:{month:'short',day:'numeric'});
+  return `Week of ${left} · ${left}–${right}`;
+}
+function fsV82HistInWeek(dateKey){const dates=new Set(fsV82WeekDates(dateKey));return state.history.filter(h=>dates.has(fsDateKey(h.date)));}
+function fsV82PlansInWeek(dateKey){const dates=new Set(fsV82WeekDates(dateKey));return state.v10.plannedSessions.filter(p=>dates.has(p.date));}
+function fsV82StrengthDone(split,dateKey){return fsV82HistInWeek(dateKey).some(h=>fsIsStrengthHistory(h)&&fsHistorySplit(h)===split);}
+function fsV82StrengthScheduled(split,dateKey){return fsV82PlansInWeek(dateKey).some(p=>p.status!=='completed'&&String(p.type||'').includes(split));}
+function fsV82CardioDone(kind,dateKey){
+  return fsV82HistInWeek(dateKey).some(h=>{
+    const t=String(h.cardioType||h.cardio?.type||h.sessionType||'').toLowerCase();
+    if(kind==='hill')return t==='hill'||(t==='hike'&&Number(h.cardio?.elevationGain||0)>=200);
+    if(kind==='long')return t==='long'||String(h.sessionType||'').toLowerCase()==='hike';
+    return t==='easy'||t==='walk'||h.source==='standard_mile';
+  });
+}
+function fsV82CardioScheduled(kind,dateKey){return fsV82PlansInWeek(dateKey).some(p=>p.status!=='completed'&&String(p.type||'').toLowerCase().includes(kind));}
+function fsV82WeeklyObjectives(dateKey=fsTodayKey()){
+  const mid=new Date(fsV82WeekStart(dateKey)+'T12:00:00');mid.setDate(mid.getDate()+3);
+  const w=fsWeekFrom(mid),habit=fsV82Habit(),objs=[];
+  for(const split of FS_STRENGTH_SPLITS){
+    const done=fsV82StrengthDone(split,dateKey),scheduled=!done&&fsV82StrengthScheduled(split,dateKey);
+    objs.push({key:'strength:'+split,label:split,detail:'Strength training',kind:'strength',done,scheduled,status:done?'Completed':scheduled?'Scheduled':'To do'});
+  }
+  if(habit.enabled){
+    const dates=fsV82WeekDates(dateKey);const complete=dates.filter(d=>fsDailyMileLogged(d)).length;
+    const scheduled=fsV82PlansInWeek(dateKey).filter(p=>p.status!=='completed'&&String(p.type||'').toLowerCase()==='daily walking habit').length;
+    objs.push({key:'habit',label:'Daily Walking Habit',detail:`${habit.distance.toFixed(habit.distance%1?2:1)} mi · ${habit.incline}% incline`,kind:'habit',count:complete,target:7,scheduledCount:scheduled,status:`${complete}/7 completed${scheduled?` · ${scheduled} scheduled`:''}`});
+  }else{
+    const target=w<5?4:w<9?3:2;
+    const hist=fsV82HistInWeek(dateKey).filter(h=>{const t=String(h.cardioType||h.cardio?.type||h.sessionType||'').toLowerCase();return ['easy','walk','cardio'].includes(t)||h.source==='standard_mile';}).length;
+    const scheduled=fsV82PlansInWeek(dateKey).filter(p=>p.status!=='completed'&&String(p.type||'').toLowerCase().includes('easy endurance')).length;
+    objs.push({key:'easy',label:'Easy Endurance',detail:'Low-fatigue walking',kind:'easy',count:Math.min(hist,target),target,scheduledCount:scheduled,status:`${Math.min(hist,target)}/${target} completed${scheduled?` · ${scheduled} scheduled`:''}`});
+  }
+  if(w>=5){const done=fsV82CardioDone('hill',dateKey),scheduled=!done&&fsV82CardioScheduled('hill',dateKey);objs.push({key:'hill',label:'Hill Endurance',detail:'Progressive climbing stimulus',kind:'hill',done,scheduled,status:done?'Completed':scheduled?'Scheduled':'To do'});}
+  if(w>=9){const done=fsV82CardioDone('long',dateKey),scheduled=!done&&fsV82CardioScheduled('long',dateKey);objs.push({key:'long',label:'Long Walk / Hike',detail:'Progressive time-on-feet stimulus',kind:'long',done,scheduled,status:done?'Completed':scheduled?'Scheduled':'To do'});}
+  return objs;
+}
+function fsV82ObjectivePlan(key,date=state.v10.selectedDate||fsTodayKey()){
+  const base={id:null,date,location:state.ui.location||'Work Gym',duration:'Recommended'};
+  if(key.startsWith('strength:')){const split=key.slice(9);return {...base,type:`Strength — ${split}`,title:split};}
+  if(key==='habit')return {...base,type:'Daily walking habit',title:'Daily Walking Habit'};
+  if(key==='easy')return {...base,type:'Easy endurance',title:'Easy Endurance'};
+  if(key==='hill')return {...base,type:'Hill endurance',title:'Hill Endurance'};
+  if(key==='long')return {...base,type:'Long walk / hike',title:'Long Walk / Hike'};
+  return {...base,type:'Coach-selected workout',title:'Coach-selected workout'};
+}
+function fsV82UseObjective(key){
+  const p=fsV82ObjectivePlan(key,document.querySelector('#p-date')?.value||state.v10.selectedDate||fsTodayKey());
+  const type=document.querySelector('#p-type'),title=document.querySelector('#p-title');
+  if(type){let opt=[...type.options].find(o=>o.value===p.type||o.textContent===p.type);if(!opt){opt=new Option(p.type,p.type);type.add(opt);}type.value=p.type;}
+  if(title)title.value=p.title;
+}
+function fsV82StatusClass(o){return o.done||(o.count!=null&&o.count>=o.target)?'done':o.scheduled||(o.scheduledCount>0)?'scheduled':'todo';}
+function fsV82WeeklyCard(dateKey){
+  const objs=fsV82WeeklyObjectives(dateKey);
+  return `<section class="section fs-week-objectives"><div class="section-head"><div><h3>Coach objectives</h3><span class="section-label">${esc(fsV82WeekLabel(dateKey))}</span></div></div><div class="card flat"><div class="fs-objective-list">${objs.map(o=>`<div class="fs-objective-row ${fsV82StatusClass(o)}"><div><strong>${esc(o.label)}</strong><div class="subtle small">${esc(o.detail)}</div></div><span class="fs-objective-status">${esc(o.status)}</span></div>`).join('')}</div><div class="subtle small" style="margin-top:12px;line-height:1.45">Choose the days that fit your life. Coach tracks whether the important work gets scheduled and completed; the calendar does not force a particular weekday.</div></div></section>`;
+}
+
+/* Calendar is now week-objective driven instead of projecting a guessed workout
+   onto every future day. */
+renderCalendar=function(){
+  const selected=state.v10.selectedDate||fsTodayKey(),cells=fsCalendarCells(),[y,m]=state.v10.calendarMonth.split('-').map(Number),label=new Date(y,m-1,1).toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  return `<main class="shell"><div class="topbar"><div><div class="brand">Fitn<span>Smart</span></div><div class="subtle small">Plan the week, then place the work where it fits.</div></div><button class="icon-btn" onclick="fsOpenActivityLog()">＋</button></div>
+  <section class="card calendar-hero"><div class="row between"><div><div class="eyebrow">Training calendar</div><h2 style="margin:0">${esc(label)}</h2></div><div class="row"><button class="icon-btn" onclick="fsMoveMonth(-1)">‹</button><button class="icon-btn" onclick="fsMoveMonth(1)">›</button></div></div><div class="calendar-grid section"><div class="calendar-dow">Mon</div><div class="calendar-dow">Tue</div><div class="calendar-dow">Wed</div><div class="calendar-dow">Thu</div><div class="calendar-dow">Fri</div><div class="calendar-dow">Sat</div><div class="calendar-dow">Sun</div>${cells.map(c=>{const hist=fsHistOn(c.date),plans=fsPlansOn(c.date);return `<button class="calendar-day ${c.other?'other':''} ${c.date===fsTodayKey()?'today':''} ${c.date===selected?'selected':''}" onclick="fsSelectCalendarDate('${c.date}')"><span class="day-num">${c.day}</span><span class="day-dots">${plans.slice(0,2).map(()=>'<i class="day-dot plan"></i>').join('')}${hist.slice(0,3).map(h=>`<i class="day-dot ${h.source==='manual'?'manual':''}"></i>`).join('')}</span></button>`}).join('')}</div></section>
+  ${fsV82WeeklyCard(selected)}
+  <section class="section"><div class="section-head"><div><h3>${esc(fsDayLabel(selected))}</h3><span class="section-label">planned + completed</span></div><button class="linkish" onclick="fsOpenPlan('${selected}')">+ Plan</button></div><div class="card flat">${fsRenderDayAgenda(selected)}</div></section>${nav('calendar')}</main>`;
+};
+
+/* Plan sheet surfaces that week's remaining Coach objectives first. */
+const fsV82SheetBase=renderSheet;
+renderSheet=function(){
+  const s=state.ui.sheet;
+  if(s?.name==='planSession'){
+    const d=s.data||{},date=d.date||fsTodayKey(),objs=fsV82WeeklyObjectives(date);
+    const options=['Coach-selected workout','Strength — Upper Body + Core','Strength — Lower Body / Legs','Strength — Hiking Support + Core','Daily walking habit','Easy endurance','Hill endurance','Long walk / hike','Recovery / mobility'];
+    const current=d.type==='Coach recommendation'?'Coach-selected workout':(d.type||'Coach-selected workout');
+    return `<div class="sheet-backdrop" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sheet-head"><div><h2>${d.id?'Edit':'Plan'} training day</h2><div class="subtle">Choose from this week’s Coach objectives or plan something else.</div></div><button class="icon-btn" onclick="closeSheet()">×</button></div><input id="p-id" type="hidden" value="${esc(d.id||'')}"><div class="field"><label>Date</label><input id="p-date" type="date" value="${esc(date)}" onchange="state.v10.selectedDate=this.value"></div><div class="fs-plan-recs"><div class="eyebrow">Coach recommendations this week</div>${objs.map(o=>`<button type="button" class="fs-plan-rec ${fsV82StatusClass(o)}" onclick="fsV82UseObjective('${String(o.key).replace(/'/g,"\\'")}')"><span><strong>${esc(o.label)}</strong><small>${esc(o.detail)}</small></span><span>${esc(o.status)}</span></button>`).join('')}</div><div class="field section"><label>Plan</label><select id="p-type">${options.map(x=>`<option value="${esc(x)}" ${current===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="field"><label>Title</label><input id="p-title" value="${esc(d.title||'Coach-selected workout')}"></div><div class="input-row"><div class="field"><label>Location</label><select id="p-location">${['Home','Work Gym','Commercial Gym','Outdoors','Travel / Minimal'].map(x=>`<option ${d.location===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="field"><label>Time</label><select id="p-duration">${['Recommended','20 min','40 min','60+ min'].map(x=>`<option ${d.duration===x?'selected':''}>${x}</option>`).join('')}</select></div></div><button class="primary-btn section" onclick="fsSavePlan()">Save plan</button>${d.id?`<button class="danger-btn" style="width:100%;margin-top:10px" onclick="fsDeletePlan('${d.id}')">Remove from calendar</button>`:''}</div></div>`;
+  }
+  return fsV82SheetBase();
+};
+
+/* Specific planned sessions preview the thing the user actually selected. */
+const fsV82PreviewBase=fsPreviewIdsForPlan;
+fsPreviewIdsForPlan=function(dateKey,plan){
+  const loc=plan.location&&plan.location!=='Recommended'?plan.location:state.ui.location;
+  const pt=String(plan.type||'');
+  if(pt.includes('Upper Body + Core'))return fsStrengthPlan(loc,'Upper Body + Core');
+  if(pt.includes('Lower Body / Legs'))return fsStrengthPlan(loc,'Lower Body / Legs');
+  if(pt.includes('Hiking Support + Core'))return fsStrengthPlan(loc,'Hiking Support + Core');
+  if(pt==='Daily walking habit')return ['daily_habit_walk'];
+  if(pt==='Coach-selected workout'){
+    const split=fsNextStrengthSplit();return fsV82Habit().enabled?fsStrengthPlan(loc,split):[fsCardioId('easy',loc),...fsStrengthPlan(loc,split)];
+  }
+  return fsV82PreviewBase(dateKey,plan);
+};
+
+/* Today's incomplete planned workout takes precedence over a generic day guess.
+   Daily-habit plans are valid, but a planned strength/hill/long session wins if
+   more than one item shares the date. */
+function fsV82PlannedToday(date=fsTodayKey()){
+  const rows=state.v10.plannedSessions.filter(p=>p.date===date&&p.status!=='completed');
+  const score=p=>{const t=String(p.type||'').toLowerCase();if(t.includes('recovery'))return 100;if(t.includes('strength'))return 90;if(t.includes('hill'))return 80;if(t.includes('long'))return 70;if(t.includes('coach-selected'))return 60;if(t.includes('daily walking'))return 40;if(t.includes('easy'))return 30;return 10;};
+  return rows.sort((a,b)=>score(b)-score(a))[0]||null;
+}
+function fsV82MetaForPlan(plan){
+  const loc=plan.location||state.ui.location,p=fsPhase(),habit=fsV82Habit(),t=String(plan.type||'');
+  if(t.includes('Upper Body + Core')||t.includes('Lower Body / Legs')||t.includes('Hiking Support + Core')){
+    const split=t.includes('Upper Body + Core')?'Upper Body + Core':t.includes('Lower Body / Legs')?'Lower Body / Legs':'Hiking Support + Core';
+    let ids=fsStrengthPlan(loc,split);if(!habit.enabled)ids=[fsCardioId('easy',loc),...ids];
+    return {type:'strength',title:habit.enabled?split:`${split} + Easy Endurance`,focus:split,strengthSplit:split,ids,phase:p,estimated:estimatedMinutes(ids),reason:'This is a workout you deliberately placed on the Calendar. Coach is honoring the weekly objective rather than replacing it with baseline walking.'};
+  }
+  if(t==='Coach-selected workout'||t==='Coach recommendation'){
+    const split=fsNextStrengthSplit();let ids=fsStrengthPlan(loc,split);if(!habit.enabled)ids=[fsCardioId('easy',loc),...ids];
+    return {type:'strength',title:habit.enabled?split:`${split} + Easy Endurance`,focus:split,strengthSplit:split,ids,phase:p,estimated:estimatedMinutes(ids),reason:'This Calendar slot is an actual workout. Coach selected the next strength split in your three-session rotation.'};
+  }
+  if(t==='Daily walking habit'){const ids=['daily_habit_walk'];return {type:'easy',title:'Daily Walking Habit',ids,phase:p,estimated:estimatedMinutes(ids),reason:'Your scheduled baseline walking habit.'};}
+  if(t==='Easy endurance'){const ids=[fsCardioId('easy',loc)];return {type:'easy',title:'Easy Endurance',ids,phase:p,estimated:estimatedMinutes(ids),reason:'A deliberately scheduled low-fatigue endurance session.'};}
+  if(t==='Hill endurance'){const ids=[fsCardioId('hill',loc)];return {type:'hill',title:'Hill Endurance',ids,phase:p,estimated:estimatedMinutes(ids),reason:'A dedicated climbing session; this is separate from your daily walking habit.'};}
+  if(t==='Long walk / hike'){const ids=[fsCardioId('long',loc)];return {type:'long',title:'Long Walk / Hike',ids,phase:p,estimated:estimatedMinutes(ids),reason:'A dedicated time-on-feet session; this is separate from your daily walking habit.'};}
+  return null;
+}
+fsPlanMeta=function(){
+  const planned=fsV82PlannedToday();
+  if(planned){const m=fsV82MetaForPlan(planned);if(m)return m;}
+  const m=fsV82PlanMetaBase();
+  if(fsV82Habit().enabled&&['strength','override'].includes(m.type)){
+    m.ids=(m.ids||[]).filter(id=>EXERCISES[id]?.type!=='cardio');
+    if(m.strengthSplit)m.title=m.strengthSplit;
+    else m.title=String(m.title||'Strength').replace(/\s*\+\s*Easy Endurance/ig,'');
+    m.estimated=estimatedMinutes(m.ids);
+    m.reason=String(m.reason||'')+' Your daily walking habit is tracked separately, so this strength session contains strength work only.';
+  }
+  return m;
+};
+currentPlan=function(){return fsPlanMeta().ids||[];};
+
+/* Planned-habit reconciliation. */
+const fsV82CompatBase=fsV8PlanCompatible;
+fsV8PlanCompatible=function(p,h){
+  const pt=String(p.type||'').toLowerCase();
+  if(pt==='daily walking habit'){
+    const habit=fsV82Habit(),dist=Number(h.cardio?.distance||0),cls=fsV8ActivityClass(h),inc=Number(h.cardio?.incline);
+    if(!['walk','hike','standard_mile','easy','hill'].includes(cls))return false;
+    if(dist+1e-9<habit.distance)return false;
+    if(cls==='hike'||habit.incline<=0)return true;
+    return Number.isFinite(inc)&&inc+0.01>=habit.incline;
+  }
+  if(pt.includes('strength —'))return fsV8ActivityClass(h)==='strength';
+  if(pt.includes('coach-selected'))return h.source==='fitsmart'||fsV8ActivityClass(h)==='strength';
+  if(pt.includes('hill')){
+    const title=String(h.workoutTitle||'').toLowerCase(),session=String(h.sessionType||'').toLowerCase(),ct=String(h.cardioType||h.cardio?.type||'').toLowerCase();
+    const explicitHill=ct==='hill'||session.includes('hill')||title.includes('hill')||title.includes('incline');
+    const hikeClimb=(session.includes('hike')||ct.includes('hike')||title.includes('hike'))&&Number(h.cardio?.elevationGain||0)>=200;
+    return explicitHill||hikeClimb;
+  }
+  return fsV82CompatBase(p,h);
+};
+const fsV82MatchScoreBase=fsV8PlanMatchScore;
+fsV8PlanMatchScore=function(p,h){
+  const pt=String(p.type||'').toLowerCase();
+  if(pt==='daily walking habit')return fsV8PlanCompatible(p,h)?55:-1;
+  if(pt.includes('strength —')){
+    if(!fsV8PlanCompatible(p,h))return -1;const wanted=String(p.type).split('—')[1]?.trim();return fsHistorySplit(h)===wanted?70:45;
+  }
+  if(pt.includes('coach-selected'))return fsV8PlanCompatible(p,h)?60:-1;
+  return fsV82MatchScoreBase(p,h);
+};
+
+/* ---------- Strength double progression ---------- */
+function fsV82ExerciseLoad(e){
+  if(Number(e?.usedLoad)>0)return Number(e.usedLoad);
+  const vals=(e?.sets||[]).map(s=>Number(s.weight)||0).filter(x=>x>0);return vals.length?Math.max(...vals):0;
+}
+function fsV82PracticalIncrement(id,load){
+  const seen=[];for(const w of state.history){const e=(w.exercises||[]).find(x=>x.exerciseId===id);const l=fsV82ExerciseLoad(e);if(l>0)seen.push(l);}
+  const uniq=[...new Set(seen)].sort((a,b)=>a-b),diffs=[];for(let i=1;i<uniq.length;i++){const d=uniq[i]-uniq[i-1];if(d>0)diffs.push(d);}if(diffs.length)return Math.min(...diffs);
+  const name=String(EXERCISES[id]?.name||id).toLowerCase();
+  if(/dumbbell|curl|pressdown|pallof|cable|carry/.test(name))return 5;
+  return load>=50?10:5;
+}
+getSuggestedLoad=function(id){
+  const ex=EXERCISES[id],es=state.exerciseState[id]||{};if(!ex||ex.type!=='strength')return null;
+  const recent=recentExercisePerformances(id,3),latest=recent[0]||null;
+  let load=latest?fsV82ExerciseLoad(latest):Number(es.load??ex.defaultLoad??0);if(!(load>0))load=Number(es.load??ex.defaultLoad??0);
+  if(!(load>0))return {value:0,reason:'Bodyweight/band resistance stays technique-first. Coach uses reps, RPE and feedback before making the movement harder.'};
+  if(latest&&(latest.pain||latest.feedback==='pain'))return {value:load,reason:'Pain/discomfort was flagged on the most recent exposure, so Coach is holding this load rather than progressing it.'};
+  if(latest&&(latest.feedback==='too_hard'||Number(latest.avgRpe)>=8.5))return {value:load,reason:'The most recent exposure was very hard. Coach is holding the current load until it is better tolerated.'};
+  const same=recent.filter(e=>Math.abs(fsV82ExerciseLoad(e)-load)<.01).slice(0,2);
+  const topReady=same.length>=2&&same.every(e=>{
+    const reps=(e.sets||[]).map(s=>Number(s.reps)||0);return !e.pain&&e.feedback!=='too_hard'&&Number(e.avgRpe)>0&&Number(e.avgRpe)<=7&&reps.length>=(e.plannedSets||ex.sets||1)&&reps.every(r=>r>=Number(ex.repMax||ex.repMin||0));
+  });
+  if(topReady){const inc=fsV82PracticalIncrement(id,load);return {value:load+inc,reason:`You reached the top of the ${ex.repMin}–${ex.repMax} rep range across two well-tolerated exposures at ${load} lb. Coach is now testing the next practical load step (+${inc} lb).`};}
+  if(latest){
+    const reps=(latest.sets||[]).map(s=>Number(s.reps)||0),min=reps.length?Math.min(...reps):0,max=reps.length?Math.max(...reps):0;
+    if(reps.length&&min>=Number(ex.repMin||0)&&max<Number(ex.repMax||999))return {value:load,reason:`Keep ${load} lb and build reps within the ${ex.repMin}–${ex.repMax} range before adding weight. Last time you logged ${reps.join(', ')} reps.`};
+    if(reps.length&&min>=Number(ex.repMax||0))return {value:load,reason:`You reached the top of the rep range at ${load} lb once. Repeat that with controlled effort before Coach raises the load.`};
+  }
+  return {value:load,reason:recent.length?'Coach is holding the current load while you build consistent reps and manageable effort.':'This is a conservative starting load. FitnSmart will use your reps, RPE and feedback to progress it.'};
+};
+
+/* Coach cardiovascular answer explicitly recognizes the baseline habit trend. */
+const fsV82CardioReplyBase=fsV8CardioFitnessReply;
+fsV8CardioFitnessReply=function(){
+  let base=fsV82CardioReplyBase(),habit=fsV82Habit();if(!habit.enabled)return base;
+  const dates=fsV82WeekDates(fsTodayKey()),done=dates.filter(d=>fsDailyMileLogged(d)).length;
+  const rows=state.history.filter(h=>{const t=String(h.sessionType||h.cardioType||h.cardio?.type||'').toLowerCase();return h.cardio&&Number(h.cardio.distance||0)>=habit.distance*.9&&(/walk|easy|cardio/.test(t)||h.source==='standard_mile');}).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  let note=` Daily walking habit: ${done}/7 days completed this week at a saved baseline of ${habit.distance.toFixed(habit.distance%1?2:1)} mi and ${habit.incline}% incline.`;
+  if(rows.length>=2){const a=rows[rows.length-2],b=rows[rows.length-1],bits=[];if(a.cardio?.avgHr&&b.cardio?.avgHr)bits.push(`average HR ${a.cardio.avgHr} → ${b.cardio.avgHr} bpm`);if(a.cardio?.rpe&&b.cardio?.rpe)bits.push(`RPE ${a.cardio.rpe} → ${b.cardio.rpe}/10`);if(bits.length)note+=` Recent comparable habit-sized walks show ${bits.join(', ')}.`;}
+  return base+note;
+};
+
+/* Profile: one compact, editable baseline habit block. */
+const fsV82ProfileBase=renderProfile;
+renderProfile=function(){
+  let out=fsV82ProfileBase(),h=fsV82Habit();
+  const section=`<section class="section"><div class="section-head"><div><h3>Daily walking habit</h3><span class="section-label">baseline movement</span></div><button class="ghost-btn" onclick="fsV82SaveHabit()">Save</button></div><div class="card flat"><div class="profile-row"><div><strong>Enabled</strong><div class="subtle small">When enabled, this is tracked separately and is never bundled into a strength workout.</div></div><label><input id="fs-habit-enabled" type="checkbox" ${h.enabled?'checked':''}></label></div><div class="input-row" style="padding:14px 0"><div class="field"><label>Distance (mi)</label><input id="fs-habit-distance" type="number" min="0.25" step="0.25" value="${h.distance}"></div><div class="field"><label>Incline (%)</label><input id="fs-habit-incline" type="number" min="0" step="0.5" value="${h.incline}"></div></div><div class="subtle small" style="line-height:1.5">Use this as the reliable walk that gets you moving even on low-motivation days. You can schedule and log it. Dedicated Hill Endurance and Long Walk / Hike remain separate progressive training stimuli.</div></div></section>`;
+  out=out.replace(/<section class="section"><h3>Current habits & program<\/h3>[\s\S]*?<\/section>/,section);
+  return out;
+};
+
+const fsV82Style=document.createElement('style');
+fsV82Style.textContent=`
+.fs-objective-list{display:grid;gap:0}.fs-objective-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 2px;border-bottom:1px solid rgba(190,166,144,.35)}.fs-objective-row:last-child{border-bottom:0}.fs-objective-status{font-size:12px;font-weight:800;white-space:nowrap}.fs-objective-row.done .fs-objective-status{color:var(--green)}.fs-objective-row.scheduled .fs-objective-status{color:var(--rust)}.fs-objective-row.todo .fs-objective-status{color:var(--muted)}
+.fs-plan-recs{display:grid;gap:8px;margin:12px 0 18px}.fs-plan-rec{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;padding:12px 13px;border-radius:14px;border:1px solid var(--line);background:var(--surface2);color:var(--text);touch-action:manipulation}.fs-plan-rec span:first-child{display:grid;gap:3px}.fs-plan-rec small{color:var(--muted)}.fs-plan-rec.done{opacity:.62}.fs-plan-rec.scheduled{border-color:rgba(184,98,67,.45)}
+`;
+document.head.appendChild(fsV82Style);
+
+saveState();render();
+
+
+/* =========================================================
+   v8.3 — regression hardening for planning + Today state
+   Authoritative final layer for the affected pathways only.
+   ========================================================= */
+
+/* 1) Upgrade safety: an active strength workout created by an older build may
+      still contain the obsolete generic easy-walk block. Remove only that
+      obsolete baseline cardio when the Daily Walking Habit is enabled. Never
+      remove a deliberately scheduled hill, long, or Daily Walking Habit block. */
+function fsV83IsGenericEasyCardioId(id){
+  return ['easy_walk','outdoor_easy_walk','indoor_walk'].includes(String(id||''));
+}
+function fsV83ActiveIsStrength(w=state.activeWorkout){
+  if(!w)return false;
+  const t=String(w.meta?.sessionType||'').toLowerCase();
+  return t==='strength'||!!w.meta?.strengthSplit||(w.plan||[]).some(p=>EXERCISES[p.exerciseId]?.type==='strength');
+}
+function fsV83SanitizeActiveWorkout(){
+  const w=state.activeWorkout;
+  if(!w||!fsV82Habit().enabled||!fsV83ActiveIsStrength(w))return false;
+  const before=(w.plan||[]).length;
+  w.plan=(w.plan||[]).filter(p=>!fsV83IsGenericEasyCardioId(p.exerciseId));
+  if(w.plan.length===before)return false;
+  w.meta=w.meta||{};
+  w.meta.cardioType=null;
+  w.cardioRx=null;
+  if(w.index>=w.plan.length)w.index=Math.max(0,w.plan.length-1);
+  if(w.index>=0&&w.plan[w.index]?.completed){const n=fsNextSuggestedIndex(w);if(n>=0)w.index=n;}
+  saveState();
+  return true;
+}
+fsV83SanitizeActiveWorkout();
+
+/* Always sanitize before showing/resuming/advancing an existing workout. */
+const fsV83RenderWorkoutOverviewBase=renderWorkoutOverview;
+renderWorkoutOverview=function(){fsV83SanitizeActiveWorkout();return fsV83RenderWorkoutOverviewBase();};
+const fsV83RenderActiveBase=renderActive;
+renderActive=function(){fsV83SanitizeActiveWorkout();return fsV83RenderActiveBase();};
+
+/* 2) Today completion is based on what was actually completed today, not on a
+      newly recalculated recommendation after completion. */
+function fsV83TodayTrainingHistory(){
+  const today=fsTodayKey();
+  return state.history.filter(h=>fsDateKey(h.date)===today);
+}
+function fsV83IsPrimaryTrainingHistory(h){
+  if(!h)return false;
+  if(h.source==='standard_mile')return false;
+  const title=String(h.workoutTitle||'').toLowerCase();
+  const st=String(h.sessionType||'').toLowerCase();
+  if(title.includes('daily walking habit'))return false;
+  if(st==='walk' || st==='standard_mile')return false;
+  if(h.source==='fitsmart')return true;
+  return ['strength','hill','long','hike','cardio','video_class','workout_video','circuit'].includes(st);
+}
+function fsV83CompletedPlanToday(){
+  const today=fsTodayKey();
+  return [...state.v10.plannedSessions].reverse().find(p=>p.date===today&&p.status==='completed'&&!String(p.type||'').toLowerCase().includes('daily walking habit'))||null;
+}
+function fsV83LatestPrimaryToday(){
+  return [...fsV83TodayTrainingHistory()].reverse().find(fsV83IsPrimaryTrainingHistory)||null;
+}
+const fsV83TodayStateBase=fsTodayRecommendationState;
+fsTodayRecommendationState=function(){
+  const base=fsV83TodayStateBase();
+  if(base.recovery)return base;
+  const plan=fsV83CompletedPlanToday();
+  let hist=null;
+  if(plan?.completedHistoryId)hist=state.history.find(h=>h.id===plan.completedHistoryId)||null;
+  if(!hist)hist=fsV83LatestPrimaryToday();
+  if(!hist)return base;
+  const pct=fsCompletionStatsHistory(hist).pct;
+  const habit=fsV82Habit();
+  const habitDone=habit.enabled?fsDailyMileLogged():false;
+  const workoutName=hist.workoutTitle||plan?.title||'Today’s workout';
+  if(pct>=100){
+    return {...base,complete:true,optional:true,
+      title:habit.enabled?(habitDone?'Today’s training is complete ✓':'Today’s workout completed ✓'):'Today’s workout completed ✓',
+      credit:`Workout complete|${workoutName} is in the record.`,
+      remaining:habit.enabled&&!habitDone?`Your strength/training workout is done. Your Daily Walking Habit (${habit.distance.toFixed(habit.distance%1?2:1)} mi · ${habit.incline}% incline) is still available today, but it is tracked separately from the workout.`:'Nothing else is required from today’s planned workout.'};
+  }
+  if(pct>0){
+    return {...base,complete:true,optional:true,
+      title:'Today’s workout partially completed',
+      credit:`Session saved|${pct}% of ${workoutName} was completed and preserved.`,
+      remaining:habit.enabled&&!habitDone?`No make-up workout is being created. Your separate Daily Walking Habit (${habit.distance.toFixed(habit.distance%1?2:1)} mi · ${habit.incline}% incline) is still available if you want it.`:'No automatic make-up workout is being created.'};
+  }
+  return base;
+};
+
+/* 3) Future planned-workout preview on Today. Today’s own workout UI stays
+      unchanged. Show up to the next three future plans with the same exercise
+      generator used by Calendar preview. */
+function fsV83FuturePlans(limit=3){
+  const today=fsTodayKey();
+  return state.v10.plannedSessions
+    .filter(p=>p.date>today&&p.status!=='completed')
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .slice(0,limit);
+}
+function fsV83PlanPreviewLine(plan){
+  const ids=(fsPreviewIdsForPlan(plan.date,plan)||[]).filter(id=>EXERCISES[id]&&!fsV8IsOptionalExercise(EXERCISES[id]));
+  const names=ids.map(id=>EXERCISES[id].name);
+  if(!names.length)return 'Preview available from Calendar';
+  const shown=names.slice(0,3).join(' · ');
+  return shown+(names.length>3?` · +${names.length-3} more`:'');
+}
+function fsV83ComingUpHTML(){
+  const plans=fsV83FuturePlans(3);
+  if(!plans.length)return '';
+  return `<section class="section fs-v83-coming"><div class="section-head"><h3>Coming up</h3><button class="linkish" onclick="navigate('calendar')">Calendar</button></div><div class="card flat">${plans.map(p=>`<button class="today-activity fs-v83-plan-preview" style="width:100%;text-align:left;background:none;border:0;color:var(--text)" onclick="fsPreviewPlan('${p.date}','${p.id}')"><div><strong>${esc(p.title)}</strong><div class="subtle small">${esc(fsDayLabel(p.date))} · ${esc(p.location)} · ${esc(p.duration)}</div><div class="subtle tiny fs-v83-preview-line">${esc(fsV83PlanPreviewLine(p))}</div></div><span class="agenda-badge plan">Planned</span></button>`).join('')}</div></section>`;
+}
+const fsV83TodayRenderBase=renderToday;
+renderToday=function(){
+  let out=fsV83TodayRenderBase();
+  const replacement=fsV83ComingUpHTML();
+  const re=/<section class="section"><div class="section-head"><h3>Coming up<\/h3>[\s\S]*?<\/section>/;
+  if(re.test(out))out=out.replace(re,replacement);
+  else if(replacement){
+    const marker='<section class="section"><div class="section-head"><h3>Coach</h3>';
+    const i=out.indexOf(marker);if(i>=0)out=out.slice(0,i)+replacement+out.slice(i);
+  }
+  return out;
+};
+
+/* 4) Calendar ergonomics: put Plan workout directly under the calendar grid.
+      The selected-day agenda remains below Coach Objectives. */
+renderCalendar=function(){
+  const selected=state.v10.selectedDate||fsTodayKey(),cells=fsCalendarCells(),[y,m]=state.v10.calendarMonth.split('-').map(Number),label=new Date(y,m-1,1).toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  return `<main class="shell"><div class="topbar"><div><div class="brand">Fitn<span>Smart</span></div><div class="subtle small">Plan the week, then place the work where it fits.</div></div><button class="icon-btn" onclick="fsOpenActivityLog()">＋</button></div>
+  <section class="card calendar-hero"><div class="row between"><div><div class="eyebrow">Training calendar</div><h2 style="margin:0">${esc(label)}</h2></div><div class="row"><button class="icon-btn" onclick="fsMoveMonth(-1)">‹</button><button class="icon-btn" onclick="fsMoveMonth(1)">›</button></div></div><div class="calendar-grid section"><div class="calendar-dow">Mon</div><div class="calendar-dow">Tue</div><div class="calendar-dow">Wed</div><div class="calendar-dow">Thu</div><div class="calendar-dow">Fri</div><div class="calendar-dow">Sat</div><div class="calendar-dow">Sun</div>${cells.map(c=>{const hist=fsHistOn(c.date),plans=fsPlansOn(c.date);return `<button class="calendar-day ${c.other?'other':''} ${c.date===fsTodayKey()?'today':''} ${c.date===selected?'selected':''}" onclick="fsSelectCalendarDate('${c.date}')"><span class="day-num">${c.day}</span><span class="day-dots">${plans.slice(0,2).map(()=>'<i class="day-dot plan"></i>').join('')}${hist.slice(0,3).map(h=>`<i class="day-dot ${h.source==='manual'?'manual':''}"></i>`).join('')}</span></button>`}).join('')}</div><button class="secondary-btn fs-v83-plan-near-calendar" style="width:100%;margin-top:12px" onclick="fsOpenPlan('${selected}')">＋ Plan workout for ${esc(fsDayLabel(selected))}</button></section>
+  ${fsV82WeeklyCard(selected)}
+  <section class="section"><div class="section-head"><div><h3>${esc(fsDayLabel(selected))}</h3><span class="section-label">planned + completed</span></div></div><div class="card flat">${fsRenderDayAgenda(selected)}</div></section>${nav('calendar')}</main>`;
+};
+
+/* Existing v8.1/v8.2 JSON may still contain the old Calendar type name.
+   Treat it exactly like Coach-selected workout in previews too. */
+const fsV83PreviewCompatBase=fsPreviewIdsForPlan;
+fsPreviewIdsForPlan=function(dateKey,plan){
+  const pt=String(plan?.type||'');
+  if(pt==='Coach recommendation'){
+    const loc=plan.location&&plan.location!=='Recommended'?plan.location:state.ui.location;
+    const split=fsNextStrengthSplit();
+    return fsV82Habit().enabled?fsStrengthPlan(loc,split):[fsCardioId('easy',loc),...fsStrengthPlan(loc,split)];
+  }
+  return fsV83PreviewCompatBase(dateKey,plan);
+};
+
+const fsV83Style=document.createElement('style');
+fsV83Style.textContent=`
+.fs-v83-plan-preview+.fs-v83-plan-preview{border-top:1px solid rgba(190,166,144,.35)!important}.fs-v83-preview-line{margin-top:5px;line-height:1.35}.fs-v83-plan-near-calendar{min-height:48px}
+`;
+document.head.appendChild(fsV83Style);
+
+saveState();render();
+
 </script>
 </body>
 </html>
