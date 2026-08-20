@@ -1456,6 +1456,45 @@ saveState();render();
 /* engine-v09.js */
 /* FitnSmart v0.9 — phone-first setup + portable local data. */
 
+function fsNormalizeImportedState(imported){
+  if(!imported || typeof imported!=='object' || !Array.isArray(imported.history)) throw new Error('This does not look like a FitnSmart backup.');
+  const base=defaultState();
+  state=imported;
+  state.profile=(state.profile&&typeof state.profile==='object')?state.profile:{};
+  state.ui=(state.ui&&typeof state.ui==='object')?state.ui:{};
+  state.exerciseState=(state.exerciseState&&typeof state.exerciseState==='object')?state.exerciseState:{};
+  state.history=Array.isArray(state.history)?state.history:[];
+  state.standardMiles=Array.isArray(state.standardMiles)?state.standardMiles:[];
+  state.journal=Array.isArray(state.journal)?state.journal:[];
+  state.coachDecisions=Array.isArray(state.coachDecisions)?state.coachDecisions:[];
+  state.bodyMetrics=Array.isArray(state.bodyMetrics)?state.bodyMetrics:[];
+  state.activeWorkout=state.activeWorkout||null;
+  state.profile.locations=Array.isArray(state.profile.locations)?state.profile.locations:base.profile.locations;
+  state.profile.equipment=(state.profile.equipment&&typeof state.profile.equipment==='object')?state.profile.equipment:base.profile.equipment;
+  state.ui.view='today'; state.ui.sheet=null; state.ui.toast=null;
+  for(const ex of Object.values(EXERCISES)){
+    if(ex.type==='strength'&&!state.exerciseState[ex.id])state.exerciseState[ex.id]={load:ex.defaultLoad||0,lastReps:[],lastRpe:null,feedback:null,completedCount:0};
+  }
+  ensureV06();
+  state.v10=(state.v10&&typeof state.v10==='object')?state.v10:{};
+  state.v10.plannedSessions=Array.isArray(state.v10.plannedSessions)?state.v10.plannedSessions:[];
+  state.v10.coachNotes=Array.isArray(state.v10.coachNotes)?state.v10.coachNotes:[];
+  state.v10.dailyMileHabitActive=state.v10.dailyMileHabitActive!==false;
+  state.v10.selectedDate=state.v10.selectedDate||fsLocalDateKey(new Date());
+  state.v10.calendarMonth=state.v10.calendarMonth||state.v10.selectedDate.slice(0,7);
+  state.v8=(state.v8&&typeof state.v8==='object')?state.v8:{};
+  state.v113=(state.v113&&typeof state.v113==='object')?state.v113:{};
+  state.v113.coachHistory=Array.isArray(state.v113.coachHistory)?state.v113.coachHistory.filter(h=>h?.key!=='body'):[];
+  state.v82=(state.v82&&typeof state.v82==='object')?state.v82:{};
+  const oldHabit=(state.v82.dailyWalkHabit&&typeof state.v82.dailyWalkHabit==='object')?state.v82.dailyWalkHabit:{};
+  state.v82.dailyWalkHabit={
+    enabled:oldHabit.enabled!==undefined?oldHabit.enabled:(state.v10.dailyMileHabitActive!==false),
+    distance:Math.max(.25,Number(oldHabit.distance)||1),
+    incline:Math.max(0,Number(oldHabit.incline)||0)
+  };
+  state.v10.dailyMileHabitActive=state.v82.dailyWalkHabit.enabled!==false;
+  return state;
+}
 function fsImportDataFile(input){
   const file=input?.files?.[0];
   if(!file)return;
@@ -1465,16 +1504,13 @@ function fsImportDataFile(input){
       const imported=JSON.parse(reader.result);
       if(!imported || typeof imported!=='object' || !Array.isArray(imported.history)) throw new Error('This does not look like a FitnSmart backup.');
       if(!confirm('Replace the data stored on this device with this FitnSmart backup?')){ input.value=''; return; }
-      state=imported;
-      state.profile=state.profile||{};
-      state.profile.name='';
-      if(!state.ui) state.ui={};
-      state.ui.view='today'; state.ui.sheet=null; state.ui.toast=null;
+      fsNormalizeImportedState(imported);
       saveState();
       input.value='';
       render();
       toast('FitnSmart data imported.');
     }catch(err){
+      console.error('FitnSmart import error',err);
       input.value='';
       alert(`Could not import this file. ${err.message||''}`);
     }
@@ -5014,7 +5050,7 @@ saveState();render();
 
 
 /* =========================================================
-   v8.3 — regression hardening for planning + Today state
+   v8.3.1 — regression hardening + import compatibility
    Authoritative final layer for the affected pathways only.
    ========================================================= */
 
@@ -5159,6 +5195,13 @@ fsPreviewIdsForPlan=function(dateKey,plan){
     return fsV82Habit().enabled?fsStrengthPlan(loc,split):[fsCardioId('easy',loc),...fsStrengthPlan(loc,split)];
   }
   return fsV83PreviewCompatBase(dateKey,plan);
+};
+
+/* v8.3.1 — storage safety. A failed browser storage write must never blank the UI. */
+const fsV831RawSaveState=saveState;
+saveState=function(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));return true;}
+  catch(err){console.error('FitnSmart storage write failed',err);return false;}
 };
 
 const fsV83Style=document.createElement('style');
