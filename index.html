@@ -5212,6 +5212,999 @@ document.head.appendChild(fsV83Style);
 
 saveState();render();
 
+/* =========================================================
+   v9.0 — adaptive full-body strength + hiking progression rewire
+   ========================================================= */
+
+function fsV9EnsureState(){
+  state.v9=state.v9||{};
+  state.v9.schema=1;
+  state.v9.homeDumbbellLoads=[4,10,15,20,25];
+  state.v9.homeStoredLoads=[5];
+  state.v9.kettlebells=[10];
+  state.v9.anchorState=state.v9.anchorState||{};
+  state.v9.coverageWindowDays=14;
+  state.v9.migratedAt=state.v9.migratedAt||new Date().toISOString();
+  state.profile=state.profile||{};
+  state.profile.equipment=state.profile.equipment||{};
+  state.profile.equipment['Home']=['Bodyweight','Adjustable dumbbells: 4 / 10 / 15 / 20 / 25 lb each','Loop resistance bands','10 lb kettlebell','5 lb dumbbells (stored / manual use)'];
+  state.v06=state.v06||{};state.v06.locationCapabilities=state.v06.locationCapabilities||{};
+  state.v06.locationCapabilities['Home']={...(state.v06.locationCapabilities['Home']||{}),bodyweight:true,dumbbells:true,loops:true,kettlebell:true,treadmill:false,step:false,cable:false,machines:false};
+  state.v06.locationCapabilities['Work Gym']={...(state.v06.locationCapabilities['Work Gym']||{}),bodyweight:true,dumbbells:true,treadmill:true,step:true,cable:true,machines:true,stairmaster:true};
+  state.v06.locationCapabilities['Commercial Gym']={...(state.v06.locationCapabilities['Commercial Gym']||{}),bodyweight:true,dumbbells:true,treadmill:true,step:true,cable:true,machines:true,stairmaster:true};
+}
+fsV9EnsureState();
+
+const FS_V9_SPLITS=['Upper Body + Core','Lower Body + Core','Full Body'];
+for(let i=0;i<FS_STRENGTH_SPLITS.length;i++)FS_STRENGTH_SPLITS[i]=FS_V9_SPLITS[i]||FS_STRENGTH_SPLITS[i];
+while(FS_STRENGTH_SPLITS.length>FS_V9_SPLITS.length)FS_STRENGTH_SPLITS.pop();
+
+function fsV9AddExercise(ex,imgFolder){
+  EXERCISES[ex.id]={...(EXERCISES[ex.id]||{}),...ex};
+  if(imgFolder)FS_IMG_MAP[ex.id]={folder:imgFolder,images:[`${imgFolder}/0.jpg`,`${imgFolder}/1.jpg`]};
+  if(!state.exerciseState[ex.id])state.exerciseState[ex.id]={load:ex.defaultLoad||0,lastReps:[],lastRpe:null,feedback:null,completedCount:0};
+}
+
+fsV9AddExercise({id:'lat_pulldown',name:'Lat Pulldown',type:'strength',movement:'vertical_pull',sets:2,repMin:8,repMax:12,defaultLoad:25,priority:2,why:'Direct vertical pulling for the lats and upper back.',cues:['Keep ribs stacked and chest tall.','Pull elbows down toward your sides.','Control the return overhead.'],mistakes:['Leaning far backward','Pulling behind the neck','Shrugging upward'],muscles:['Lats','Upper Back','Biceps'],substitutions:['underhand_pulldown','band_lat_pulldown','one_arm_db_row']},'Wide-Grip_Lat_Pulldown');
+fsV9AddExercise({id:'underhand_pulldown',name:'Underhand Cable Pulldown',type:'strength',movement:'vertical_pull',sets:2,repMin:8,repMax:12,defaultLoad:25,priority:2,why:'A cable vertical-pull alternative that emphasizes lats and biceps.',cues:['Sit tall.','Drive elbows down.','Return slowly.'],mistakes:['Swinging','Shrugging','Using excessive body lean'],muscles:['Lats','Upper Back','Biceps'],substitutions:['lat_pulldown','band_lat_pulldown']},'Underhand_Cable_Pulldowns');
+fsV9AddExercise({id:'band_lat_pulldown',name:'Band Lat Pulldown',type:'strength',movement:'vertical_pull',sets:2,repMin:10,repMax:15,defaultLoad:0,priority:2,why:'Home vertical-pull work when a cable stack is unavailable.',cues:['Use a secure high anchor.','Pull elbows toward your ribs.','Control the return.'],mistakes:['Unsafe anchor','Leaning backward','Shrugging'],muscles:['Lats','Upper Back','Biceps'],substitutions:['lat_pulldown','one_arm_db_row']},'Straight-Arm_Pulldown');
+fsV9AddExercise({id:'hip_adductor_machine',name:'Hip Adductor Machine',type:'strength',movement:'adduction',sets:2,repMin:10,repMax:15,defaultLoad:35,priority:4,why:'Directly trains the inner-thigh adductors that are otherwise easy to undertrain.',cues:['Sit tall against the pad.','Close the legs smoothly.','Return under control.'],mistakes:['Bouncing the stack','Rushing the return','Using painful range'],muscles:['Adductors'],substitutions:['sumo_goblet_squat','side_lunge']},'Thigh_Adductor');
+fsV9AddExercise({id:'sumo_goblet_squat',name:'Sumo Goblet Squat',type:'strength',movement:'squat',sets:2,repMin:8,repMax:12,defaultLoad:10,priority:3,why:'A wider-stance squat that adds useful adductor and glute work.',cues:['Use a comfortable wide stance.','Track knees with toes.','Stand through the whole foot.'],mistakes:['Knees collapsing inward','Heels lifting','Forcing excessive depth'],muscles:['Quads','Glutes','Adductors'],substitutions:['hip_adductor_machine','goblet_squat']},'Plie_Dumbbell_Squat');
+fsV9AddExercise({id:'side_lunge',name:'Side Lunge',type:'strength',movement:'unilateral',sets:2,repMin:8,repMax:12,defaultLoad:0,priority:3,why:'Builds frontal-plane leg strength with direct adductor involvement.',cues:['Step comfortably to one side.','Sit into the working hip.','Push the floor away to return.'],mistakes:['Knee collapsing inward','Rounding forward','Stepping too far'],muscles:['Adductors','Glutes','Quads'],substitutions:['hip_adductor_machine','reverse_lunge']},'Side_Lateral_Lunge');
+fsV9AddExercise({id:'hip_thrust_machine',name:'Hip Thrust / Glute Machine',type:'strength',movement:'glute',sets:2,repMin:8,repMax:12,defaultLoad:30,priority:2,why:'Direct glute-dominant work without relying only on squats and hinges.',cues:['Brace lightly before each rep.','Drive through the feet.','Finish with glutes, not an arched lower back.'],mistakes:['Overarching at lockout','Rushing the lowering phase','Pushing through toes only'],muscles:['Glutes','Hamstrings'],substitutions:['db_hip_thrust','dumbbell_rdl']},'Barbell_Hip_Thrust');
+fsV9AddExercise({id:'db_hip_thrust',name:'Dumbbell Hip Thrust / Glute Bridge',type:'strength',movement:'glute',sets:2,repMin:10,repMax:15,defaultLoad:10,priority:2,why:'Home glute-focused work using a dumbbell for progressive resistance.',cues:['Place the load securely across the hips.','Drive hips upward with control.','Keep ribs down at the top.'],mistakes:['Overarching the lower back','Pushing from the toes','Rushing'],muscles:['Glutes','Hamstrings'],substitutions:['hip_thrust_machine','dumbbell_rdl']},'Barbell_Glute_Bridge');
+fsV9AddExercise({id:'back_extension',name:'Back Extension Machine',type:'strength',movement:'trunk_extension',sets:2,repMin:10,repMax:15,defaultLoad:20,priority:4,why:'Directly trains trunk extension and posterior-chain endurance.',cues:['Move through a comfortable range.','Keep the spine controlled.','Finish tall without hyperextending.'],mistakes:['Throwing the torso upward','Overextending','Using painful range'],muscles:['Lower Back','Glutes','Hamstrings'],substitutions:['bird_dog','dumbbell_rdl']},'Hyperextensions_Back_Extensions');
+fsV9AddExercise({id:'bird_dog',name:'Bird Dog',type:'strength',movement:'trunk_extension',sets:2,repMin:8,repMax:12,defaultLoad:0,priority:4,why:'Bodyweight trunk-stability alternative for lower-back and core control.',cues:['Brace gently.','Reach opposite arm and leg long.','Keep hips level.'],mistakes:['Twisting hips','Overarching','Rushing'],muscles:['Core','Lower Back','Glutes'],substitutions:['back_extension','pallof_press']},'Bird_Dog');
+fsV9AddExercise({id:'reverse_lunge',name:'Reverse Lunge',type:'strength',movement:'unilateral',sets:2,repMin:8,repMax:12,defaultLoad:0,priority:2,why:'Builds unilateral leg strength with a controlled step-back pattern.',cues:['Step backward softly.','Lower under control.','Drive through the front foot.'],mistakes:['Front knee collapsing inward','Pushing mostly from the back leg','Rushing'],muscles:['Quads','Glutes','Hamstrings'],substitutions:['db_reverse_lunge','supported_split_squat','leg_press']},'Barbell_Rear_Lunge');
+fsV9AddExercise({id:'db_reverse_lunge',name:'Dumbbell Reverse Lunge',type:'strength',movement:'unilateral',sets:2,repMin:8,repMax:12,defaultLoad:4,priority:2,why:'Progressive unilateral leg strength with dumbbells.',cues:['Hold weights quietly at your sides.','Step back under control.','Drive through the front foot.'],mistakes:['Swinging weights','Knee collapsing inward','Losing balance'],muscles:['Quads','Glutes','Hamstrings'],substitutions:['reverse_lunge','supported_split_squat']},'Dumbbell_Rear_Lunge');
+fsV9AddExercise({id:'plank',name:'Plank',type:'strength',movement:'core_brace',sets:2,repMin:20,repMax:45,defaultLoad:0,priority:4,timeBased:true,why:'Direct anti-extension core training.',cues:['Keep a straight line from shoulders to heels.','Brace without holding your breath.','Stop before the lower back sags.'],mistakes:['Hips sagging','Holding breath','Shrugging'],muscles:['Core'],substitutions:['pallof_press','suitcase_hold']},'Plank');
+fsV9AddExercise({id:'crunch',name:'Floor Crunch',type:'strength',movement:'trunk_flexion',sets:2,repMin:10,repMax:20,defaultLoad:0,priority:4,why:'Simple direct abdominal flexion work.',cues:['Exhale as the ribs curl toward the pelvis.','Keep the movement small and controlled.','Lower slowly.'],mistakes:['Pulling the neck','Using momentum','Rushing'],muscles:['Core'],substitutions:['cable_crunch','ab_machine']},'Crunches');
+fsV9AddExercise({id:'cable_crunch',name:'Cable Crunch',type:'strength',movement:'trunk_flexion',sets:2,repMin:10,repMax:15,defaultLoad:20,priority:4,why:'Progressive direct abdominal flexion using a cable.',cues:['Keep hips relatively still.','Curl ribs toward pelvis.','Return under control.'],mistakes:['Pulling with arms','Turning it into a hip hinge','Using momentum'],muscles:['Core'],substitutions:['crunch','ab_machine']},'Cable_Crunch');
+fsV9AddExercise({id:'ab_machine',name:'Abdominal Crunch Machine',type:'strength',movement:'trunk_flexion',sets:2,repMin:10,repMax:15,defaultLoad:20,priority:4,why:'Machine-based direct abdominal work with easily adjustable resistance.',cues:['Adjust the seat/pads comfortably.','Curl through the trunk.','Return slowly.'],mistakes:['Yanking with arms','Using too much weight','Rushing'],muscles:['Core'],substitutions:['cable_crunch','crunch']},'Ab_Crunch_Machine');
+fsV9AddExercise({id:'cable_chop',name:'Standing Cable Chop',type:'strength',movement:'core_rotation',sets:2,repMin:8,repMax:12,defaultLoad:10,priority:4,why:'Trains controlled rotational and anti-rotational trunk strength.',cues:['Stand stable.','Move the hands while controlling the trunk.','Return slowly.'],mistakes:['Jerking the cable','Twisting through the knees','Using excessive load'],muscles:['Core'],substitutions:['pallof_press','suitcase_hold']},'Cable_Woodchops');
+fsV9AddExercise({id:'tibialis_raise',name:'Tibialis Raise',type:'strength',movement:'dorsiflexion',sets:2,repMin:12,repMax:20,defaultLoad:0,priority:5,why:'Builds the front-of-shin dorsiflexors for ankle balance and repeated walking.',cues:['Keep heels planted.','Lift toes toward shins.','Lower with control.'],mistakes:['Rocking backward','Rushing','Using painful range'],muscles:['Tibialis'],substitutions:['band_tibialis_raise']},'Dumbbell_Seated_One-Leg_Calf_Raise');
+fsV9AddExercise({id:'band_tibialis_raise',name:'Band Tibialis Raise',type:'strength',movement:'dorsiflexion',sets:2,repMin:12,repMax:20,defaultLoad:0,priority:5,why:'Band alternative for direct dorsiflexor work.',cues:['Anchor the band securely.','Pull toes toward the shin.','Return slowly.'],mistakes:['Unsafe anchor','Rushing','Moving the whole leg'],muscles:['Tibialis'],substitutions:['tibialis_raise']},'Dumbbell_Seated_One-Leg_Calf_Raise');
+fsV9AddExercise({id:'kb_around_world',name:'Kettlebell Around-the-World',type:'strength',movement:'core_rotation',sets:2,repMin:8,repMax:12,defaultLoad:10,priority:5,why:'Uses the 10 lb kettlebell for controlled trunk and shoulder stability.',cues:['Stand tall.','Pass the kettlebell smoothly around the body.','Keep the trunk quiet.'],mistakes:['Swinging wildly','Leaning','Moving too fast'],muscles:['Core','Shoulders','Grip'],substitutions:['suitcase_hold','cable_chop']},'Kettlebell_Pass_Between_The_Legs');
+fsV9AddExercise({id:'stairmaster',name:'StairMaster Climb',type:'cardio',movement:'climbing',prescription:'Progressive stair climbing',duration:20,priority:1,why:'Builds sustained climbing capacity with a controllable vertical workload.',standing:true},'Stairmaster');
+fsV9AddExercise({id:'hike_stepups',name:'Hiking Step-Up Session',type:'cardio',movement:'hiking_step_volume',prescription:'Phase-specific total step-up volume',duration:25,priority:1,why:'Builds hiking-specific local muscular endurance through controlled total step volume.',standing:true},'Dumbbell_Step_Ups');
+
+const FS_V9_META={
+  machine_row:{patterns:['horizontal_pull'],direct:['Upper Back','Biceps']},seated_cable_row:{patterns:['horizontal_pull'],direct:['Upper Back','Biceps']},one_arm_db_row:{patterns:['horizontal_pull'],direct:['Upper Back','Biceps']},band_row:{patterns:['horizontal_pull'],direct:['Upper Back','Biceps']},
+  lat_pulldown:{patterns:['vertical_pull'],direct:['Lats','Upper Back','Biceps']},underhand_pulldown:{patterns:['vertical_pull'],direct:['Lats','Upper Back','Biceps']},band_lat_pulldown:{patterns:['vertical_pull'],direct:['Lats','Upper Back','Biceps']},
+  machine_chest_press:{patterns:['horizontal_push'],direct:['Chest','Triceps']},incline_chest_press:{patterns:['horizontal_push'],direct:['Chest','Shoulders','Triceps']},db_chest_press:{patterns:['horizontal_push'],direct:['Chest','Triceps']},standing_band_press:{patterns:['horizontal_push'],direct:['Chest','Triceps']},wall_pushup:{patterns:['horizontal_push'],direct:['Chest','Triceps']},
+  machine_shoulder_press:{patterns:['vertical_push'],direct:['Shoulders','Triceps']},db_overhead_press:{patterns:['vertical_push'],direct:['Shoulders','Triceps']},
+  cable_curl:{patterns:['elbow_flexion'],direct:['Biceps']},db_biceps_curl:{patterns:['elbow_flexion'],direct:['Biceps']},cable_pressdown:{patterns:['elbow_extension'],direct:['Triceps']},db_triceps_extension:{patterns:['elbow_extension'],direct:['Triceps']},
+  leg_press:{patterns:['squat'],direct:['Quads','Glutes']},goblet_squat:{patterns:['squat'],direct:['Quads','Glutes']},bodyweight_squat:{patterns:['squat'],direct:['Quads','Glutes']},sumo_goblet_squat:{patterns:['squat'],direct:['Quads','Glutes','Adductors']},
+  dumbbell_rdl:{patterns:['hinge'],direct:['Hamstrings','Glutes']},band_rdl:{patterns:['hinge'],direct:['Hamstrings','Glutes']},smith_rdl:{patterns:['hinge'],direct:['Hamstrings','Glutes']},seated_leg_curl:{patterns:['knee_flexion'],direct:['Hamstrings']},lying_leg_curl:{patterns:['knee_flexion'],direct:['Hamstrings']},
+  hip_thrust_machine:{patterns:['glute'],direct:['Glutes']},db_hip_thrust:{patterns:['glute'],direct:['Glutes']},hip_abductor_machine:{patterns:['abduction'],direct:['Abductors','Glutes']},band_lateral_walk:{patterns:['abduction'],direct:['Abductors','Glutes']},hip_adductor_machine:{patterns:['adduction'],direct:['Adductors']},side_lunge:{patterns:['unilateral','adduction'],direct:['Adductors','Glutes','Quads']},
+  reverse_lunge:{patterns:['unilateral'],direct:['Quads','Glutes','Hamstrings']},db_reverse_lunge:{patterns:['unilateral'],direct:['Quads','Glutes','Hamstrings']},supported_split_squat:{patterns:['unilateral'],direct:['Quads','Glutes']},step_up:{patterns:['step','unilateral'],direct:['Quads','Glutes','Calves']},low_step_down:{patterns:['downhill'],direct:['Quads','Glutes']},
+  calf_raise:{patterns:['plantarflexion'],direct:['Calves']},machine_calf_raise:{patterns:['plantarflexion'],direct:['Calves']},tibialis_raise:{patterns:['dorsiflexion'],direct:['Tibialis']},band_tibialis_raise:{patterns:['dorsiflexion'],direct:['Tibialis']},
+  pallof_press:{patterns:['anti_rotation'],direct:['Core']},cable_pallof:{patterns:['anti_rotation'],direct:['Core']},suitcase_hold:{patterns:['anti_lateral_flexion','carry'],direct:['Core','Grip']},loaded_carry:{patterns:['carry','anti_lateral_flexion'],direct:['Core','Grip']},plank:{patterns:['anti_extension'],direct:['Core']},crunch:{patterns:['trunk_flexion'],direct:['Core']},cable_crunch:{patterns:['trunk_flexion'],direct:['Core']},ab_machine:{patterns:['trunk_flexion'],direct:['Core']},cable_chop:{patterns:['rotation'],direct:['Core']},back_extension:{patterns:['trunk_extension'],direct:['Lower Back','Glutes']},bird_dog:{patterns:['trunk_extension','anti_rotation'],direct:['Core','Lower Back']},kb_around_world:{patterns:['rotation'],direct:['Core','Shoulders','Grip']}
+};
+
+function fsV9Meta(id){
+  const ex=EXERCISES[id]||{};const m=FS_V9_META[id]||{};
+  return {patterns:m.patterns||[ex.movement].filter(Boolean),direct:m.direct||ex.muscles||[]};
+}
+function fsV9DaysAgo(date){return Math.max(0,Math.floor((new Date()-new Date(date))/86400000));}
+function fsV9StrengthSetsFromHistory(h){return (h?.exercises||[]).filter(e=>e&&!e.skipped);}
+function fsV9SetFeedback(set,e){return set?.feedback||null;}
+function fsV9AggregateFeedback(sets=[]){
+  if(sets.some(s=>s.feedback==='pain'))return 'pain';
+  if(sets.some(s=>s.feedback==='too_hard'))return 'too_hard';
+  if(sets.length&&sets.every(s=>s.feedback==='too_easy'))return 'too_easy';
+  if(sets.some(s=>s.feedback==='good'))return 'good';
+  return null;
+}
+function fsV9Coverage(days=14){
+  const muscles=['Chest','Shoulders','Upper Back','Lats','Biceps','Triceps','Quads','Hamstrings','Glutes','Abductors','Adductors','Calves','Tibialis','Core','Lower Back'];
+  const score=Object.fromEntries(muscles.map(x=>[x,0]));
+  const patterns={};
+  for(const h of (state.history||[])){
+    if(fsV9DaysAgo(h.date)>days)continue;
+    if((h.exercises||[]).length){
+      for(const e of fsV9StrengthSetsFromHistory(h)){
+        const meta=fsV9Meta(e.exerciseId),sets=Math.max(1,(e.sets||[]).length||1),mult=Math.min(1.5,.7+.2*sets);
+        for(const m of meta.direct)if(score[m]!=null)score[m]+=mult;
+        for(const p of meta.patterns)patterns[p]=(patterns[p]||0)+mult;
+      }
+    }else if(h.sessionType==='strength'&&h.activityDetails?.focus){
+      for(const f of h.activityDetails.focus){
+        const aliases={Back:'Upper Back',Lats:'Lats',Chest:'Chest',Shoulders:'Shoulders',Biceps:'Biceps',Triceps:'Triceps',Quads:'Quads',Glutes:'Glutes',Calves:'Calves',Hamstrings:'Hamstrings',Core:'Core'};
+        const m=aliases[f];if(m&&score[m]!=null)score[m]+=.7;
+      }
+    }
+  }
+  const status={};
+  for(const m of muscles){const v=score[m];status[m]=v>=2.2?'green':v>=.8?'yellow':'red';}
+  return {score,status,patterns,days};
+}
+function fsV9CoverageText(){
+  const c=fsV9Coverage(),reds=Object.keys(c.status).filter(k=>c.status[k]==='red'),yellow=Object.keys(c.status).filter(k=>c.status[k]==='yellow');
+  if(!reds.length&&!yellow.length)return 'Whole-body strength coverage is on target across the recent training window.';
+  const bits=[];if(reds.length)bits.push(`${reds.slice(0,4).join(', ')} need the most work`);if(yellow.length)bits.push(`${yellow.slice(0,4).join(', ')} could use another exposure`);return bits.join('. ')+'.';
+}
+
+function fsV9HistorySplit(h){
+  if(h?.strengthSplit){if(h.strengthSplit==='Hiking Support + Core')return 'Full Body';if(h.strengthSplit==='Lower Body / Legs')return 'Lower Body + Core';return h.strengthSplit;}
+  const t=String(h?.workoutTitle||'').toLowerCase();
+  if(t.includes('upper body'))return 'Upper Body + Core';
+  if(t.includes('lower body')||t.includes('legs'))return 'Lower Body + Core';
+  if(t.includes('hiking support')||t.includes('full body'))return 'Full Body';
+  return null;
+}
+fsHistorySplit=fsV9HistorySplit;
+function fsV9NextStrengthSplit(){
+  const recent=[...(state.history||[])].reverse().filter(h=>fsIsStrengthHistory(h)&&fsAgo(h.date)<=10),seen=new Map();
+  for(const h of recent){const s=fsV9HistorySplit(h);if(s&&!seen.has(s))seen.set(s,new Date(h.date).getTime());}
+  const missing=FS_V9_SPLITS.find(s=>!seen.has(s));if(missing)return missing;
+  return [...FS_V9_SPLITS].sort((a,b)=>(seen.get(a)||0)-(seen.get(b)||0))[0];
+}
+fsNextStrengthSplit=fsV9NextStrengthSplit;
+
+function fsV9RecentExercise(id,n=4){return recentExercisePerformances(id,n)||[];}
+function fsV9AdaptiveSets(id){
+  const ex=EXERCISES[id];if(!ex||ex.type!=='strength')return ex?.sets||1;
+  if(fsInTaper())return 1;
+  const recent=fsV9RecentExercise(id,3).filter(e=>(e.sets||[]).length);
+  if(recent.some(e=>e.pain||e.feedback==='pain'||(e.sets||[]).some(s=>s.feedback==='pain')))return 2;
+  const two=recent.slice(0,2);
+  const ready=two.length>=2&&two.every(e=>{
+    const sf=(e.sets||[]).map(s=>s.feedback).filter(Boolean);const agg=sf.length?fsV9AggregateFeedback(e.sets):e.feedback;
+    return e.completedAll!==false&&!['too_hard','pain'].includes(agg);
+  });
+  const compound=['squat','hinge','horizontal_pull','vertical_pull','horizontal_push','vertical_push','unilateral','glute','step'].some(x=>fsV9Meta(id).patterns.includes(x));
+  const max=compound&&(fsWeek()>=17)?4:3;
+  if(ready)return Math.min(max,3);
+  return 2;
+}
+
+function fsV9HomeLoadClosest(v,mode='nearest'){
+  const a=state.v9.homeDumbbellLoads||[4,10,15,20,25];if(!(v>0))return 0;
+  if(mode==='up')return a.find(x=>x>v)||a[a.length-1];
+  if(mode==='down')return [...a].reverse().find(x=>x<v)||a[0];
+  return a.reduce((best,x)=>Math.abs(x-v)<Math.abs(best-v)?x:best,a[0]);
+}
+function fsV9LocationForLoad(){return state.activeWorkout?.location||state.ui.location;}
+function fsV9LatestUsableSet(id){
+  for(const h of [...(state.history||[])].reverse()){
+    const e=(h.exercises||[]).find(x=>x.exerciseId===id);if(e?.sets?.length)return e.sets[e.sets.length-1];
+  }return null;
+}
+function fsV9FeedbackFromLegacy(set,e){
+  if(set?.feedback)return set.feedback;
+  if(e?.feedback)return e.feedback;
+  const r=Number(set?.rpe||e?.avgRpe||0);if(!r)return null;if(r<=5)return 'too_easy';if(r<=8)return 'good';return 'too_hard';
+}
+function fsV9SuggestedLoad(id){
+  const ex=EXERCISES[id],loc=fsV9LocationForLoad();if(!ex||ex.type!=='strength')return null;
+  const perf=fsV9RecentExercise(id,3),latest=perf[0]||null;let load=latest?fsV82ExerciseLoad(latest):Number(state.exerciseState[id]?.load??ex.defaultLoad??0);
+  if(loc==='Home'&&load>0)load=fsV9HomeLoadClosest(load);
+  if(!(load>0))return {value:0,reason:'Bodyweight or band resistance. Coach progresses reps, sets, or the movement when needed.'};
+  const latestSets=latest?.sets||[],agg=latestSets.some(s=>s.feedback)?fsV9AggregateFeedback(latestSets):(latest?.feedback||null);
+  const pain=latest?.pain||agg==='pain';if(pain)return {value:load,reason:'Pain was flagged on the latest exposure, so load progression is paused.'};
+  if(agg==='too_hard'){
+    const down=loc==='Home'?fsV9HomeLoadClosest(load,'down'):Math.max(0,load-fsV82PracticalIncrement(id,load));
+    return {value:down||load,reason:'The latest working sets were too hard, so Coach is holding or reducing the load.'};
+  }
+  const same=perf.filter(e=>Math.abs(fsV82ExerciseLoad(e)-load)<.01).slice(0,2);
+  const ready=same.length>=2&&same.every(e=>{
+    const a=(e.sets||[]).map(s=>fsV9FeedbackFromLegacy(s,e));const reps=(e.sets||[]).map(s=>Number(s.reps)||0);
+    return !e.pain&&!a.includes('pain')&&!a.includes('too_hard')&&reps.length&&reps.every(r=>r>=Number(ex.repMax||ex.repMin||0));
+  });
+  if(ready){
+    const up=loc==='Home'?fsV9HomeLoadClosest(load,'up'):load+fsV82PracticalIncrement(id,load);
+    if(up>load)return {value:up,reason:`The top of the rep range has been repeated successfully. Coach is testing the next available load.`};
+  }
+  return {value:load,reason:latest?'Coach is using your recent working load while you build repeatable sets.':'Conservative starting load; Coach will learn from your actual sets.'};
+}
+getSuggestedLoad=fsV9SuggestedLoad;
+
+function fsV9Pick(slot,loc,coverage,used=[]){
+  const gym=['Work Gym','Commercial Gym'].includes(loc),home=loc==='Home',candidates={
+    horizontal_pull:gym?['machine_row','seated_cable_row','one_arm_db_row']:['one_arm_db_row','band_row'],
+    vertical_pull:gym?['lat_pulldown','underhand_pulldown']:['band_lat_pulldown','one_arm_db_row'],
+    horizontal_push:gym?['machine_chest_press','incline_chest_press','db_chest_press']:['db_chest_press','standing_band_press','wall_pushup'],
+    vertical_push:gym?['machine_shoulder_press','db_overhead_press']:['db_overhead_press'],
+    biceps:gym?['cable_curl','db_biceps_curl']:['db_biceps_curl'],triceps:gym?['cable_pressdown','db_triceps_extension']:['db_triceps_extension'],
+    squat:gym?['leg_press','hack_squat','smith_squat','goblet_squat']:['goblet_squat','sumo_goblet_squat','bodyweight_squat'],
+    hinge:gym?['seated_leg_curl','dumbbell_rdl','smith_rdl']:['dumbbell_rdl','band_rdl'],
+    hamstring:gym?['seated_leg_curl','lying_leg_curl','dumbbell_rdl']:['dumbbell_rdl','band_rdl'],
+    glute:gym?['hip_thrust_machine','dumbbell_rdl']:['db_hip_thrust','dumbbell_rdl'],
+    abduction:gym?['hip_abductor_machine','band_lateral_walk']:['band_lateral_walk'],adduction:gym?['hip_adductor_machine','side_lunge']:['sumo_goblet_squat','side_lunge'],
+    calves:gym?['machine_calf_raise','calf_raise']:['calf_raise'],tibialis:gym?['tibialis_raise','band_tibialis_raise']:['band_tibialis_raise','tibialis_raise'],
+    core:gym?['cable_pallof','cable_crunch','ab_machine','cable_chop','suitcase_hold']:['pallof_press','plank','crunch','suitcase_hold','kb_around_world'],
+    unilateral:gym?['reverse_lunge','step_up','supported_split_squat']:['db_reverse_lunge','reverse_lunge','supported_split_squat'],carry:gym?['loaded_carry','suitcase_hold']:['suitcase_hold'],trunk_extension:gym?['back_extension','dumbbell_rdl']:['bird_dog','dumbbell_rdl']
+  }[slot]||[];
+  const promoted=state.profile.promotedAlts||{};const mapped=candidates.map(id=>promoted[id]||id).filter(id=>EXERCISES[id]&&!used.includes(id));
+  return mapped[0]||candidates.find(id=>EXERCISES[id])||null;
+}
+function fsV9WhyForSlot(slot,id,split){
+  const c=fsV9Coverage(),ex=EXERCISES[id],direct=fsV9Meta(id).direct,low=direct.filter(m=>c.status[m]==='red'),mid=direct.filter(m=>c.status[m]==='yellow');
+  if(low.length)return `${ex.name} is filling a current coverage gap in ${low.slice(0,2).join(' and ')}.`;
+  if(mid.length)return `${ex.name} gives ${mid.slice(0,2).join(' and ')} another useful exposure this training window.`;
+  if(split==='Full Body')return `${ex.name} adds a balanced second exposure without simply repeating the earlier strength sessions.`;
+  return ex.why||'This movement fills an important slot in today’s strength session.';
+}
+function fsV9StrengthPlan(loc=state.ui.location,focus='Full Body'){
+  if(!FS_V9_SPLITS.includes(focus))focus='Full Body';
+  const coverage=fsV9Coverage(),slots=focus==='Upper Body + Core'?['horizontal_pull','vertical_pull','horizontal_push','vertical_push','biceps','triceps','core']:
+    focus==='Lower Body + Core'?['squat','hamstring','glute','abduction','adduction','calves','core']:
+    ['unilateral','horizontal_pull','horizontal_push','hinge','core','carry'];
+  const used=[],ids=[];
+  if(focus==='Full Body'){
+    const red=Object.entries(coverage.status).filter(([,s])=>s==='red').map(([m])=>m);
+    const weakMap={Lats:'vertical_pull','Hamstrings':'hamstring',Glutes:'glute',Adductors:'adduction',Abductors:'abduction',Core:'core','Lower Back':'trunk_extension',Tibialis:'tibialis',Chest:'horizontal_push','Upper Back':'horizontal_pull',Quads:'squat',Calves:'calves',Shoulders:'vertical_push',Biceps:'biceps',Triceps:'triceps'};
+    for(const m of red.slice(0,2)){const slot=weakMap[m];if(slot&&!slots.includes(slot))slots.unshift(slot);}
+  }
+  for(const slot of slots){const id=fsV9Pick(slot,loc,coverage,used);if(id){used.push(id);ids.push(id);EXERCISES[id].sets=fsV9AdaptiveSets(id);EXERCISES[id]._v9Why=fsV9WhyForSlot(slot,id,focus);}}
+  return [...new Set(ids)].slice(0,focus==='Full Body'?7:8);
+}
+fsStrengthPlan=fsV9StrengthPlan;
+
+function fsV9RecommendedSplitTitle(split){return split;}
+function fsStrengthTitle(split){return split;}
+
+/* Keep historical 3-day accounting while using the new split names. */
+function fsV9StrengthTargetThisWeek(){if(fsInTaper())return 2;return fsRecoveryRaw(14)<=2?2:3;}
+fsStrengthTargetThisWeek=fsV9StrengthTargetThisWeek;
+
+/* Per-set strength feedback and next-set continuity. */
+function fsV9SetSuggestedValue(item,ex){
+  const prior=item.sets?.[item.sets.length-1];if(prior&&Number.isFinite(Number(prior.weight)))return Number(prior.weight);
+  return Number(getSuggestedLoad(ex.id)?.value||0);
+}
+function fsV9NextSetCoach(item,ex){
+  const prev=item.sets?.[item.sets.length-1];if(!prev)return getSuggestedLoad(ex.id);
+  const loc=fsV9LocationForLoad(),w=Number(prev.weight)||0,f=prev.feedback;
+  if(f==='pain')return {value:w,reason:'Pain was flagged. Stop this movement or choose an alternative.'};
+  if(f==='too_hard')return {value:loc==='Home'?fsV9HomeLoadClosest(w,'down'):Math.max(0,w-fsV82PracticalIncrement(ex.id,w)),reason:'The last set was too hard; a lower load is available if you want it.'};
+  if(f==='too_easy'){
+    const up=loc==='Home'?fsV9HomeLoadClosest(w,'up'):w+fsV82PracticalIncrement(ex.id,w);
+    if(up>w)return {value:up,reason:'The last set was too easy; Coach suggests the next available load.'};
+  }
+  return {value:w,reason:'The last set was good, so Coach is keeping that working load available.'};
+}
+function fsV9FeedbackButton(value,label,cls=''){return `<button class="fs-v9-set-feedback ${cls}" data-feedback="${value}" onclick="fsV9SelectSetFeedback('${value}')">${label}</button>`;}
+function fsV9SelectSetFeedback(v){document.querySelectorAll('.fs-v9-set-feedback').forEach(b=>b.classList.toggle('selected',b.dataset.feedback===v));}
+function fsV9LogStrengthSet(){
+  const w=state.activeWorkout,item=w?.plan?.[w.index],ex=EXERCISES[item?.exerciseId];if(!item||!ex)return;
+  const weight=Number(document.querySelector('#set-weight')?.value||0),reps=Number(document.querySelector('#set-reps')?.value||0),feedback=document.querySelector('.fs-v9-set-feedback.selected')?.dataset.feedback||'';
+  if(!reps||!feedback){toast('Enter reps and choose set feedback.');return;}
+  item.sets=item.sets||[];item.sets.push({weight,reps,feedback});item.feedback=fsV9AggregateFeedback(item.sets);saveState();
+  if(feedback==='pain'){openSheet('v9PainSet',{id:ex.id});return;}
+  render();
+}
+logStrengthSet=fsV9LogStrengthSet;
+function fsV9ContinueAfterExerciseFeedback(){const item=state.activeWorkout?.plan?.[state.activeWorkout.index];if(item)item.feedback=fsV9AggregateFeedback(item.sets||[]);advanceExercise();}
+continueAfterExerciseFeedback=fsV9ContinueAfterExerciseFeedback;
+
+renderActiveStrength=function(item,ex){
+  if(fsV8IsOptionalExercise(ex))return fsV8ActiveStrengthBase(item,ex);
+  ex.sets=fsV9AdaptiveSets(ex.id);const targetSets=ex.sets||2,nextSet=(item.sets||[]).length+1,done=(item.sets||[]).length>=targetSets,baseSuggested=getSuggestedLoad(ex.id),nextCoach=fsV9NextSetCoach(item,ex),prevSet=item.sets?.[item.sets.length-1]||null;
+  if(done){
+    return `<main class="shell"><div class="topbar"><button class="icon-btn" onclick="navigate('workout')">←</button><div style="font-weight:800">${state.activeWorkout.index+1}/${state.activeWorkout.plan.length}</div><button class="icon-btn" onclick="openSheet('activeMore')">⋯</button></div><div class="detail-image" style="height:210px">${exerciseSVG(ex.id,true)}</div><h1 class="page-title" style="margin-top:18px">${esc(ex.name)} complete</h1><div class="card flat section">${(item.sets||[]).map((s,i)=>`<div class="row between" style="padding:8px 0;${i?'border-top:1px solid var(--line)':''}"><strong>Set ${i+1}</strong><span>${Number(s.weight)||0} lb · ${s.reps}${ex.timeBased?' sec':' reps'} · ${esc(({too_easy:'Too easy',good:'Good',too_hard:'Too hard',pain:'Something hurt'})[s.feedback]||'')}</span></div>`).join('')}</div><button class="primary-btn section" onclick="continueAfterExerciseFeedback()">Continue</button></main>`;
+  }
+  const inputValue=prevSet?Number(prevSet.weight)||0:Number(baseSuggested?.value||0),lastLabel=prevSet?`${Number(prevSet.weight)||0} lb`:'—',coachLabel=nextCoach?.value?`${nextCoach.value} lb`:'Bodyweight / band';
+  return `<main class="shell"><div class="topbar"><button class="icon-btn" onclick="navigate('workout')">←</button><div style="font-weight:800">${state.activeWorkout.index+1}/${state.activeWorkout.plan.length}</div><button class="icon-btn" onclick="openSheet('activeMore')">⋯</button></div><section class="exercise-detail"><div class="detail-image">${exerciseSVG(ex.id,true)}</div><h1>${esc(ex.name)}</h1><div class="recommended"><div><div class="metric-label">Coach recommends</div><strong>${coachLabel}</strong><div class="subtle tiny" style="margin-top:4px">Last set: ${lastLabel}</div></div><button class="ghost-btn" onclick="openSheet('whyLoad',{id:'${ex.id}'})">Why?</button></div><div class="stat-grid"><div class="stat"><div class="label">Target</div><strong>${targetSets} sets</strong></div><div class="stat"><div class="label">Reps</div><strong>${ex.repMin}–${ex.repMax}${ex.timeBased?' sec':''}</strong></div><div class="stat"><div class="label">Set</div><strong>${nextSet}/${targetSets}</strong></div></div><div class="card flat section"><div class="input-row"><div class="field"><label>Weight (lb)</label><input id="set-weight" type="number" step="1" value="${inputValue}"></div><div class="field"><label>${ex.timeBased?'Seconds':'Reps'}</label><input id="set-reps" type="number" step="1" value="${ex.repMin}"></div></div><div class="field" style="margin-top:14px"><label>How did this set feel?</label><div class="fs-v9-feedback-grid">${fsV9FeedbackButton('too_easy','Too easy')}${fsV9FeedbackButton('good','Good')}${fsV9FeedbackButton('too_hard','Too hard')}${fsV9FeedbackButton('pain','Something hurt','pain')}</div></div><button class="primary-btn" style="margin-top:16px" onclick="logStrengthSet()">Complete set</button></div><div class="split section"><button class="secondary-btn" onclick="openSheet('swap',{id:'${ex.id}'})">Alternatives</button><button class="secondary-btn" onclick="openSheet('technique',{id:'${ex.id}'})">How to do it</button></div><div class="compact-link-row"><button onclick="fsOpenSkipCurrent()">Skip exercise</button></div></section></main>`;
+};
+
+const fsV9FinalizeBase=fsFinalizeWorkout;
+fsFinalizeWorkout=function(endReason='completed'){
+  const w=state.activeWorkout;if(w){for(const p of w.plan||[]){if(EXERCISES[p.exerciseId]?.type==='strength'&&!fsV8IsOptionalExercise(EXERCISES[p.exerciseId])){p.feedback=fsV9AggregateFeedback(p.sets||[])||p.feedback||null;}}}
+  const before=state.history.length;fsV9FinalizeBase(endReason);
+  if(state.history.length>before){const h=state.history[state.history.length-1];for(const e of h.exercises||[]){if((e.sets||[]).some(s=>s.feedback)){e.feedback=fsV9AggregateFeedback(e.sets);e.avgRpe=null;e.pain=e.feedback==='pain';const rec=state.exerciseState[e.exerciseId]||{};rec.lastRpe=null;rec.feedback=e.feedback;state.exerciseState[e.exerciseId]=rec;}}saveState();}
+};
+finishWorkout=function(){fsFinalizeWorkout('completed')};
+
+/* More concise, exercise-specific Why? reasoning. */
+const fsV9SheetBase=renderSheet;
+renderSheet=function(){
+  const s=state.ui.sheet;
+  if(s?.name==='whyLoad'){
+    const id=s.data.id,ex=EXERCISES[id],suggested=getSuggestedLoad(id),why=ex?._v9Why||ex?.why||'';
+    return `<div class="sheet-backdrop" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sheet-head"><h2>Why this?</h2><button class="icon-btn" onclick="closeSheet()">×</button></div><p>${esc(why)}</p><div class="muted-box"><strong>Load:</strong> ${esc(suggested?.reason||'Coach is using your recent performance and available equipment.')}</div></div></div>`;
+  }
+  if(s?.name==='v9PainSet'){
+    const id=s.data.id;
+    return `<div class="sheet-backdrop"><div class="sheet"><div class="sheet-head"><h2>Stop this movement?</h2><button class="icon-btn" onclick="closeSheet()">×</button></div><p class="subtle">Pain was flagged on this set. Coach will not progress this movement from that set.</p><button class="primary-btn" style="width:100%" onclick="closeSheet();openSheet('swap',{id:'${id}'})">Choose alternative</button><button class="secondary-btn" style="width:100%;margin-top:10px" onclick="closeSheet();fsOpenSkipCurrent()">Skip remaining sets</button></div></div>`;
+  }
+  return fsV9SheetBase();
+};
+
+/* Compact color-coded coverage in Progress. */
+function fsV9CoverageHTML(){
+  const c=fsV9Coverage(),order=['Chest','Upper Back','Lats','Shoulders','Biceps','Triceps','Quads','Hamstrings','Glutes','Abductors','Adductors','Calves','Tibialis','Core','Lower Back'];
+  return `<section class="section"><div class="section-head"><div><h3>Strength Coverage</h3><div class="subtle small">Recent ${c.days} days</div></div></div><div class="card flat"><div class="fs-v9-coverage">${order.map(m=>`<span class="fs-v9-coverage-pill ${c.status[m]}">${esc(m)}</span>`).join('')}</div><div class="subtle tiny" style="margin-top:12px">Green = on target · Yellow = mid · Red = needs work</div></div></section>`;
+}
+const fsV9ProgressBase=renderProgress;
+renderProgress=function(){let html=fsV9ProgressBase();const block=fsV9CoverageHTML(),marker='<section class="section"><div class="section-head"><h3>Strength</h3>';const i=html.indexOf(marker);if(i>=0)html=html.slice(0,i)+block+html.slice(i);else html=html.replace(nav('progress'),block+nav('progress'));return html;};
+
+/* Coach can explain coverage without making the main screens wordy. */
+if(!FS_COACH_QUESTIONS.some(x=>x[0]==='coverage'))FS_COACH_QUESTIONS.splice(Math.max(0,FS_COACH_QUESTIONS.findIndex(x=>x[0]==='strength')+1),0,['coverage','What am I training / what needs more work?']);
+const fsV9CoachReplyBase=fsCoachPreparednessReply;
+fsCoachPreparednessReply=function(key){if(key==='coverage')return fsV9CoverageText();if(key==='strength'){const base=fsV9CoachReplyBase(key);return `${base} ${fsV9CoverageText()}`;}return fsV9CoachReplyBase(key);};
+
+/* Future hiking-specific modalities: keep Foundation modest, add stairs and step-volume later. */
+const fsV9CardioIdBase=fsCardioId;
+fsCardioId=function(kind,loc=state.ui.location){
+  const phase=fsPhase(),caps=fsCaps(loc),week=fsWeek();
+  if(kind==='hill'&&caps.stairmaster&&phase.start>=9&&week%2===0)return 'stairmaster';
+  return fsV9CardioIdBase(kind,loc);
+};
+const fsV9CardioRxBase=fsCardioRx;
+fsCardioRx=function(id){
+  if(id==='stairmaster'){
+    const phase=fsPhase(),t=fsPhaseT(phase),mins=Math.round((12+(phase.start>=17?8:3)*t)/2)*2;
+    return {minutes:Math.max(12,mins),distance:null,speed:null,incline:null,purpose:'Sustained climbing capacity. Keep the work controlled and log session RPE afterward.',progressionNote:'StairMaster duration grows gradually across the phase; RPE controls whether Coach holds or progresses the next exposure.'};
+  }
+  if(id==='hike_stepups'){
+    const w=fsWeek();let steps=w<17?150:w<29?Math.min(600,200+(w-17)*35):w<41?Math.min(1000,500+(w-29)*45):Math.min(1600,800+(w-41)*65);
+    return {minutes:null,distance:null,speed:null,incline:null,totalSteps:Math.round(steps/50)*50,purpose:'Hiking-specific step volume. Log total work and one session RPE rather than rating individual mini-sets.',progressionNote:'Total step volume increases only as later phases allow more hiking-specific muscular endurance.'};
+  }
+  return fsV9CardioRxBase(id);
+};
+
+/* Keep old histories valid while new workout names appear in weekly objectives. */
+const fsV9WeeklyBase=fsV82WeeklyObjectives;
+fsV82WeeklyObjectives=function(anchorDate=fsTodayKey()){
+  const out=fsV9WeeklyBase(anchorDate)||[];
+  for(const o of out){if(o.title==='Lower Body / Legs'||o.label==='Lower Body / Legs'){o.title='Lower Body + Core';o.label='Lower Body + Core';}if(o.title==='Hiking Support + Core'||o.label==='Hiking Support + Core'){o.title='Full Body';o.label='Full Body';}}
+  return out;
+};
+
+/* Sanitize any fresh/resumed strength workout onto the new split names without rewriting completed history. */
+function fsV9SanitizeActive(){
+  const w=state.activeWorkout;if(!w)return;
+  if(w.meta?.strengthSplit==='Hiking Support + Core')w.meta.strengthSplit='Full Body';
+  if(w.meta?.strengthSplit==='Lower Body / Legs')w.meta.strengthSplit='Lower Body + Core';
+}
+fsV9SanitizeActive();
+
+/* Import compatibility: normalize v9 before render, never assume newest schema. */
+const fsV9ImportBase=fsImportDataFile;
+fsImportDataFile=function(input){
+  const file=input?.files?.[0];if(!file)return;const reader=new FileReader();
+  reader.onload=()=>{try{const imported=JSON.parse(reader.result);if(!imported||typeof imported!=='object'||!Array.isArray(imported.history))throw new Error('This does not look like a FitnSmart backup.');if(!confirm('Replace the data stored on this device with this FitnSmart backup?')){input.value='';return;}fsNormalizeImportedState(imported);state.profile.name='';fsV9EnsureState();fsV9SanitizeActive();saveState();input.value='';render();toast('FitnSmart data imported.');}catch(err){input.value='';alert(`Could not import this file. ${err.message||''}`);}};
+  reader.readAsText(file);
+};
+
+const fsV9Style=document.createElement('style');
+fsV9Style.textContent=`
+.fs-v9-feedback-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.fs-v9-set-feedback{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;min-height:44px;font-weight:800}.fs-v9-set-feedback.selected{outline:2px solid var(--teal);border-color:var(--teal)}.fs-v9-set-feedback.pain.selected{outline-color:#9d4738;border-color:#9d4738}.fs-v9-coverage{display:flex;flex-wrap:wrap;gap:8px}.fs-v9-coverage-pill{padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid transparent}.fs-v9-coverage-pill.green{background:#e5f1e7;color:#365f3d;border-color:#b9d7be}.fs-v9-coverage-pill.yellow{background:#fff3cf;color:#785f17;border-color:#ead78f}.fs-v9-coverage-pill.red{background:#f8e2dc;color:#8b4434;border-color:#e9b8ac}
+`;
+document.head.appendChild(fsV9Style);
+
+/* v9 library completion + compatibility refinements */
+fsV9AddExercise({id:'db_pullover',name:'Dumbbell Pullover',type:'strength',movement:'vertical_pull',altGroup:'vertical_pull',equipmentType:'free_weight',sets:2,repMin:8,repMax:12,defaultLoad:10,priority:3,why:'Free-weight lat-focused alternative when a pulldown station is unavailable.',cues:['Keep ribs controlled.','Lower the dumbbell only through a comfortable shoulder range.','Pull back over the chest using the lats.'],mistakes:['Overarching the back','Dropping too far','Bending and straightening elbows excessively'],muscles:['Lats','Chest'],substitutions:['lat_pulldown','band_lat_pulldown']},'Dumbbell_Pullover');
+fsV9AddExercise({id:'glute_bridge',name:'Bodyweight Glute Bridge',type:'strength',movement:'glute',altGroup:'glute',equipmentType:'bodyweight',sets:2,repMin:12,repMax:20,defaultLoad:0,priority:3,why:'No-equipment direct glute work.',cues:['Plant feet comfortably.','Drive hips upward with the glutes.','Lower under control.'],mistakes:['Overarching','Pushing from toes','Rushing'],muscles:['Glutes','Hamstrings'],substitutions:['db_hip_thrust','hip_thrust_machine']},'Barbell_Glute_Bridge');
+fsV9AddExercise({id:'smith_split_squat',name:'Smith Machine Split Squat',type:'strength',movement:'unilateral',altGroup:'unilateral',equipmentType:'machine',sets:2,repMin:8,repMax:12,defaultLoad:20,priority:2,why:'Guided unilateral leg strength with less balance demand.',cues:['Set the stance before unracking.','Lower straight down.','Drive through the front foot.'],mistakes:['Front knee collapsing','Pushing from the back leg','Rushing'],muscles:['Quads','Glutes','Hamstrings'],substitutions:['db_reverse_lunge','reverse_lunge']},'Smith_Machine_Squat');
+fsV9AddExercise({id:'cable_dorsiflexion',name:'Cable Dorsiflexion',type:'strength',movement:'dorsiflexion',altGroup:'dorsiflexion',equipmentType:'machine',sets:2,repMin:12,repMax:20,defaultLoad:5,priority:5,why:'Cable-loaded dorsiflexion for direct tibialis training.',cues:['Use a light load.','Pull toes toward the shin.','Return slowly.'],mistakes:['Using excessive load','Moving the knee instead of ankle','Rushing'],muscles:['Tibialis'],substitutions:['tibialis_raise','band_tibialis_raise']},'Dumbbell_Seated_One-Leg_Calf_Raise');
+
+const FS_V9_ALT_META={
+ lat_pulldown:['vertical_pull','machine'],underhand_pulldown:['vertical_pull','machine'],band_lat_pulldown:['vertical_pull','bodyweight'],db_pullover:['vertical_pull','free_weight'],
+ hip_adductor_machine:['adduction','machine'],sumo_goblet_squat:['adduction','free_weight'],side_lunge:['adduction','bodyweight'],
+ hip_thrust_machine:['glute','machine'],db_hip_thrust:['glute','free_weight'],glute_bridge:['glute','bodyweight'],
+ back_extension:['trunk_extension','machine'],bird_dog:['trunk_extension','bodyweight'],
+ reverse_lunge:['unilateral','bodyweight'],db_reverse_lunge:['unilateral','free_weight'],smith_split_squat:['unilateral','machine'],
+ plank:['core_brace','bodyweight'],crunch:['trunk_flexion','bodyweight'],cable_crunch:['trunk_flexion','machine'],ab_machine:['trunk_flexion','machine'],
+ cable_chop:['core_rotation','machine'],kb_around_world:['core_rotation','free_weight'],
+ tibialis_raise:['dorsiflexion','bodyweight'],band_tibialis_raise:['dorsiflexion','bodyweight'],cable_dorsiflexion:['dorsiflexion','machine']
+};
+for(const [id,[group,type]] of Object.entries(FS_V9_ALT_META)){if(EXERCISES[id]){EXERCISES[id].altGroup=group;EXERCISES[id].equipmentType=type;}}
+if(EXERCISES.dumbbell_rdl){EXERCISES.dumbbell_rdl.altGroup=EXERCISES.dumbbell_rdl.altGroup||'trunk_extension';EXERCISES.dumbbell_rdl.equipmentType='free_weight';}
+if(EXERCISES.pallof_press){EXERCISES.pallof_press.equipmentType='bodyweight';}
+
+/* Improve Home vertical-pull and glute alternatives now that the library is complete. */
+const fsV9PickBase=fsV9Pick;
+fsV9Pick=function(slot,loc,coverage,used=[]){
+  if(slot==='vertical_pull'&&loc==='Home'){
+    for(const id of ['db_pullover','band_lat_pulldown','one_arm_db_row'])if(EXERCISES[id]&&!used.includes(id))return id;
+  }
+  if(slot==='glute'&&loc==='Home'){
+    for(const id of ['db_hip_thrust','glute_bridge','dumbbell_rdl'])if(EXERCISES[id]&&!used.includes(id))return id;
+  }
+  return fsV9PickBase(slot,loc,coverage,used);
+};
+
+/* Show last performed set across sessions on set 1; preserve current set load thereafter. */
+const fsV9ActiveStrengthBase=renderActiveStrength;
+renderActiveStrength=function(item,ex){
+  let html=fsV9ActiveStrengthBase(item,ex);
+  if((item.sets||[]).length===0){
+    const hist=fsV9LatestUsableSet(ex.id);if(hist){html=html.replace('Last set: —',`Last set: ${Number(hist.weight)||0} lb`);}
+  }
+  return html;
+};
+
+/* New names in planned-session UI and previews; old names remain readable. */
+const fsV9SheetCompatBase=renderSheet;
+renderSheet=function(){
+  let html=fsV9SheetCompatBase();
+  if(state.ui.sheet?.name==='planSession'){
+    html=html.replaceAll('Strength — Lower Body / Legs','Strength — Lower Body + Core').replaceAll('Strength — Hiking Support + Core','Strength — Full Body');
+  }
+  return html;
+};
+const fsV9PreviewBase=fsPreviewIdsForPlan;
+fsPreviewIdsForPlan=function(dateKey,plan){
+  const loc=plan?.location&&plan.location!=='Recommended'?plan.location:state.ui.location,pt=String(plan?.type||'');
+  if(pt.includes('Upper Body + Core'))return fsStrengthPlan(loc,'Upper Body + Core');
+  if(pt.includes('Lower Body + Core')||pt.includes('Lower Body / Legs'))return fsStrengthPlan(loc,'Lower Body + Core');
+  if(pt.includes('Full Body')||pt.includes('Hiking Support + Core'))return fsStrengthPlan(loc,'Full Body');
+  return fsV9PreviewBase(dateKey,plan);
+};
+
+/* v9 alternatives completion: machine/cable + free-weight + bodyweight/band where sensible */
+fsV9AddExercise({id:'cable_hip_adduction',name:'Cable Hip Adduction',type:'strength',movement:'adduction',altGroup:'adduction',equipmentType:'machine',sets:2,repMin:10,repMax:15,defaultLoad:10,priority:4,why:'Cable-based direct adductor work with a free-standing setup.',cues:['Stand tall with support nearby.','Draw the working leg inward smoothly.','Return under control.'],mistakes:['Swinging the leg','Leaning heavily','Using too much load'],muscles:['Adductors'],substitutions:['hip_adductor_machine','sumo_goblet_squat','side_lunge']},'Cable_Hip_Adduction');
+fsV9AddExercise({id:'cable_pull_through',name:'Cable Pull-Through',type:'strength',movement:'trunk_extension',altGroup:'trunk_extension',equipmentType:'machine',sets:2,repMin:10,repMax:15,defaultLoad:20,priority:3,why:'Cable hip-hinge alternative that trains glutes, hamstrings and trunk control.',cues:['Face away from the stack.','Hinge hips back.','Stand tall by driving hips forward.'],mistakes:['Squatting','Rounding the back','Pulling with the arms'],muscles:['Glutes','Hamstrings','Lower Back'],substitutions:['back_extension','db_good_morning','bird_dog']},'Pull_Through');
+fsV9AddExercise({id:'db_good_morning',name:'Dumbbell Good Morning',type:'strength',movement:'trunk_extension',altGroup:'trunk_extension',equipmentType:'free_weight',sets:2,repMin:8,repMax:12,defaultLoad:10,priority:3,why:'Free-weight posterior-trunk and hip-hinge work with modest loading.',cues:['Hold the dumbbell securely at the chest.','Push hips back with a long spine.','Stand by squeezing glutes.'],mistakes:['Rounding the back','Turning it into a squat','Using excessive load'],muscles:['Hamstrings','Glutes','Lower Back'],substitutions:['back_extension','cable_pull_through','bird_dog']},'Good_Morning');
+fsV9AddExercise({id:'weighted_crunch',name:'Weighted Crunch',type:'strength',movement:'trunk_flexion',altGroup:'trunk_flexion',equipmentType:'free_weight',sets:2,repMin:10,repMax:15,defaultLoad:4,priority:4,why:'Adds modest external resistance to direct abdominal flexion.',cues:['Hold a light weight securely.','Curl ribs toward pelvis.','Lower slowly.'],mistakes:['Pulling on the neck','Using momentum','Choosing too much weight'],muscles:['Core'],substitutions:['crunch','cable_crunch','ab_machine']},'Weighted_Crunches');
+fsV9AddExercise({id:'band_chop',name:'Standing Band Chop',type:'strength',movement:'core_rotation',altGroup:'core_rotation',equipmentType:'bodyweight',sets:2,repMin:8,repMax:12,defaultLoad:0,priority:4,why:'Band-based rotational core work for home or travel.',cues:['Use a secure anchor.','Move smoothly across the body.','Keep knees and hips controlled.'],mistakes:['Unsafe anchor','Jerking the band','Twisting through the knees'],muscles:['Core'],substitutions:['cable_chop','kb_around_world']},'Cable_Woodchops');
+for(const id of ['cable_hip_adduction','cable_pull_through','db_good_morning','weighted_crunch','band_chop']){
+  if(EXERCISES[id]&&!state.exerciseState[id])state.exerciseState[id]={load:EXERCISES[id].defaultLoad||0,lastReps:[],lastRpe:null,feedback:null,completedCount:0};
+}
+
+/* v9 planned-session compatibility + progressive hiking conditioning */
+const fsV9MetaPlanBase=fsV82MetaForPlan;
+fsV82MetaForPlan=function(plan){
+  const t=String(plan?.type||''),loc=plan?.location||state.ui.location,p=fsPhase(),habit=fsV82Habit();
+  if(t.includes('Lower Body + Core')||t.includes('Lower Body / Legs')||t.includes('Full Body')||t.includes('Hiking Support + Core')||t.includes('Upper Body + Core')){
+    const split=t.includes('Upper Body')?'Upper Body + Core':t.includes('Full Body')||t.includes('Hiking Support')?'Full Body':'Lower Body + Core';
+    let ids=fsStrengthPlan(loc,split);if(!habit.enabled)ids=[fsCardioId('easy',loc),...ids];
+    return {type:'strength',title:habit.enabled?split:`${split} + Easy Endurance`,focus:split,strengthSplit:split,ids,phase:p,estimated:estimatedMinutes(ids),reason:'You scheduled this strength objective; Coach is honoring it.'};
+  }
+  if(t==='Hiking step volume'||t==='Hiking Step Volume'){
+    const ids=['hike_stepups'];return {type:'hiking_stepups',title:'Hiking Step Volume',ids,phase:p,estimated:30,cardioType:'hiking_stepups',reason:'A dedicated hiking-specific muscular-endurance session.'};
+  }
+  return fsV9MetaPlanBase(plan);
+};
+
+const fsV9ObjectivesBase=fsV82WeeklyObjectives;
+fsV82WeeklyObjectives=function(dateKey=fsTodayKey()){
+  const out=fsV9ObjectivesBase(dateKey)||[],mid=new Date(fsV82WeekStart(dateKey)+'T12:00:00');mid.setDate(mid.getDate()+3);const w=fsWeekFrom(mid);
+  if(w>=17){
+    const done=fsV82HistInWeek(dateKey).some(h=>h.cardioType==='hiking_stepups'||h.cardio?.type==='hiking_stepups');
+    const scheduled=!done&&fsV82PlansInWeek(dateKey).some(p=>p.status!=='completed'&&String(p.type||'').toLowerCase().includes('hiking step'));
+    out.push({key:'step_volume',label:'Hiking Step Volume',detail:w<29?'Controlled step-up volume':w<41?'Progressive step-up endurance':'High-volume step-up endurance',kind:'hiking_stepups',done,scheduled,status:done?'Completed':scheduled?'Scheduled':'To do'});
+  }
+  return out;
+};
+const fsV9ObjectivePlanBase=fsV82ObjectivePlan;
+fsV82ObjectivePlan=function(key,date=state.v10.selectedDate||fsTodayKey()){if(key==='step_volume')return {id:null,date,location:'Work Gym',duration:'Recommended',type:'Hiking step volume',title:'Hiking Step Volume'};return fsV9ObjectivePlanBase(key,date);};
+
+const fsV9PreviewStepBase=fsPreviewIdsForPlan;
+fsPreviewIdsForPlan=function(dateKey,plan){if(String(plan?.type||'').toLowerCase().includes('hiking step'))return ['hike_stepups'];return fsV9PreviewStepBase(dateKey,plan);};
+
+/* Once Capacity Building starts, a missing step-volume exposure can replace an otherwise easy recommendation, never an overdue hill/long/strength day. */
+const fsV9PlanMetaBase=fsPlanMeta;
+fsPlanMeta=function(){
+  const planned=fsV82PlannedToday();if(planned){const pm=fsV82MetaForPlan(planned);if(pm)return pm;}
+  const base=fsV9PlanMetaBase(),w=fsWeek();
+  if(w>=17&&base.type==='easy'){
+    const recent=(state.history||[]).some(h=>fsV9DaysAgo(h.date)<=8&&(h.cardioType==='hiking_stepups'||h.cardio?.type==='hiking_stepups'));
+    if(!recent){const ids=['hike_stepups'];return {type:'hiking_stepups',title:'Hiking Step Volume',ids,phase:fsPhase(),estimated:30,cardioType:'hiking_stepups',reason:'Step-volume work is due; hill, long-endurance and strength are not more overdue.'};}
+  }
+  return base;
+};
+currentPlan=function(){return fsPlanMeta().ids||[];};
+
+function fsV9SpecialCardioHTML(item,ex){
+  const rx=state.activeWorkout.cardioRx||fsCardioRx(ex.id),isSteps=ex.id==='hike_stepups',title=isSteps?'Hiking Step-Up Session':'StairMaster Climb';
+  const workload=isSteps?`<div class="stat-grid"><div class="stat"><div class="label">Target</div><strong>${rx.totalSteps||200} steps</strong></div><div class="stat"><div class="label">Load</div><strong>As prescribed</strong></div><div class="stat"><div class="label">Effort</div><strong>Controlled</strong></div></div>`:`<div class="stat-grid"><div class="stat"><div class="label">Time</div><strong>${rx.minutes||15} min</strong></div><div class="stat"><div class="label">Mode</div><strong>Climb</strong></div><div class="stat"><div class="label">Effort</div><strong>Controlled</strong></div></div>`;
+  const fields=isSteps?`<div class="field"><label>Total step-ups</label><input id="v9-cardio-steps" type="number" step="10" value="${rx.totalSteps||200}"></div><div class="field"><label>Time (min)</label><input id="v9-cardio-time" type="number" step="1"></div><div class="field"><label>External load (lb)</label><input id="v9-cardio-load" type="number" step="1" value="0"></div><div class="field"><label>Step height (in)</label><input id="v9-cardio-height" type="number" step="0.5" placeholder="optional"></div>`:`<div class="field"><label>Time (min)</label><input id="v9-cardio-time" type="number" step="1" value="${rx.minutes||15}"></div><div class="field"><label>Level</label><input id="v9-cardio-level" type="number" step="1" placeholder="optional"></div><div class="field"><label>Floors / steps</label><input id="v9-cardio-steps" type="number" step="1" placeholder="optional"></div>`;
+  return `<main class="shell"><div class="topbar"><button class="icon-btn" onclick="navigate('workout')">←</button><div style="font-weight:800">${state.activeWorkout.index+1}/${state.activeWorkout.plan.length} Conditioning</div><button class="icon-btn" onclick="openSheet('activeMore')">⋯</button></div><section class="exercise-detail"><div class="detail-image">${exerciseSVG(ex.id,true)}</div><h1>${esc(title)}</h1><div class="muted-box" style="margin-top:12px">${esc(rx.purpose||'Complete the prescribed workload and log RPE afterward.')}</div>${workload}<div class="section"><h3>Log session</h3><div class="input-row" style="margin-top:10px">${fields}</div></div><div class="section"><div class="input-row"><div class="field"><label>Average HR</label><input id="v9-cardio-avg" inputmode="numeric" placeholder="optional"></div><div class="field"><label>Peak HR</label><input id="v9-cardio-peak" inputmode="numeric" placeholder="optional"></div><div class="field"><label>RPE</label><select id="v9-cardio-rpe"><option value="">Select</option>${[1,2,3,4,5,6,7,8,9,10].map(x=>`<option>${x}</option>`).join('')}</select></div></div><label class="option" style="margin-top:12px"><span>Any unusual pain?</span><input id="v9-cardio-pain" type="checkbox" style="width:20px;height:20px;accent-color:var(--teal)"></label><div class="field" style="margin-top:10px"><label>Notes</label><textarea id="v9-cardio-note" placeholder="Optional"></textarea></div></div><div class="sticky-action"><button class="primary-btn" onclick="fsV9SaveSpecialCardio('${ex.id}')">Save & continue</button></div></section></main>`;
+}
+const fsV9ActiveCardioBase=renderActiveCardio;
+renderActiveCardio=function(item,ex){if(['stairmaster','hike_stepups'].includes(ex.id))return fsV9SpecialCardioHTML(item,ex);return fsV9ActiveCardioBase(item,ex);};
+function fsV9SaveSpecialCardio(id){
+  const w=state.activeWorkout,isSteps=id==='hike_stepups',minutes=Number(document.querySelector('#v9-cardio-time')?.value||0)||null,steps=Number(document.querySelector('#v9-cardio-steps')?.value||0)||null,rpe=Number(document.querySelector('#v9-cardio-rpe')?.value||0)||null;
+  if(!rpe){toast('Add a session RPE before saving.');return;}
+  w.cardio={distance:null,speed:null,incline:null,minutes,avgHr:Number(document.querySelector('#v9-cardio-avg')?.value||0)||null,peakHr:Number(document.querySelector('#v9-cardio-peak')?.value||0)||null,endHr:null,hr60:null,hrr60:null,rpe,elevationGain:null,elevationLoss:null,note:document.querySelector('#v9-cardio-note')?.value||'',pain:!!document.querySelector('#v9-cardio-pain')?.checked,type:isSteps?'hiking_stepups':'stairmaster',totalSteps:steps,load:isSteps?(Number(document.querySelector('#v9-cardio-load')?.value||0)||0):null,stepHeight:isSteps?(Number(document.querySelector('#v9-cardio-height')?.value||0)||null):null,level:!isSteps?(Number(document.querySelector('#v9-cardio-level')?.value||0)||null):null};
+  w.meta=w.meta||{};w.meta.cardioType=isSteps?'hiking_stepups':'hill';if(w.plan?.[w.index])w.plan[w.index].completed=true;w.performanceOrder=w.performanceOrder||[];w.performanceOrder.push(id);saveState();advanceExercise();
+}
+
+
+/* =========================================================
+   FitnSmart v9.1 — synchronization + decision hierarchy
+   - one recommendation hierarchy shared by Today / projection / planner
+   - v9-aware preparedness and hike-readiness scoring
+   - smart strength priority, anchor/plateau rotation, recovery-aware conditioning
+   - calendar cleanup + legacy reconciliation fixes
+   ========================================================= */
+(function(){
+  state.v9=state.v9||{};
+  state.v9.anchorState=state.v9.anchorState||{};
+  state.v9.schema=2;
+
+  const V91_PHASE_AIMS={
+    foundation:'Balanced strength + aerobic consistency.',
+    aerobic:'Progressive strength + structured aerobic and climbing development.',
+    capacity:'Greater strength volume + step-volume + vertical conditioning.',
+    hiking:'Terrain, descent, pack and larger vertical workload.',
+    advanced:'Long-duration, substantial vertical, high step volume and back-to-back durability.',
+    expedition:'Rim-to-Rim-specific simulation, pack, fueling, descending and taper.'
+  };
+  for(const p of FITNSMART_PHASES) if(V91_PHASE_AIMS[p.id]) p.aim=V91_PHASE_AIMS[p.id];
+
+  function fsV91ExplicitDateKey(x){
+    if(typeof x==='string'&&/^\d{4}-\d{2}-\d{2}/.test(x))return x.slice(0,10);
+    return fsDateKey(x);
+  }
+  fsDailyMileLogged=function(date=fsTodayKey()){
+    const habit=fsV82Habit(); if(!habit.enabled)return false;
+    return (state.history||[]).some(h=>{
+      if(fsV91ExplicitDateKey(h.date)!==date)return false;
+      const dist=Number(h.cardio?.distance||0),title=String(h.workoutTitle||'').toLowerCase(),type=String(h.sessionType||h.cardioType||h.cardio?.type||'').toLowerCase();
+      return dist>=Math.max(.1,Number(habit.distance||1)*.9) && (/walk|hike|mile|easy/.test(type+' '+title)||h.source==='standard_mile');
+    });
+  };
+
+  fsActivityDays=function(days=7){
+    const now=new Date(),seen=new Set();
+    for(const h of (state.history||[])){const d=new Date(h.date),delta=(now-d)/86400000;if(delta>=0&&delta<days)seen.add(fsV91ExplicitDateKey(h.date));}
+    return seen.size;
+  };
+
+  function fsV91RawStrengthCount(days=7,refDate=new Date()){
+    const end=refDate instanceof Date?refDate:new Date(refDate),start=new Date(end);start.setDate(start.getDate()-days);
+    return (state.history||[]).filter(h=>{const d=new Date(h.date);return d<=end&&d>=start&&fsIsStrengthHistory(h);}).length;
+  }
+  function fsV91DisplayStrengthCount(raw,target){return Math.min(Number(raw)||0,Number(target)||0);}
+
+  function fsV91StrengthSetSignals(days=14){
+    let total=0,tooHard=0,pain=0,tooEasy=0,good=0;
+    for(const h of fsRecentAny(days))for(const e of (h.exercises||[])){
+      if(e.pain||e.feedback==='pain')pain++;
+      for(const s of (e.sets||[])){
+        const f=fsV9FeedbackFromLegacy(s,e); if(!f)continue; total++;
+        if(f==='too_hard')tooHard++; else if(f==='pain')pain++; else if(f==='too_easy')tooEasy++; else if(f==='good')good++;
+      }
+    }
+    return {total,tooHard,pain,tooEasy,good};
+  }
+  function fsV91CardioRpes(days=14){
+    const vals=[];for(const h of fsRecentAny(days)){if(h.cardio?.rpe)vals.push(Number(h.cardio.rpe));if(h.activityDetails?.rpe&&['walk','hike','cardio','video_class','workout_video'].includes(String(h.sessionType||'').toLowerCase()))vals.push(Number(h.activityDetails.rpe));}
+    return vals.filter(Number.isFinite);
+  }
+  function fsV91RecoveryRaw(days=14){
+    const sig=fsV91StrengthSetSignals(days),rpes=fsV91CardioRpes(days),hard=rpes.filter(x=>x>=8).length,avg=rpes.length?rpes.reduce((a,b)=>a+b,0)/rpes.length:null;
+    if(sig.pain>=2)return 1;
+    if(sig.pain===1||sig.tooHard>=4||hard>=3)return 2;
+    if(sig.tooHard>=2||hard>=2||(avg!=null&&avg>8))return 3;
+    if(sig.tooHard>=1||hard>=1||(avg!=null&&avg>7.25))return 4;
+    if(sig.total||rpes.length)return 5;
+    return 4;
+  }
+  fsRecoveryRaw=fsV91RecoveryRaw;
+
+  function fsV91CoverageValue(status){return status==='green'?1:status==='yellow'?.62:.22;}
+  function fsV91CoverageRatio(muscles){const c=fsV9Coverage(),vals=muscles.map(m=>fsV91CoverageValue(c.status[m]||'red'));return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;}
+  function fsV91StrengthCoverageRatio(){return fsV91CoverageRatio(['Chest','Shoulders','Upper Back','Lats','Biceps','Triceps','Quads','Hamstrings','Glutes','Abductors','Adductors','Calves','Core','Lower Back']);}
+
+  function fsV91VerticalRows(days=42){
+    const now=new Date();return (state.history||[]).filter(h=>{const delta=(now-new Date(h.date))/86400000;if(delta<0||delta>=days)return false;
+      const t=String(h.cardioType||h.cardio?.type||h.sessionType||'').toLowerCase();
+      return t==='hill'||t==='stairmaster'||t==='hiking_stepups'||t==='hike'||Number(h.cardio?.elevationGain||0)>0||Number(h.cardio?.incline||0)>0;
+    });
+  }
+  function fsV91EnduranceRows(days=21){const now=new Date();return (state.history||[]).filter(h=>{const delta=(now-new Date(h.date))/86400000;if(delta<0||delta>=days)return false;const t=String(h.cardioType||h.cardio?.type||h.sessionType||'').toLowerCase();return h.cardio||/walk|hike|easy|hill|long|stair|step/.test(t);});}
+
+  fsPreparedness=function(phase=fsPhase()){
+    const t=Math.max(0,Math.min(1,(fsWeek()-phase.start)/Math.max(1,phase.end-phase.start))),days=fsActivityDays(7),consistency=fsScoreFromRatio(days/5);
+    const cardio7=fsV91EnduranceRows(7),cardio21=fsV91EnduranceRows(21),enduranceDays=new Set(cardio7.map(h=>fsV91ExplicitDateKey(h.date))).size;
+    const maxDistance=Math.max(0,...cardio21.map(h=>Number(h.cardio?.distance||0))),maxMinutes=Math.max(0,...cardio21.map(h=>Number(h.cardio?.minutes||h.actualMinutes||0)));
+    const expectedLong=Math.max(1,fsLerp(phase.long[0],phase.long[1],t));
+    let enduranceRatio=.50*Math.min(1,enduranceDays/4)+.50*Math.min(1,maxDistance/expectedLong);
+    if(phase.start>=17)enduranceRatio=.38*Math.min(1,enduranceDays/4)+.42*Math.min(1,maxDistance/expectedLong)+.20*Math.min(1,maxMinutes/90);
+    const endurance=fsScoreFromRatio(enduranceRatio);
+    const strengthCount=fsStrengthThisWeek(),strengthTarget=fsStrengthTargetThisWeek(),freq=Math.min(1,strengthCount/strengthTarget),coverage=fsV91StrengthCoverageRatio();
+    const strength=fsScoreFromRatio(.58*freq+.42*coverage);
+    const recovery=fsV91RecoveryRaw(14),rpes=fsV91CardioRpes(14),pain=fsV91StrengthSetSignals(14).pain,avgRpe=rpes.length?rpes.reduce((a,b)=>a+b,0)/rpes.length:null;
+    const vertical=fsV91VerticalRows(14),expectedHill=fsLerp(phase.hill[0],phase.hill[1],t);
+    let climbing;
+    if(phase.id==='foundation'&&fsWeek()<5)climbing=4.2;
+    else if(!vertical.length)climbing=1.4;
+    else{
+      const inclines=vertical.map(h=>Number(h.cardio?.incline||0)).filter(x=>x>0),maxGain=Math.max(0,...vertical.map(h=>Number(h.cardio?.elevationGain||0))),stairs=Math.max(0,...vertical.filter(h=>String(h.cardio?.type||h.cardioType)==='stairmaster').map(h=>Number(h.cardio?.minutes||0))),steps=Math.max(0,...vertical.filter(h=>String(h.cardio?.type||h.cardioType)==='hiking_stepups').map(h=>Number(h.cardio?.totalSteps||0)));
+      const grade=inclines.length?Math.max(...inclines):0,load=Math.max(grade?Math.min(1,grade/Math.max(1,expectedHill)):0,maxGain?Math.min(1,maxGain/(phase.start>=29?1500:600)):0,stairs?Math.min(1,stairs/(phase.start>=29?35:20)):0,steps?Math.min(1,steps/(phase.start>=29?700:300)):0),freq=Math.min(1,vertical.length/2);
+      climbing=fsScoreFromRatio(.68*load+.32*freq);
+    }
+    const displayStrength=fsV91DisplayStrengthCount(strengthCount,strengthTarget),signals=fsV91StrengthSetSignals(14);
+    const areas=[
+      {key:'consistency',label:'Consistency',score:consistency,detail:`${days} active day${days===1?'':'s'} in the last 7.`},
+      {key:'endurance',label:'Endurance',score:endurance,detail:`${enduranceDays} endurance day${enduranceDays===1?'':'s'} this week; longest recent walk/hike ${maxDistance?maxDistance.toFixed(1):'0'} mi vs ~${expectedLong.toFixed(1)} mi expected at this point.`},
+      {key:'strength',label:'Strength',score:strength,detail:`${displayStrength}/${strengthTarget} planned strength exposures met; recent whole-body coverage is ${Math.round(coverage*100)}% of the current target.`},
+      {key:'recovery',label:'Recovery',score:recovery,detail:signals.total||rpes.length?`${signals.tooHard} too-hard strength set${signals.tooHard===1?'':'s'}, ${signals.pain} pain flag${signals.pain===1?'':'s'}${avgRpe!=null?`, cardio RPE averaging ${avgRpe.toFixed(1)}/10`:''} in the recent window.`:'Limited recovery data so far; Coach is treating tolerance as acceptable, not perfect.'},
+      {key:'climbing',label:'Climbing',score:climbing,detail:(phase.id==='foundation'&&fsWeek()<5)?'Dedicated climbing is not required yet; it enters the Foundation queue from about week 5.':`${vertical.length} climbing exposure${vertical.length===1?'':'s'} in the last 14 days across incline, stairs, outdoor vertical or step-volume work.`}
+    ];
+    const onTrack=areas.filter(a=>a.score>=3.8),weakest=[...areas].sort((a,b)=>a.score-b.score)[0],nearEnd=fsWeek()>=phase.end-1,transition=nearEnd&&onTrack.length>=4,programStatus=onTrack.length>=4?'On track':onTrack.length===3?'Catch-up needed':'Behind the current timeline';
+    return {areas,onTrackCount:onTrack.length,weakest,transition,programStatus,strengthCount,strengthTarget,enduranceDays,maxDistance,avgRpe,pain};
+  };
+
+  fsHikePreparedness=function(){
+    const current=fsPreparedness(),days=fsActivityDays(7),consistency=fsScoreFromRatio(days/5),rows=fsV91EnduranceRows(42),vertical=fsV91VerticalRows(42);
+    const maxDistance=Math.max(0,...rows.map(h=>Number(h.cardio?.distance||0))),maxMinutes=Math.max(0,...rows.map(h=>Number(h.cardio?.minutes||h.actualMinutes||0)));
+    const longs=rows.filter(h=>String(h.cardioType||h.cardio?.type||h.sessionType||'').toLowerCase()==='long'||Number(h.cardio?.distance||0)>=6);
+    const longDates=longs.map(h=>new Date(h.date)).sort((a,b)=>a-b),backToBack=longDates.some((d,i)=>i&&((d-longDates[i-1])/86400000)<=1.5);
+    const endurance=fsScoreFromRatio(.48*Math.min(1,maxDistance/16)+.22*Math.min(1,maxMinutes/360)+.20*Math.min(1,longs.length/4)+.10*(backToBack?1:0));
+    const cov=fsV9Coverage(42),strengthMuscles=['Quads','Hamstrings','Glutes','Abductors','Adductors','Calves','Core','Lower Back'],muscleRatio=strengthMuscles.map(m=>fsV91CoverageValue(cov.status[m]||'red')).reduce((a,b)=>a+b,0)/strengthMuscles.length;
+    const patterns=cov.patterns||{},patternKeys=['squat','hinge','unilateral','plantarflexion','abduction','carry','step','downhill'],patternRatio=patternKeys.reduce((s,k)=>s+Math.min(1,(patterns[k]||0)/1.2),0)/patternKeys.length;
+    const strength=fsScoreFromRatio(.55*muscleRatio+.45*patternRatio),recovery=fsV91RecoveryRaw(14);
+    const inclines=vertical.map(h=>Number(h.cardio?.incline||0)).filter(x=>x>0),maxIncline=inclines.length?Math.max(...inclines):0,maxGain=Math.max(0,...vertical.map(h=>Number(h.cardio?.elevationGain||0))),maxStairs=Math.max(0,...vertical.filter(h=>String(h.cardio?.type||h.cardioType)==='stairmaster').map(h=>Number(h.cardio?.minutes||0))),maxSteps=Math.max(0,...vertical.filter(h=>String(h.cardio?.type||h.cardioType)==='hiking_stepups').map(h=>Number(h.cardio?.totalSteps||0)));
+    const climbLoad=Math.max(Math.min(1,maxIncline/15),Math.min(1,maxGain/3000),Math.min(1,maxStairs/60),Math.min(1,maxSteps/1600)),climbFreq=Math.min(1,vertical.length/6),climbing=fsScoreFromRatio(.75*climbLoad+.25*climbFreq);
+    const areas=[
+      {key:'consistency',label:'Consistency',score:consistency,detail:`${days} active day${days===1?'':'s'} in the last 7. Final preparation depends on sustained training rather than cramming.`},
+      {key:'endurance',label:'Endurance',score:endurance,detail:`Longest recent walk/hike ${maxDistance?maxDistance.toFixed(1):'0'} mi; longest recorded time on feet ${Math.round(maxMinutes)} min. Later readiness also rewards repeated and back-to-back long work.`},
+      {key:'strength',label:'Strength',score:strength,detail:'Based on demonstrated lower-body, trunk, unilateral, carry, step and eventual downhill-strength coverage—not simply the number of workouts completed.'},
+      {key:'recovery',label:'Recovery',score:recovery,detail:current.areas.find(a=>a.key==='recovery')?.detail||'Recovery uses recent workload tolerance, cardio effort and pain/strength-set feedback.'},
+      {key:'climbing',label:'Climbing',score:climbing,detail:`Climbing evidence can come from outdoor elevation, incline work, sustained stair climbing and phase-appropriate step-volume sessions.`}
+    ];
+    const avg=areas.reduce((s,a)=>s+a.score,0)/areas.length,weakest=[...areas].sort((a,b)=>a.score-b.score)[0],onTrackCount=areas.filter(a=>a.score>=3.8).length,programStatus=avg>=4.4?'Hike-ready range':avg>=3.6?'Building toward hike readiness':avg>=2.6?'Early-to-mid preparation':'Foundation still developing';
+    return {areas,onTrackCount,weakest,average:avg,programStatus,mode:'hike'};
+  };
+
+  fsPhaseWeeklyRhythm=function(){
+    const w=fsWeek();let hiking='Not required yet',hill=w<5?'Not required yet':'~1× / week when due',long=w<9?'Begins in Aerobic Base':'~1× / week; full mileage mainly weekends';
+    if(w>=17)hiking='Step-volume / vertical conditioning enters when due';
+    if(w>=29)hiking='Vertical, descent and pack-specific work grows';
+    if(w>=41)hiking='High-volume vertical + occasional back-to-back work';
+    return {strength:`${fsStrengthTargetThisWeek()}× / week`,easy:'Most days, kept genuinely easy',hill,long,hiking,recovery:'Easy days stay easy; Coach reduces load when recovery signals worsen'};
+  };
+
+  function fsV91SplitFromPlan(p){const t=String(p?.type||p?.title||'');if(/Upper Body \+ Core/i.test(t))return 'Upper Body + Core';if(/Lower Body/i.test(t))return 'Lower Body + Core';if(/Full Body|Hiking Support/i.test(t))return 'Full Body';return null;}
+  function fsV91DateCmp(a,b){return String(a||'').slice(0,10).localeCompare(String(b||'').slice(0,10));}
+  function fsV91SplitNeedScore(split,dateKey=fsTodayKey()){
+    const c=fsV9Coverage(),map={
+      'Upper Body + Core':['Chest','Shoulders','Upper Back','Lats','Biceps','Triceps','Core'],
+      'Lower Body + Core':['Quads','Hamstrings','Glutes','Abductors','Adductors','Calves','Tibialis','Core','Lower Back'],
+      'Full Body':['Chest','Upper Back','Lats','Quads','Hamstrings','Glutes','Core','Adductors','Tibialis','Lower Back']
+    },weights={red:2,yellow:1,green:0};
+    let score=(map[split]||[]).reduce((s,m)=>s+(weights[c.status[m]]||0),0)/(map[split]?.length||1);
+    const weekStart=fsV82WeekStart(dateKey),weekHist=(state.history||[]).filter(h=>fsV91ExplicitDateKey(h.date)>=weekStart&&fsV91ExplicitDateKey(h.date)<=dateKey),done=weekHist.some(h=>fsIsStrengthHistory(h)&&fsV9HistorySplit(h)===split);
+    if(done)score-=2.5;
+    const priorPlans=(state.v10.plannedSessions||[]).filter(p=>p.status!=='completed'&&p.date>=weekStart&&p.date<dateKey),planned=priorPlans.some(p=>fsV91SplitFromPlan(p)===split);if(planned)score-=3;
+    const recent=[...(state.history||[])].reverse().find(h=>fsIsStrengthHistory(h)&&fsV9HistorySplit(h)===split);if(recent)score+=Math.min(1.6,Math.max(0,(new Date(dateKey+'T23:59:00')-new Date(recent.date))/86400000)/7);else score+=1.6;
+    if(split==='Full Body'){
+      const primaryCovered=['Upper Body + Core','Lower Body + Core'].every(s=>weekHist.some(h=>fsIsStrengthHistory(h)&&fsV9HistorySplit(h)===s)||priorPlans.some(p=>fsV91SplitFromPlan(p)===s));
+      if(primaryCovered)score+=.8;
+    }
+    return score;
+  }
+  function fsV91BestStrengthSplit(dateKey=fsTodayKey()){
+    const rows=FS_V9_SPLITS.map(split=>({split,score:fsV91SplitNeedScore(split,dateKey)})).sort((a,b)=>b.score-a.score),best=rows[0],c=fsV9Coverage(),map={'Upper Body + Core':['Lats','Chest','Shoulders','Upper Back'],'Lower Body + Core':['Hamstrings','Glutes','Adductors','Quads','Core'],'Full Body':['Core','Adductors','Tibialis','Lower Back','Lats']};
+    const needs=(map[best.split]||[]).filter(m=>c.status[m]!=='green').slice(0,3),reason=needs.length?`${needs.join(', ')} ${needs.length===1?'needs':'need'} more exposure.`:'It best balances recent strength work and the sessions already planned.';
+    return {...best,reason,ranked:rows};
+  }
+  fsNextStrengthSplit=function(){return fsV91BestStrengthSplit(fsTodayKey()).split;};
+
+  function fsV91HistoryBefore(refDate,history=state.history){const key=fsLocalDateKey(refDate);return (history||[]).filter(h=>fsV91ExplicitDateKey(h.date)<=key);}
+  function fsV91DaysSinceHistory(h,ref){return h?Math.max(0,(ref-new Date(h.date))/86400000):99;}
+  function fsV91Decision(refDate=new Date(),history=state.history,opts={}){
+    const ref=refDate instanceof Date?refDate:new Date(refDate),key=fsLocalDateKey(ref),w=fsWeekFrom(ref),hist=fsV91HistoryBefore(ref,history),target=fsInTaper()?2:3;
+    if(opts.today&&state.ui.focusOverride){if(state.ui.focusOverride==='Endurance')return {type:w>=5?'hill':'easy',title:'Endurance',focus:'Endurance',reason:'You chose an endurance-focused day. Coach will return to the normal queue afterward.'};return {type:'override',title:state.ui.focusOverride,focus:state.ui.focusOverride,reason:'You chose a flexible focus for today. The long-term plan remains intact.'};}
+    if(opts.today&&fsV91RecoveryRaw(14)<=2)return {type:'recovery',title:'Recovery / Mobility',reason:'Recent recovery signals are elevated, so Coach is protecting adaptation before adding more load.'};
+    const recent7=hist.filter(h=>(ref-new Date(h.date))/86400000>=0&&(ref-new Date(h.date))/86400000<7),strength=recent7.filter(fsIsStrengthHistory).length,lastS=[...hist].reverse().find(fsIsStrengthHistory),sinceS=fsV91DaysSinceHistory(lastS,ref);
+    const isKind=(h,kind)=>{const t=String(h.cardioType||h.cardio?.type||h.sessionType||'').toLowerCase();if(kind==='hill')return ['hill','stairmaster'].includes(t)||Number(h.cardio?.elevationGain||0)>=200;if(kind==='long')return t==='long'||(t==='hike'&&Number(h.cardio?.distance||0)>=Math.max(3,fsLerp(fsPhase().long[0],fsPhase().long[1],fsPhaseT(fsPhase()))*.8));if(kind==='steps')return t==='hiking_stepups';return false;};
+    const lastLong=[...hist].reverse().find(h=>isKind(h,'long')),lastHill=[...hist].reverse().find(h=>isKind(h,'hill')),lastSteps=[...hist].reverse().find(h=>isKind(h,'steps'));
+    if(w>=9&&fsV91DaysSinceHistory(lastLong,ref)>=6)return {type:'long',title:'Long Walk / Hike',reason:'The longer time-on-feet stimulus is the most overdue key session.'};
+    if(w>=5&&fsV91DaysSinceHistory(lastHill,ref)>=(w<9?4:5))return {type:'hill',title:'Hill / Climbing Endurance',reason:'A dedicated climbing stimulus is due and no higher-priority long session is overdue.'};
+    if(strength<target&&sinceS>=1.5){const best=fsV91BestStrengthSplit(key);return {type:'strength',title:best.split,focus:best.split,strengthSplit:best.split,reason:`Strength exposure ${Math.min(strength+1,target)} of ${target} is due. ${best.reason}`};}
+    if(w>=17&&fsV91DaysSinceHistory(lastSteps,ref)>=7){
+      const recentLeg=[...hist].reverse().find(h=>{const s=fsV9HistorySplit(h);return s==='Lower Body + Core'||h.cardioType==='long'||h.cardio?.type==='hiking_stepups';});
+      if(fsV91DaysSinceHistory(recentLeg,ref)>=2)return {type:'hiking_stepups',title:'Hiking Step Volume',reason:'Step-volume work is due and recent lower-body recovery spacing is adequate.'};
+    }
+    return {type:'easy',title:'Easy Endurance',reason:'Key strength, climbing and long-session demands are currently covered, so low-fatigue aerobic consistency fits best.'};
+  }
+  fsRecommendation=function(){return fsV91Decision(new Date(),state.history,{today:true});};
+  fsRecommendationFrom=function(refDate,simHistory){return fsV91Decision(refDate,simHistory,{today:false});};
+
+  function fsV91LastModality(type){return [...(state.history||[])].reverse().find(h=>String(h.cardio?.type||h.cardioType||'').toLowerCase()===type)||null;}
+  const fsV91CardioIdBase=fsCardioId;
+  fsCardioId=function(kind,loc=state.ui.location){
+    if(kind==='hill'&&['Work Gym','Commercial Gym'].includes(loc)&&fsCaps(loc).stairmaster&&fsWeek()>=9){
+      const stair=fsV91LastModality('stairmaster'),incline=[...(state.history||[])].reverse().find(h=>String(h.cardioType||h.cardio?.type||'').toLowerCase()==='hill'&&Number(h.cardio?.incline||0)>0);
+      if(!incline)return fsV91CardioIdBase(kind,loc);
+      if(!stair||new Date(stair.date)<new Date(incline.date))return 'stairmaster';
+    }
+    return fsV91CardioIdBase(kind,loc);
+  };
+
+  function fsV91ReducedLoad(){
+    const w=fsWeek(),rec=fsV91RecoveryRaw(14);if(rec<=2)return {active:true,factor:.65,reason:'recovery signals'};
+    if(w<29)return {active:false,factor:1};
+    const recent21=fsRecentAny(21),hard=recent21.filter(h=>Number(h.cardio?.rpe||0)>=8||h.cardio?.type==='hiking_stepups').length,days=new Set(recent21.map(h=>fsV91ExplicitDateKey(h.date))).size;
+    if(days>=15&&hard>=3&&rec<=4)return {active:true,factor:.72,reason:'accumulated high-load training'};
+    return {active:false,factor:1};
+  }
+  const fsV91CardioRxBase=fsCardioRx;
+  fsCardioRx=function(id){const rx=fsV91CardioRxBase(id),d=fsV91ReducedLoad();if(!d.active||!rx)return rx;const out={...rx};if(out.minutes)out.minutes=Math.max(10,Math.round(out.minutes*d.factor));if(out.distance)out.distance=Math.max(.5,Math.round(out.distance*d.factor*4)/4);if(out.totalSteps)out.totalSteps=Math.max(100,Math.round(out.totalSteps*d.factor/50)*50);out.progressionNote=`Reduced-load exposure because of ${d.reason}; Coach will resume progression after tolerance improves.`;return out;};
+
+  function fsV91CandidateMap(slot,loc){const gym=['Work Gym','Commercial Gym'].includes(loc);return {
+    horizontal_pull:gym?['machine_row','seated_cable_row','one_arm_db_row']:['one_arm_db_row','band_row'],vertical_pull:gym?['lat_pulldown','underhand_pulldown','db_pullover']:['db_pullover','band_lat_pulldown','one_arm_db_row'],horizontal_push:gym?['machine_chest_press','incline_chest_press','db_chest_press']:['db_chest_press','standing_band_press','wall_pushup'],vertical_push:gym?['machine_shoulder_press','db_overhead_press']:['db_overhead_press'],biceps:gym?['cable_curl','db_biceps_curl']:['db_biceps_curl'],triceps:gym?['cable_pressdown','db_triceps_extension']:['db_triceps_extension'],squat:gym?['leg_press','hack_squat','smith_squat','goblet_squat']:['goblet_squat','sumo_goblet_squat','bodyweight_squat'],hamstring:gym?['seated_leg_curl','lying_leg_curl','dumbbell_rdl']:['dumbbell_rdl','band_rdl'],glute:gym?['hip_thrust_machine','dumbbell_rdl']:['db_hip_thrust','glute_bridge','dumbbell_rdl'],abduction:gym?['hip_abductor_machine','band_lateral_walk']:['band_lateral_walk'],adduction:gym?['hip_adductor_machine','cable_hip_adduction','side_lunge']:['sumo_goblet_squat','side_lunge'],calves:gym?['machine_calf_raise','calf_raise']:['calf_raise'],tibialis:gym?['tibialis_raise','cable_dorsiflexion','band_tibialis_raise']:['band_tibialis_raise','tibialis_raise'],core:gym?['cable_pallof','cable_crunch','ab_machine','cable_chop','suitcase_hold']:['pallof_press','plank','crunch','weighted_crunch','suitcase_hold','kb_around_world'],unilateral:gym?['reverse_lunge','step_up','smith_split_squat']:['db_reverse_lunge','reverse_lunge','supported_split_squat'],carry:gym?['loaded_carry','suitcase_hold']:['suitcase_hold'],hinge:gym?['dumbbell_rdl','smith_rdl','cable_pull_through']:['dumbbell_rdl','band_rdl'],trunk_extension:gym?['back_extension','cable_pull_through','db_good_morning']:['bird_dog','db_good_morning','dumbbell_rdl']}[slot]||[];}
+  function fsV91Plateau(id){
+    const recent=fsV9RecentExercise(id,4).filter(e=>(e.sets||[]).length);if(recent.length<3)return false;
+    const three=recent.slice(0,3),pain=three.some(e=>e.pain||(e.sets||[]).some(s=>fsV9FeedbackFromLegacy(s,e)==='pain'));if(pain)return true;
+    const metrics=three.slice().reverse().map(e=>{const load=fsV82ExerciseLoad(e),reps=Math.max(0,...(e.sets||[]).map(s=>Number(s.reps)||0));return {load,reps};});
+    const progressed=metrics.some((m,i)=>i&&(m.load>metrics[i-1].load||m.reps>metrics[i-1].reps));
+    const allManageable=three.every(e=>!(e.sets||[]).some(s=>['pain','too_hard'].includes(fsV9FeedbackFromLegacy(s,e))));
+    return allManageable&&!progressed;
+  }
+  function fsV91AnchorKey(split,loc,slot){return `${split}|${loc}|${slot}`;}
+  function fsV91Pick(slot,loc,used,split){
+    const raw=fsV91CandidateMap(slot,loc),promoted=state.profile.promotedAlts||{},candidates=raw.map(id=>promoted[id]||id).filter(id=>EXERCISES[id]&&!used.includes(id));if(!candidates.length)return null;
+    const key=fsV91AnchorKey(split,loc,slot),anchor=state.v9.anchorState[key];
+    if(anchor&&candidates.includes(anchor.id)){
+      const pain=fsV9RecentExercise(anchor.id,1)[0]?.pain||fsV9RecentExercise(anchor.id,1)[0]?.feedback==='pain';
+      const rotate=(anchor.exposures||0)>=3&&fsV91Plateau(anchor.id);
+      if(!pain&&!rotate)return anchor.id;
+      const alt=candidates.find(x=>x!==anchor.id);if(alt)return alt;
+    }
+    return candidates[0];
+  }
+  function fsV91Slots(split){return split==='Upper Body + Core'?['horizontal_pull','vertical_pull','horizontal_push','vertical_push','biceps','triceps','core']:split==='Lower Body + Core'?['squat','hamstring','glute','abduction','adduction','calves','core']:['unilateral','horizontal_pull','horizontal_push','hinge','core','carry'];}
+  function fsV91AdaptiveSets(id){
+    const ex=EXERCISES[id];if(!ex||ex.type!=='strength')return ex?.sets||1;if(fsInTaper())return 1;
+    const recent=fsV9RecentExercise(id,2).filter(e=>(e.sets||[]).length);if(recent.length<2)return 2;
+    if(recent.some(e=>e.pain||(e.sets||[]).some(s=>['pain','too_hard'].includes(fsV9FeedbackFromLegacy(s,e)))))return 2;
+    const good=recent.every(e=>(e.sets||[]).every(s=>['good','too_easy'].includes(fsV9FeedbackFromLegacy(s,e)||'good'))),d=fsV91ReducedLoad();if(d.active)return 2;
+    return good?3:2;
+  }
+  fsV9AdaptiveSets=fsV91AdaptiveSets;
+  fsStrengthPlan=function(loc=state.ui.location,focus='Full Body'){
+    if(!FS_V9_SPLITS.includes(focus))focus='Full Body';const coverage=fsV9Coverage(),slots=fsV91Slots(focus).slice(),used=[],ids=[];
+    if(focus==='Full Body'){
+      const red=Object.entries(coverage.status).filter(([,s])=>s==='red').map(([m])=>m),weakMap={Lats:'vertical_pull',Hamstrings:'hamstring',Glutes:'glute',Adductors:'adduction',Abductors:'abduction',Core:'core','Lower Back':'trunk_extension',Tibialis:'tibialis',Chest:'horizontal_push','Upper Back':'horizontal_pull',Quads:'squat',Calves:'calves',Shoulders:'vertical_push',Biceps:'biceps',Triceps:'triceps'};
+      for(const m of red.slice(0,2)){const sl=weakMap[m];if(sl&&!slots.includes(sl))slots.unshift(sl);}
+    }
+    for(const slot of slots){const id=fsV91Pick(slot,loc,used,focus);if(id){used.push(id);ids.push(id);EXERCISES[id].sets=fsV91AdaptiveSets(id);EXERCISES[id]._v9Why=fsV9WhyForSlot(slot,id,focus);}}
+    return [...new Set(ids)].slice(0,focus==='Full Body'?7:8);
+  };
+  function fsV91SlotForExercise(id,split){const pats=fsV9Meta(id).patterns||[];for(const slot of fsV91Slots(split)){if(slot==='core'&&pats.some(p=>/rotation|extension|flexion|carry/.test(p)))return slot;if(pats.includes(slot))return slot;if(slot==='hamstring'&&pats.some(p=>['hinge','knee_flexion'].includes(p)))return slot;}return null;}
+
+  const fsV91FinalizeBase=fsFinalizeWorkout;
+  fsFinalizeWorkout=function(reason='completed'){
+    const snapshot=state.activeWorkout?{split:state.activeWorkout.meta?.strengthSplit||state.activeWorkout.meta?.focus||null,loc:state.activeWorkout.location,ids:(state.activeWorkout.plan||[]).filter(p=>(p.sets||[]).length).map(p=>p.exerciseId)}:null,before=state.history.length;
+    fsV91FinalizeBase(reason);
+    if(snapshot&&snapshot.split&&state.history.length>before){const h=state.history[state.history.length-1];for(const id of snapshot.ids){const slot=fsV91SlotForExercise(id,snapshot.split);if(!slot)continue;const key=fsV91AnchorKey(snapshot.split,snapshot.loc,slot),old=state.v9.anchorState[key];state.v9.anchorState[key]={id,exposures:old?.id===id?(old.exposures||0)+1:1,phaseId:fsPhase().id,lastHistoryId:h.id,lastDate:h.date};}saveState();}
+  };
+  finishWorkout=function(){fsFinalizeWorkout('completed');};
+
+  function fsV91BalancedShort(ids,split){const needs=split==='Upper Body + Core'?['horizontal_pull','horizontal_push','core']:split==='Lower Body + Core'?['squat','hinge','core']:['unilateral','horizontal_pull','core'];const out=[];for(const n of needs){const id=ids.find(x=>{const p=fsV9Meta(x).patterns||[];return n==='core'?p.some(y=>/rotation|extension|flexion|carry/.test(y)):p.includes(n)||(n==='hinge'&&p.includes('knee_flexion'));});if(id&&!out.includes(id))out.push(id);}for(const id of ids)if(out.length<3&&!out.includes(id))out.push(id);return out.slice(0,3);}
+  const fsV91PlanMetaBase=fsPlanMeta;
+  fsPlanMeta=function(){const m=fsV91PlanMetaBase();if(m?.type==='strength'&&state.ui.duration==='20 min'){const split=m.strengthSplit||m.focus||fsV91BestStrengthSplit().split,full=fsStrengthPlan(state.ui.location,split);m.ids=fsV91BalancedShort(full,split);m.estimated=estimatedMinutes(m.ids);}return m;};
+  currentPlan=function(){return fsPlanMeta().ids||[];};
+
+  fsV82WeeklyCard=function(dateKey){const objs=fsV82WeeklyObjectives(dateKey);return `<section class="section fs-week-objectives"><div class="section-head"><div><h3>Coach objectives</h3><span class="section-label">${esc(fsV82WeekLabel(dateKey))}</span></div></div><div class="card flat"><div class="fs-objective-list">${objs.map(o=>`<div class="fs-objective-row ${fsV82StatusClass(o)}"><div><strong>${esc(o.label)}</strong><div class="subtle small">${esc(o.detail)}</div></div><span class="fs-objective-status">${esc(o.status)}</span></div>`).join('')}</div></div></section>`;};
+
+  renderCalendar=function(){
+    const selected=state.v10.selectedDate||fsTodayKey(),cells=fsCalendarCells(),[y,m]=state.v10.calendarMonth.split('-').map(Number),label=new Date(y,m-1,1).toLocaleDateString(undefined,{month:'long',year:'numeric'});
+    return `<main class="shell"><div class="topbar"><div><div class="brand">Fitn<span>Smart</span></div></div><button class="icon-btn" onclick="fsOpenActivityLog()">＋</button></div>
+    <section class="card calendar-hero"><div class="row between"><div><div class="eyebrow">Training calendar</div><h2 style="margin:0">${esc(label)}</h2></div><div class="row"><button class="icon-btn" onclick="fsMoveMonth(-1)">‹</button><button class="icon-btn" onclick="fsMoveMonth(1)">›</button></div></div><div class="calendar-grid section"><div class="calendar-dow">Mon</div><div class="calendar-dow">Tue</div><div class="calendar-dow">Wed</div><div class="calendar-dow">Thu</div><div class="calendar-dow">Fri</div><div class="calendar-dow">Sat</div><div class="calendar-dow">Sun</div>${cells.map(c=>{const hist=fsHistOn(c.date),plans=fsPlansOn(c.date);return `<button class="calendar-day ${c.other?'other':''} ${c.date===fsTodayKey()?'today':''} ${c.date===selected?'selected':''}" onclick="fsSelectCalendarDate('${c.date}')"><span class="day-num">${c.day}</span><span class="day-dots">${plans.slice(0,2).map(()=>'<i class="day-dot plan"></i>').join('')}${hist.slice(0,3).map(h=>`<i class="day-dot ${h.source==='manual'?'manual':''}"></i>`).join('')}</span></button>`}).join('')}</div><button class="secondary-btn fs-v83-plan-near-calendar" style="width:100%;margin-top:12px" onclick="fsOpenPlan('${selected}')">＋ Plan workout for ${esc(fsDayLabel(selected))}</button></section>
+    <section class="section"><div class="section-head"><div><h3>${esc(fsDayLabel(selected))}</h3><span class="section-label">planned + completed</span></div></div><div class="card flat">${fsRenderDayAgenda(selected)}</div></section>
+    ${fsV82WeeklyCard(selected)}${nav('calendar')}</main>`;
+  };
+
+  const fsV91SheetBase=renderSheet;
+  renderSheet=function(){
+    const s=state.ui.sheet;
+    if(s?.name==='planSession'){
+      const d=s.data||{},date=d.date||fsTodayKey(),objs=fsV82WeeklyObjectives(date),best=fsV91BestStrengthSplit(date),options=['Coach-selected workout','Strength — Upper Body + Core','Strength — Lower Body + Core','Strength — Full Body','Daily walking habit','Easy endurance','Hill endurance','Long walk / hike','Recovery / mobility'],current=d.type==='Coach recommendation'?'Coach-selected workout':(d.type||'Coach-selected workout');
+      return `<div class="sheet-backdrop" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sheet-head"><div><h2>${d.id?'Edit':'Plan'} training day</h2><div class="subtle">Choose from this week’s Coach objectives or plan something else.</div></div><button class="icon-btn" onclick="closeSheet()">×</button></div><input id="p-id" type="hidden" value="${esc(d.id||'')}"><div class="field"><label>Date</label><input id="p-date" type="date" value="${esc(date)}" onchange="state.v10.selectedDate=this.value;state.ui.sheet.data=state.ui.sheet.data||{};state.ui.sheet.data.date=this.value;render()"></div><div class="fs-plan-recs"><div class="eyebrow">Coach recommendations this week</div>${objs.map(o=>{const isBest=o.kind==='strength'&&o.label===best.split&&!o.done;return `<button type="button" class="fs-plan-rec ${fsV82StatusClass(o)}" onclick="fsV82UseObjective('${String(o.key).replace(/'/g,"\\'")}')"><span><strong>${esc(o.label)}${isBest?' <span class="fs-v911-best-badge">BEST NEXT</span>':''}</strong><small>${esc(isBest?best.reason:o.detail)}</small></span><span>${esc(o.status)}</span></button>`;}).join('')}</div><div class="field section"><label>Plan</label><select id="p-type">${options.map(x=>`<option value="${esc(x)}" ${current===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="field"><label>Title</label><input id="p-title" value="${esc(d.title||'Coach-selected workout')}"></div><div class="input-row"><div class="field"><label>Location</label><select id="p-location">${['Home','Work Gym','Commercial Gym','Outdoors','Travel / Minimal'].map(x=>`<option ${d.location===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="field"><label>Time</label><select id="p-duration">${['Recommended','20 min','40 min','60+ min'].map(x=>`<option ${d.duration===x?'selected':''}>${x}</option>`).join('')}</select></div></div><button class="primary-btn section" onclick="fsSavePlan()">Save plan</button>${d.id?`<button class="danger-btn" style="width:100%;margin-top:10px" onclick="fsDeletePlan('${d.id}')">Remove from calendar</button>`:''}</div></div>`;
+    }
+    return fsV91SheetBase();
+  };
+
+  function fsV91CoverageHTML(){const c=fsV9Coverage(),order=['Chest','Upper Back','Lats','Shoulders','Biceps','Triceps','Quads','Hamstrings','Glutes','Abductors','Adductors','Calves','Tibialis','Core','Lower Back'];return `<section class="section"><div class="section-head"><div><h3>Strength Coverage</h3><div class="subtle small">Recent ${c.days} days</div></div></div><div class="card flat"><div class="fs-v9-coverage">${order.map(m=>`<span class="fs-v9-coverage-pill ${c.status[m]}">${esc(m)}</span>`).join('')}</div></div></section>`;}
+  fsV9CoverageHTML=fsV91CoverageHTML;
+
+  for(const q of [['next_strength','Which strength workout should I do next?'],['hiking_progress','How is my hiking-specific training progressing?']])if(!FS_COACH_QUESTIONS.some(x=>x[0]===q[0]))FS_COACH_QUESTIONS.push(q);
+  const coverageQ=FS_COACH_QUESTIONS.find(x=>x[0]==='coverage');if(coverageQ)coverageQ[1]='What muscles need more work?';
+  fsCoachPreparednessReply=function(key){
+    const prep=fsPreparedness(),p=fsPhase(),next=fsNextPhase(),area=k=>prep.areas.find(a=>a.key===k),bestArea=[...prep.areas].sort((a,b)=>b.score-a.score)[0],weak=prep.weakest;
+    if(key==='phase')return `You’re in ${p.name}, week ${fsWeek()} of ${p.end}, with ${prep.onTrackCount}/5 areas on track. ${bestArea.label} is strongest; ${weak.label} has the most room to improve. ${weak.detail}`;
+    if(key==='grand_canyon')return `${prep.programStatus}. Current-phase scoring compares you with what should be developed now; Hike Preparedness separately compares your demonstrated capacity with the eventual Rim-to-Rim demands.`;
+    if(key==='behind')return `${weak.label} is the clearest current gap. ${weak.detail}`;
+    if(key==='strong')return `${bestArea.label} is currently strongest. ${bestArea.detail}`;
+    if(key==='improve')return `Prioritize ${weak.label.toLowerCase()} while keeping the rest of the weekly structure intact. ${weak.detail}`;
+    if(key==='today'){const r=fsRecommendation();return `${r.title}: ${r.reason}`;}
+    if(key==='next_ready'){if(!next)return 'You’re already in the final phase.';return prep.onTrackCount>=4?`${prep.onTrackCount}/5 areas are on track. ${next.name} can arrive on schedule while Coach keeps ${weak.label.toLowerCase()} in the catch-up queue.`:`${prep.onTrackCount}/5 areas are on track. ${weak.label} still needs targeted catch-up before the transition is considered fully on schedule.`;}
+    if(key==='next')return next?`${next.name} begins around week ${next.start}. ${next.aim}`:'You’re in Expedition Specific, the final phase.';
+    if(key==='endurance'){const a=area('endurance');return `Endurance is ${a.score.toFixed(1)}/5 (${fsPrepStatus(a.score)}). ${a.detail}`;}
+    if(key==='strength'){const a=area('strength'),display=fsV91DisplayStrengthCount(prep.strengthCount,prep.strengthTarget);return `Strength is ${a.score.toFixed(1)}/5. You’ve met ${display}/${prep.strengthTarget} planned strength exposures in the current 7-day window. The current rotation is Upper Body + Core, Lower Body + Core, and Full Body. ${fsV9CoverageText()}`;}
+    if(key==='coverage')return fsV9CoverageText();
+    if(key==='next_strength'){const b=fsV91BestStrengthSplit();return `${b.split}. ${b.reason}`;}
+    if(key==='hiking_progress'){const h=fsHikePreparedness(),c=h.areas.find(a=>a.key==='climbing'),e=h.areas.find(a=>a.key==='endurance');return `Hiking-specific preparation is building through endurance, climbing/vertical work, leg/trunk strength and recovery. Endurance is ${e.score.toFixed(1)}/5 and climbing is ${c.score.toFixed(1)}/5 against long-range hike demands.`;}
+    if(key==='recovery'){const a=area('recovery');return `Recovery is ${a.score.toFixed(1)}/5 (${fsPrepStatus(a.score)}). ${a.detail}`;}
+    if(key==='week'){const d=fsV91Decision(new Date(),state.history,{today:true}),b=fsV91BestStrengthSplit();return `This week, protect the key long/climbing work when due and complete the three strength exposures. Best next strength split: ${b.split}. ${d.type==='recovery'?'Recovery is currently taking priority.':''}`;}
+    if(key==='rhythm'){const r=fsPhaseWeeklyRhythm();return `Current rhythm: strength ${r.strength}; easy walking ${r.easy.toLowerCase()}; climbing ${r.hill.toLowerCase()}; long walk/hike ${r.long.toLowerCase()}; hiking-specific conditioning ${r.hiking.toLowerCase()}.` ;}
+    if(key==='cardio_fitness')return fsV8CardioFitnessReply();
+    return 'Choose a question from the menu and I’ll answer it from your logged training and current phase.';
+  };
+
+  const fsV91ProgressBase=renderProgress;
+  renderProgress=function(){
+    let html=fsV91ProgressBase(),rh=fsPhaseWeeklyRhythm();
+    html=html.replace(/Upper \+ Core · Lower \/ Legs · Hiking Support \+ Core/g,'Upper + Core · Lower + Core · Full Body');
+    html=html.replace(/<div class="profile-row"><strong>Recovery rule<\/strong>/,`<div class="profile-row"><strong>Hiking conditioning</strong><div class="value">${esc(rh.hiking)}</div></div><div class="profile-row"><strong>Recovery rule</strong>`);
+    html=html.replace(/<div class="subtle tiny" style="margin-top:12px">Green = on target · Yellow = mid · Red = needs work<\/div>/g,'');
+    return html;
+  };
+
+  /* Coach-history copy is explanatory UI, not training evidence: translate stale split names. */
+  if(Array.isArray(state.v113?.coachHistory)){
+    for(const h of state.v113.coachHistory){if(typeof h.answer==='string'){h.answer=h.answer.replaceAll('Lower Body / Legs','Lower Body + Core').replaceAll('Hiking Support + Core','Full Body').replace(/\b([4-9]|[1-9]\d+)\/3 strength exposures\b/g,'3/3 planned strength exposures met');}}
+  }
+
+  /* Final startup normalization: keep old history readable; new UI uses v9.1 semantics. */
+  fsV9EnsureState();
+  state.v9.schema=2;
+})();
+
+
+/* =========================================================
+   v9.1.1 cleanup — manual strength feedback, optional cooldown
+   reconnection, exercise-photo audit, clearer BEST NEXT badge.
+   ========================================================= */
+(function(){
+  state.v9=state.v9||{}; state.v9.schema=Math.max(3,Number(state.v9.schema)||0);
+
+  const v911Style=document.createElement('style');
+  v911Style.textContent=`
+    .fs-v911-best-badge{display:inline-block;margin-left:7px;padding:3px 7px;border-radius:999px;background:var(--rust);color:white;font-size:10px;font-weight:900;letter-spacing:.7px;vertical-align:2px}
+    .fs-v911-manual-feedback-label{display:block;font-weight:800;margin-bottom:8px}
+  `;
+  document.head.appendChild(v911Style);
+
+  /* Same public free-exercise-db source used elsewhere in the app.
+     These entries correct folder names that did not exist in that library. */
+  const v911ImgFix={
+    db_pullover:'Bent-Arm_Dumbbell_Pullover',
+    cable_chop:'Standing_Cable_Wood_Chop',
+    band_chop:'Standing_Cable_Wood_Chop',
+    reverse_lunge:'Elevated_Back_Lunge',
+    side_lunge:'Dumbbell_Lunges',
+    bird_dog:'Downward_Facing_Balance'
+  };
+  for(const [id,folder] of Object.entries(v911ImgFix)){
+    if(EXERCISES[id]) FS_IMG_MAP[id]={folder,images:[`${folder}/0.jpg`,`${folder}/1.jpg`]};
+  }
+
+  function fsV911SetManualFeedback(value,btn){
+    const input=document.querySelector('#a-strength-feedback'); if(input)input.value=value;
+    document.querySelectorAll('.fs-v911-manual-feedback').forEach(b=>b.classList.remove('selected'));
+    if(btn)btn.classList.add('selected');
+  }
+  window.fsV911SetManualFeedback=fsV911SetManualFeedback;
+
+  /* Manual Strength / Resistance stays quick, but follows the new strength
+     feedback language. Video/classes and cardio retain session RPE. */
+  const fsV911SheetBase=renderSheet;
+  renderSheet=function(){
+    const s=state.ui.sheet;
+    let html=fsV911SheetBase();
+    if(s?.name==='manualLogV10' && s.data?.type==='Strength / Resistance'){
+      const oldRpe=/<div class="field section"><label>How hard did it feel\? \(RPE\)<\/label><select id="a-rpe">[\s\S]*?<\/select><\/div>/;
+      const feedback=`<input id="a-rpe" type="hidden" value=""><div class="field section"><span class="fs-v911-manual-feedback-label">How did the strength work feel?</span><input id="a-strength-feedback" type="hidden" value=""><div class="fs-v9-feedback-grid"><button type="button" class="fs-v9-set-feedback fs-v911-manual-feedback" onclick="fsV911SetManualFeedback('too_easy',this)">Too easy</button><button type="button" class="fs-v9-set-feedback fs-v911-manual-feedback" onclick="fsV911SetManualFeedback('good',this)">Good</button><button type="button" class="fs-v9-set-feedback fs-v911-manual-feedback" onclick="fsV911SetManualFeedback('too_hard',this)">Too hard</button><button type="button" class="fs-v9-set-feedback fs-v9-set-feedback pain fs-v911-manual-feedback" onclick="fsV911SetManualFeedback('pain',this)">Something hurt</button></div></div>`;
+      html=html.replace(oldRpe,feedback);
+    }
+    if(s?.name==='editHistory'){
+      const h=state.history.find(x=>x.id===s.data?.id);
+      if(h?.source==='manual' && String(h.sessionType||'').toLowerCase()==='strength'){
+        const val=h.activityDetails?.strengthFeedback||'';
+        html=html.replace(/<div class="field"><label>RPE<\/label><input id="edit-activity-rpe"[^>]*><\/div>/,`<input id="edit-activity-rpe" type="hidden" value=""><div class="field"><label>Strength feedback</label><select id="edit-strength-feedback"><option value="">Not recorded</option><option value="too_easy" ${val==='too_easy'?'selected':''}>Too easy</option><option value="good" ${val==='good'?'selected':''}>Good</option><option value="too_hard" ${val==='too_hard'?'selected':''}>Too hard</option><option value="pain" ${val==='pain'?'selected':''}>Something hurt</option></select></div>`);
+      }
+    }
+    return html;
+  };
+
+  const fsV911SaveActivityBase=fsSaveActivityV10;
+  fsSaveActivityV10=function(){
+    const type=document.querySelector('#a-type')?.value||'';
+    const strengthFeedback=document.querySelector('#a-strength-feedback')?.value||null;
+    const before=state.history.length;
+    fsV911SaveActivityBase();
+    if(type==='Strength / Resistance' && state.history.length>before){
+      const h=state.history[state.history.length-1];
+      h.activityDetails=h.activityDetails||{};
+      h.activityDetails.rpe=null;
+      h.activityDetails.strengthFeedback=strengthFeedback;
+      if(strengthFeedback==='pain')h.activityDetails.pain=true;
+    }
+    /* Persist quick-logged customExercises added by older wrapper layers too. */
+    saveState();
+  };
+
+  const fsV911SaveHistoryBase=fsSaveHistoryEdit;
+  fsSaveHistoryEdit=function(id){
+    const h=state.history.find(x=>x.id===id);
+    const isManualStrength=h?.source==='manual'&&String(h.sessionType||'').toLowerCase()==='strength';
+    const feedback=isManualStrength?document.querySelector('#edit-strength-feedback')?.value:null;
+    fsV911SaveHistoryBase(id);
+    if(isManualStrength&&h){h.activityDetails=h.activityDetails||{};h.activityDetails.rpe=null;h.activityDetails.strengthFeedback=feedback||null;h.activityDetails.pain=feedback==='pain';saveState();render();}
+  };
+
+  /* Manual/custom strength must feed the same coverage engine as generated
+     workouts, including the muscle groups added in v9. */
+  fsV9Coverage=function(days=14){
+    const muscles=['Chest','Shoulders','Upper Back','Lats','Biceps','Triceps','Quads','Hamstrings','Glutes','Abductors','Adductors','Calves','Tibialis','Core','Lower Back'];
+    const score=Object.fromEntries(muscles.map(x=>[x,0])),patterns={};
+    const alias=x=>({
+      'chest':'Chest','shoulders':'Shoulders','traps':'Upper Back','upper back':'Upper Back','middle back':'Upper Back','back':'Upper Back','lats':'Lats','biceps':'Biceps','triceps':'Triceps',
+      'quadriceps':'Quads','quads':'Quads','hamstrings':'Hamstrings','glutes':'Glutes','abductors':'Abductors','adductors':'Adductors','calves':'Calves','tibialis':'Tibialis',
+      'abdominals':'Core','core':'Core','lower back':'Lower Back'
+    }[String(x||'').toLowerCase()]||null);
+    for(const h of (state.history||[])){
+      if(fsV9DaysAgo(h.date)>days)continue;
+      if((h.exercises||[]).length){
+        for(const e of fsV9StrengthSetsFromHistory(h)){
+          const meta=fsV9Meta(e.exerciseId),sets=Math.max(1,(e.sets||[]).length||1),mult=Math.min(1.5,.7+.2*sets);
+          for(const m of meta.direct)if(score[m]!=null)score[m]+=mult;
+          for(const p of meta.patterns)patterns[p]=(patterns[p]||0)+mult;
+        }
+      }else if(String(h.sessionType||'').toLowerCase()==='strength'){
+        const custom=h.customExercises||[];
+        if(custom.length){
+          for(const ex of custom){const mult=Math.min(1.2,.55+.15*Math.max(1,Number(ex.sets)||1));for(const raw of (ex.muscles||[])){const m=alias(raw);if(m)score[m]+=mult;}}
+        }else{
+          for(const raw of (h.activityDetails?.focus||[])){
+            if(String(raw).toLowerCase()==='full body'){for(const m of ['Chest','Shoulders','Upper Back','Lats','Quads','Hamstrings','Glutes','Core'])score[m]+=.45;continue;}
+            const m=alias(raw);if(m)score[m]+=.7;
+          }
+        }
+      }
+    }
+    const status={};for(const m of muscles){const v=score[m];status[m]=v>=2.2?'green':v>=.8?'yellow':'red';}
+    return {score,status,patterns,days};
+  };
+
+  /* Manual strength feedback now contributes to the same recovery hierarchy
+     without pretending a quick-log summary contains per-set data. */
+  const fsV911RecoveryBase=fsRecoveryRaw;
+  fsRecoveryRaw=function(days=14){
+    let base=fsV911RecoveryBase(days),tooHard=0,pain=0;
+    for(const h of fsRecentAny(days)){
+      if(h?.source!=='manual'||String(h.sessionType||'').toLowerCase()!=='strength')continue;
+      const f=h.activityDetails?.strengthFeedback;
+      if(f==='too_hard')tooHard++;
+      if(f==='pain'||h.activityDetails?.pain)pain++;
+    }
+    if(pain>=2)return Math.min(base,1);
+    if(pain===1||tooHard>=3)return Math.min(base,2);
+    if(tooHard>=2)return Math.min(base,3);
+    if(tooHard>=1)return Math.min(base,4);
+    return base;
+  };
+
+  /* Reconnect optional, muscle-relevant cooldowns AFTER the final decision
+     pipeline so later recommendation overrides cannot silently drop them. */
+  const fsV911PlanMetaBase=fsPlanMeta;
+  fsPlanMeta=function(){
+    const m=fsV911PlanMetaBase(); if(!m||!Array.isArray(m.ids))return m;
+    if(state.ui.duration==='20 min')return m;
+    const hasMainStrength=m.ids.some(id=>EXERCISES[id]?.type==='strength'&&!fsV8IsOptionalExercise(EXERCISES[id]));
+    if(!hasMainStrength)return m;
+    const existing=new Set(m.ids),stretches=fsStretchesForIds(m.ids).filter(id=>!existing.has(id));
+    if(stretches.length){m.ids=[...m.ids,...stretches];m.estimated=(m.estimated||estimatedMinutes(m.ids))+stretches.length;}
+    return m;
+  };
+  currentPlan=function(){return fsPlanMeta().ids||[];};
+
+  const fsV911PreviewBase=fsPreviewIdsForPlan;
+  fsPreviewIdsForPlan=function(dateKey,plan){
+    let ids=fsV911PreviewBase(dateKey,plan)||[];
+    if(plan?.duration==='20 min')return ids;
+    const hasMainStrength=ids.some(id=>EXERCISES[id]?.type==='strength'&&!fsV8IsOptionalExercise(EXERCISES[id]));
+    if(!hasMainStrength)return ids;
+    const set=new Set(ids);return [...ids,...fsStretchesForIds(ids).filter(id=>!set.has(id))];
+  };
+
+  saveState();
+})();
+
+
+saveState();render();
+
 </script>
 </body>
 </html>
