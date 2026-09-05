@@ -1493,6 +1493,15 @@ function fsNormalizeImportedState(imported){
     incline:Math.max(0,Number(oldHabit.incline)||0)
   };
   state.v10.dailyMileHabitActive=state.v82.dailyWalkHabit.enabled!==false;
+  /* v9.3+ migration: older backups do not contain the pain-aware state.
+     Import replaces the whole state object, so create the new namespace here
+     before any v9.3 render/Coach/Profile code can read it. */
+  state.v930=(state.v930&&typeof state.v930==='object')?state.v930:{};
+  state.v930.version='9.3.0';
+  state.v930.limitations=Array.isArray(state.v930.limitations)?state.v930.limitations:[];
+  state.v930.painEvents=Array.isArray(state.v930.painEvents)?state.v930.painEvents:[];
+  state.v930.coachQuestionCounts=(state.v930.coachQuestionCounts&&typeof state.v930.coachQuestionCounts==='object')?state.v930.coachQuestionCounts:{};
+  state.v930.calendarMode=state.v930.calendarMode==='week'?'week':'month';
   return state;
 }
 function fsImportDataFile(input){
@@ -8196,5 +8205,427 @@ saveState();render();
 })();
 
 </script>
+
+
+<!-- =========================================================
+     v9.3.0 — Clean UI + pain-aware Coach
+     Same feature set, cleaner hierarchy. Grand Canyon tracker,
+     preparedness radar, target-muscle pills and JSON backup tools
+     are deliberately preserved.
+     ========================================================= -->
+<style id="fs-v930-style">
+:root{--fs930-radius:18px;--fs930-soft:rgba(248,242,234,.72)}
+.fs-v930-clean .section{margin-top:22px}.fs-v930-clean .page-title{margin-bottom:8px}.fs-v930-clean .card.flat{box-shadow:none}
+.fs-v930-clean .section-head h3{margin-bottom:2px}.fs-v930-clean .profile-row{padding-top:13px;padding-bottom:13px}
+.fs-v930-clean .metric-card{padding:18px}.fs-v930-clean .metric-grid{gap:12px}
+.fs-v930-compact-list{display:grid;gap:8px}.fs-v930-compact-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.fs-v930-compact-row:last-child{border-bottom:0}
+.fs-v930-mini-icon{width:34px;height:34px;border-radius:11px;background:var(--surface2);display:grid;place-items:center;font-size:18px;flex:0 0 auto}.fs-v930-row-main{display:flex;align-items:center;gap:10px;min-width:0}.fs-v930-row-main>div:last-child{min-width:0}
+.fs-v930-weekmonth{display:grid;grid-template-columns:1fr 1fr;background:var(--surface2);border-radius:999px;padding:3px;margin:0 0 14px}.fs-v930-weekmonth button{border:0;background:transparent;color:var(--muted);padding:9px 12px;border-radius:999px;font-weight:800}.fs-v930-weekmonth button.active{background:var(--rust);color:white}
+.fs-v930-week-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:12px 0 4px}.fs-v930-day-chip{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 2px;text-align:center;color:var(--text);font-size:12px}.fs-v930-day-chip strong{display:block;font-size:14px;margin-top:3px}.fs-v930-day-chip.selected{background:var(--rust);color:white;border-color:var(--rust)}.fs-v930-day-chip.today:not(.selected){box-shadow:inset 0 0 0 2px rgba(178,84,46,.25)}
+.fs-v930-calendar-week .calendar-grid{display:none!important}
+.fs-v930-quick-title{font-size:13px;font-weight:900;color:var(--muted);margin:0 0 8px}.fs-v930-quick-grid{display:grid;gap:8px}.fs-v930-quick{width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:13px;padding:11px 13px;font-weight:750;display:flex;align-items:center;justify-content:space-between;gap:12px}.fs-v930-quick span:last-child{color:var(--muted)}
+.fs-v930-other{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.fs-v930-limit-strip{display:flex;gap:10px;align-items:flex-start;background:rgba(178,84,46,.07);border:1px solid rgba(178,84,46,.22);border-radius:16px;padding:12px 14px}.fs-v930-limit-strip .mark{font-size:20px}.fs-v930-limit-strip button{margin-left:auto}
+.fs-v930-details{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}.fs-v930-details summary{cursor:pointer;list-style:none;font-weight:850;color:var(--rust);padding:8px 2px}.fs-v930-details summary::-webkit-details-marker{display:none}.fs-v930-details summary:after{content:'⌄';float:right;color:var(--muted)}.fs-v930-details[open] summary:after{content:'⌃'}
+.fs-v930-profile-group{border:1px solid var(--line);border-radius:var(--fs930-radius);background:var(--surface);overflow:hidden;margin-top:10px}.fs-v930-profile-group>summary{list-style:none;cursor:pointer;padding:16px 18px;font-weight:900;display:flex;justify-content:space-between;align-items:center}.fs-v930-profile-group>summary::-webkit-details-marker{display:none}.fs-v930-profile-group>summary:after{content:'›';color:var(--muted);font-size:22px}.fs-v930-profile-group[open]>summary:after{transform:rotate(90deg)}.fs-v930-profile-inner{padding:0 16px 16px}
+.fs-v930-pain-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.fs-v930-choice{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:12px;padding:10px 11px;text-align:left}.fs-v930-choice.selected{border-color:var(--rust);box-shadow:inset 0 0 0 1px var(--rust);background:rgba(178,84,46,.06)}
+.fs-v930-timer{display:grid;place-items:center;gap:8px;margin:14px 0;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface2)}.fs-v930-timer-display{font-size:30px;font-weight:900;font-variant-numeric:tabular-nums}.fs-v930-timer-controls{display:flex;gap:8px}.fs-v930-timer-controls button{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:999px;padding:8px 13px;font-weight:800}
+.fs-v930-feedback .fs-v9-set-feedback{min-width:0}.fs-v930-feedback{grid-template-columns:repeat(2,minmax(0,1fr))!important}.fs-v930-feedback .pain{grid-column:1/-1}
+.fs-v930-limit-card{border:1px solid var(--line);border-radius:14px;padding:13px;background:var(--surface2);margin-top:8px}.fs-v930-limit-actions{display:flex;gap:8px;margin-top:10px}.fs-v930-limit-actions button{flex:1}
+@media(max-width:520px){.fs-v930-clean .metric-grid{grid-template-columns:1fr 1fr}.fs-v930-pain-grid{grid-template-columns:1fr 1fr}}
+</style>
+<script>
+(function(){
+  'use strict';
+  state.v930=(state.v930&&typeof state.v930==='object')?state.v930:{};
+  state.v930.version='9.3.0';
+  state.v930.limitations=Array.isArray(state.v930.limitations)?state.v930.limitations:[];
+  state.v930.painEvents=Array.isArray(state.v930.painEvents)?state.v930.painEvents:[];
+  state.v930.coachQuestionCounts=(state.v930.coachQuestionCounts&&typeof state.v930.coachQuestionCounts==='object')?state.v930.coachQuestionCounts:{};
+  state.v930.calendarMode=state.v930.calendarMode==='week'?'week':'month';
+
+  const FS_V930_REGIONS={
+    joints:['Shoulder','Elbow','Wrist / Hand','Neck','Upper Back','Lower Back','Hip','Knee','Ankle / Foot'],
+    muscles:['Chest / Pecs','Shoulders / Deltoids','Biceps','Triceps','Forearm / Grip','Upper Back','Lats','Lower Back','Core / Abs','Glutes','Hip Flexors','Adductors / Groin','Abductors / Outer Hip','Quads','Hamstrings','Calves','Tibialis / Shin']
+  };
+  const FS_V930_SIDES=['Left','Right','Both / Center'];
+  const FS_V930_CONTEXTS=[
+    ['already','Already present before this exercise'],
+    ['started','Started during this exercise'],
+    ['worse','Was present and got worse during this exercise'],
+    ['daily','Also noticeable during daily life']
+  ];
+  const FS_V930_FEELS=['Aching','Sharp','Burning','Tingling / numbness','Stiff / tight','Tender / sore','Other / unsure'];
+  const FS_V930_SEVERITY=['Mild','Moderate','Severe'];
+  window.FS_V930_REGIONS=FS_V930_REGIONS;
+
+  function activeLimits(){return state.v930.limitations.filter(x=>x&&x.status==='active');}
+  function titleCase(x){return String(x||'').replace(/\b\w/g,c=>c.toUpperCase());}
+  function canonMuscle(x){
+    const s=String(x||'').toLowerCase();
+    if(/chest|pec/.test(s))return 'Chest / Pecs'; if(/shoulder|delt/.test(s))return 'Shoulders / Deltoids';
+    if(/bicep/.test(s))return 'Biceps'; if(/tricep/.test(s))return 'Triceps'; if(/grip|forearm/.test(s))return 'Forearm / Grip';
+    if(/upper back/.test(s))return 'Upper Back'; if(/lat/.test(s))return 'Lats'; if(/lower back/.test(s))return 'Lower Back';
+    if(/core|ab/.test(s))return 'Core / Abs'; if(/glute/.test(s))return 'Glutes'; if(/hip flex/.test(s))return 'Hip Flexors';
+    if(/adductor|groin/.test(s))return 'Adductors / Groin'; if(/abductor|outer hip/.test(s))return 'Abductors / Outer Hip';
+    if(/quad/.test(s))return 'Quads'; if(/hamstring/.test(s))return 'Hamstrings'; if(/calf|calves/.test(s))return 'Calves'; if(/tibialis|shin/.test(s))return 'Tibialis / Shin';
+    return null;
+  }
+  function anatomy(id){
+    const ex=EXERCISES?.[id]; if(!ex)return {muscles:[],joints:[]};
+    let meta={}; try{meta=typeof fsV9Meta==='function'?fsV9Meta(id)||{}:{}}catch(_){}
+    const muscles=[...new Set([...(meta.direct||[]),...(meta.secondary||[]),...(ex.primaryMuscles||[]),...(ex.secondaryMuscles||[])].map(canonMuscle).filter(Boolean))];
+    const pats=(meta.patterns||[]).map(x=>String(x).toLowerCase()), n=String(ex.name||id).toLowerCase();
+    const joints=new Set();
+    if(/press|push|row|pull|pullover|raise|fly|curl|tricep|chop|pallof|carry|hold/.test(n)||pats.some(p=>/push|pull|carry|rotation/.test(p))){joints.add('Shoulder');joints.add('Elbow');}
+    if(/curl|tricep|press|row|pull|pullover/.test(n))joints.add('Elbow');
+    if(/wrist|grip|carry|dumbbell|barbell|cable|kettlebell/.test(n))joints.add('Wrist / Hand');
+    if(/squat|lunge|leg press|step|calf|deadlift|rdl|hinge|hip thrust|bridge|good morning|abduct|adduct|march/.test(n)||pats.some(p=>/squat|hinge|step|single_leg|hip/.test(p))){joints.add('Hip');joints.add('Knee');}
+    if(/calf|step|lunge|squat|leg press|walk|hike|march/.test(n)||pats.some(p=>/step|single_leg/.test(p)))joints.add('Ankle / Foot');
+    if(/deadlift|rdl|hinge|good morning|back extension|bird dog|plank|carry/.test(n)||muscles.includes('Lower Back'))joints.add('Lower Back');
+    if(/row|pulldown|pull-up|pullover|rear delt/.test(n)||muscles.includes('Upper Back')||muscles.includes('Lats'))joints.add('Upper Back');
+    return {muscles,joints:[...joints]};
+  }
+  window.fsV930Anatomy=anatomy;
+  function limitMatchesExercise(lim,id){if(!lim||lim.status!=='active')return false;const a=anatomy(id);return lim.kind==='joint'?a.joints.includes(lim.region):a.muscles.includes(lim.region);}
+  function exerciseRisk(id){const hits=activeLimits().filter(l=>limitMatchesExercise(l,id));return {risky:hits.length>0,hits};}
+  window.fsV930ExerciseRisk=exerciseRisk;
+
+  function safeAlternative(id,loc){
+    try{
+      const groups=typeof fsAlternativeGroups==='function'?fsAlternativeGroups(id):null;if(!groups)return null;
+      const rows=[...(groups.machine||[]),...(groups.free_weight||[]),...(groups.bodyweight||[])];
+      for(const r of rows){const sid=r.id;if(!sid||exerciseRisk(sid).risky)continue;let ok=true;try{if(typeof window.fsV923ExerciseAllowed==='function')ok=window.fsV923ExerciseAllowed(sid,loc);}catch(_){}if(ok)return sid;}
+    }catch(_){}
+    return null;
+  }
+
+  /* Pain is a programming constraint, not proof that the weight is too hard. */
+  const _strengthPlan=fsStrengthPlan;
+  fsStrengthPlan=function(loc,focus){
+    const ids=_strengthPlan(loc,focus)||[]; if(!activeLimits().length)return ids;
+    const used=new Set(); const out=[];
+    for(const id of ids){let chosen=id;if(exerciseRisk(id).risky){const alt=safeAlternative(id,loc);if(alt)chosen=alt;else continue;}if(!used.has(chosen)){used.add(chosen);out.push(chosen);}}
+    return out;
+  };
+
+  /* New feedback semantics: Challenging is productive, Pain is separate from difficulty. */
+  fsV9AggregateFeedback=function(sets=[]){
+    if(sets.some(s=>s.feedback==='pain'))return 'pain';
+    if(sets.some(s=>s.feedback==='too_hard'))return 'too_hard';
+    if(sets.some(s=>s.feedback==='challenging'))return 'challenging';
+    if(sets.length&&sets.every(s=>s.feedback==='too_easy'))return 'too_easy';
+    if(sets.some(s=>s.feedback==='good'))return 'good';
+    return null;
+  };
+  const _nextSet=fsV9NextSetCoach;
+  fsV9NextSetCoach=function(item,ex){const p=item?.sets?.[item.sets.length-1];if(p?.feedback==='challenging')return {value:Number(p.weight)||0,reason:'Challenging but doable is useful training. Keep the load and build from the lower end of the rep range before increasing weight.'};return _nextSet(item,ex);};
+  const _suggested=getSuggestedLoad;
+  getSuggestedLoad=function(id){
+    const base=_suggested(id);const recent=typeof fsV9RecentExercise==='function'?fsV9RecentExercise(id,1)?.[0]:null;
+    const agg=recent?.sets?.length?fsV9AggregateFeedback(recent.sets):recent?.feedback;
+    const returnLim=state.v930.limitations.find(l=>l?.status==='resolved'&&l.returnTestPending&&(l.kind==='joint'?anatomy(id).joints.includes(l.region):anatomy(id).muscles.includes(l.region)));
+    if(returnLim&&base&&Number(base.value)>0){let v=Number(base.value)*.8;try{if((state.activeWorkout?.location||state.ui.location)==='Home'&&typeof fsV9HomeLoadClosest==='function')v=fsV9HomeLoadClosest(Number(base.value),'down');else v=Math.max(0,Math.round(v));}catch(_){}return {...base,value:v,reason:`${limitationLabel(returnLim)} was recently marked resolved. Coach is using one easier return exposure before restoring the usual progression.`};}
+    if(agg==='challenging'&&base&&Number(base.value)>0)return {...base,value:Number(base.value),reason:'The last exposure was challenging but doable. Coach is holding the load and letting you work from the lower end of the rep range before progressing.'};
+    if(exerciseRisk(id).risky&&base)return {...base,reason:'Your demonstrated strength is preserved, but Coach is treating this movement cautiously because it loads an active pain area.'};
+    return base;
+  };
+
+  /* Localized, described pain does not automatically tank whole-body Recovery.
+     Severe pain or pain spanning multiple regions still contributes systemically. */
+  const _recoveryRaw=fsRecoveryRaw;
+  fsRecoveryRaw=function(days=14){
+    let base=_recoveryRaw(days);const cutoff=Date.now()-days*86400000;
+    const ev=state.v930.painEvents.filter(e=>new Date(e.date).getTime()>=cutoff);
+    if(!ev.length)return base;
+    const regions=new Set(ev.map(e=>`${e.side}|${e.region}`)),severe=ev.filter(e=>e.severity==='Severe').length;
+    if(severe||regions.size>=3)return Math.min(base,2);
+    /* one/two localized areas are primarily handled through exercise selection */
+    return Math.max(base,3);
+  };
+
+  function limitationLabel(l){return `${l.side&&l.side!=='Both / Center'?l.side+' ':''}${l.region}`;}
+  function upsertLimit(info){
+    const key=`${info.kind}|${info.region}|${info.side}`;let l=state.v930.limitations.find(x=>x.key===key&&x.status==='active');
+    if(l){l.updatedAt=new Date().toISOString();l.lastContext=info.context;l.lastSeverity=info.severity;l.aggravators=[...new Set([...(l.aggravators||[]),info.exerciseId].filter(Boolean))];return l;}
+    l={id:uid(),key,kind:info.kind,region:info.region,side:info.side,status:'active',startedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastContext:info.context,lastSeverity:info.severity,aggravators:info.exerciseId?[info.exerciseId]:[]};
+    state.v930.limitations.push(l);return l;
+  }
+  function selectChoice(group,val){document.querySelectorAll(`[data-v930-group="${group}"]`).forEach(b=>b.classList.toggle('selected',b.dataset.v930Value===val));}
+  window.fsV930SelectChoice=selectChoice;
+  function painSheet(id){
+    const joints=FS_V930_REGIONS.joints.map(x=>`<option value="joint|${esc(x)}">Joint · ${esc(x)}</option>`).join('');
+    const muscles=FS_V930_REGIONS.muscles.map(x=>`<option value="muscle|${esc(x)}">Muscle · ${esc(x)}</option>`).join('');
+    return `<div class="sheet-backdrop"><div class="sheet"><div class="sheet-head"><div><h2>What hurt?</h2><div class="subtle">This does not mean the set was too difficult. Coach uses it to protect the affected area.</div></div><button class="icon-btn" onclick="closeSheet()">×</button></div>
+      <div class="field"><label>Joint or muscle</label><select id="v930-pain-region"><option value="">Select an area…</option><optgroup label="Major joints">${joints}</optgroup><optgroup label="Major muscles">${muscles}</optgroup></select></div>
+      <div class="field section"><label>Side</label><select id="v930-pain-side">${FS_V930_SIDES.map(x=>`<option>${esc(x)}</option>`).join('')}</select></div>
+      <div class="field section"><label>What best describes the context?</label><select id="v930-pain-context">${FS_V930_CONTEXTS.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('')}</select></div>
+      <div class="field section"><label>What does it feel like?</label><select id="v930-pain-feel">${FS_V930_FEELS.map(x=>`<option>${esc(x)}</option>`).join('')}</select></div>
+      <div class="field section"><label>How noticeable is it?</label><select id="v930-pain-severity">${FS_V930_SEVERITY.map(x=>`<option>${esc(x)}</option>`).join('')}</select></div>
+      <div class="field section"><label>Should Coach protect this area in future workouts?</label><select id="v930-pain-protect"><option value="yes">Yes — modify or avoid aggravating exercises</option><option value="no">No — record this set only</option></select></div>
+      <button class="primary-btn section" style="width:100%" onclick="fsV930SavePain('${String(id).replace(/'/g,"\\'")}')">Save pain information</button>
+    </div></div>`;
+  }
+  window.fsV930SavePain=function(id){
+    const raw=document.querySelector('#v930-pain-region')?.value||'';if(!raw){toast('Choose the joint or muscle that hurt.');return;}
+    const [kind,...rest]=raw.split('|'),region=rest.join('|'),side=document.querySelector('#v930-pain-side')?.value||'Both / Center',context=document.querySelector('#v930-pain-context')?.value||'already',feel=document.querySelector('#v930-pain-feel')?.value||'Other / unsure',severity=document.querySelector('#v930-pain-severity')?.value||'Mild',protect=document.querySelector('#v930-pain-protect')?.value==='yes';
+    const w=id?state.activeWorkout:null,item=w?.plan?.[w.index],set=item?.sets?.[item.sets.length-1];
+    const info={id:uid(),date:new Date().toISOString(),exerciseId:id,kind,region,side,context,feel,severity,protect};
+    if(set)set.painInfo={kind,region,side,context,feel,severity};if(item){item.painInfo=info;item.pain=true;}
+    state.v930.painEvents.push(info);if(protect)upsertLimit(info);saveState();closeSheet();render();toast(protect?`${limitationLabel(info)} is now protected by Coach.`:'Pain note saved for this set.');
+  };
+  window.fsV930ResolveLimit=function(lid){
+    const l=state.v930.limitations.find(x=>x.id===lid);if(!l)return;l.status='resolved';l.resolvedAt=new Date().toISOString();l.returnTestPending=true;saveState();render();toast(`${limitationLabel(l)} marked resolved. Coach will reintroduce the area cautiously.`);
+  };
+  window.fsV930ReactivateLimit=function(lid){const l=state.v930.limitations.find(x=>x.id===lid);if(!l)return;l.status='active';l.updatedAt=new Date().toISOString();l.resolvedAt=null;l.returnTestPending=false;saveState();render();};
+
+  /* Set-level pain follow-up replaces the old binary stop/skip sheet. */
+  const _sheet=renderSheet;
+  renderSheet=function(){const s=state.ui.sheet;if(s?.name==='v9PainSet')return painSheet(s.data?.id);if(s?.name==='v930AddLimitation')return painSheet('');return _sheet();};
+
+  /* Time-based strength sets get an in-app countdown timer. */
+  let timer=null,timerLeft=0,timerRunning=false;
+  function timerPaint(){const el=document.querySelector('#fs-v930-timer-display');if(el)el.textContent=`${String(Math.floor(timerLeft/60)).padStart(2,'0')}:${String(Math.max(0,timerLeft%60)).padStart(2,'0')}`;}
+  window.fsV930TimerStart=function(){if(timerRunning)return;const inp=document.querySelector('#set-reps');if(timerLeft<=0)timerLeft=Math.max(1,Math.round(Number(inp?.value)||30));timerRunning=true;timerPaint();timer=setInterval(()=>{timerLeft--;timerPaint();if(timerLeft<=0){clearInterval(timer);timer=null;timerRunning=false;if(inp)inp.value=Math.max(1,Math.round(Number(inp.value)||30));try{navigator.vibrate?.(150)}catch(_){}}},1000);};
+  window.fsV930TimerPause=function(){if(timer){clearInterval(timer);timer=null;}timerRunning=false;};
+  window.fsV930TimerReset=function(){window.fsV930TimerPause();timerLeft=Math.max(1,Math.round(Number(document.querySelector('#set-reps')?.value)||30));timerPaint();};
+
+  const _activeStrength=renderActiveStrength;
+  renderActiveStrength=function(item,ex){
+    let html=_activeStrength(item,ex);if(!ex)return html;
+    html=html.replace('<div class="fs-v9-feedback-grid">','<div class="fs-v9-feedback-grid fs-v930-feedback">');
+    if(!html.includes('data-feedback="challenging"'))html=html.replace(/(data-feedback="good"[\s\S]*?<\/button>)/,`$1${fsV9FeedbackButton('challenging','Challenging')}`);
+    html=html.replace(/\(\{too_easy:'Too easy',good:'Good',too_hard:'Too hard',pain:'Something hurt'\}\)/g,"({too_easy:'Too easy',good:'Good',challenging:'Challenging',too_hard:'Too hard',pain:'Something hurt'})");
+    if(ex.timeBased&&!fsV8IsOptionalExercise(ex)&&html.includes('onclick="logStrengthSet()"')){
+      const timerHTML=`<div class="fs-v930-timer"><div class="subtle tiny">Set timer</div><div id="fs-v930-timer-display" class="fs-v930-timer-display">00:${String(Math.round(Number(ex.repMin)||30)).padStart(2,'0')}</div><div class="fs-v930-timer-controls"><button type="button" onclick="fsV930TimerStart()">Start</button><button type="button" onclick="fsV930TimerPause()">Pause</button><button type="button" onclick="fsV930TimerReset()">Reset</button></div></div>`;
+      html=html.replace('<button class="primary-btn" style="margin-top:16px" onclick="logStrengthSet()">Complete set</button>',timerHTML+'<button class="primary-btn" style="margin-top:16px" onclick="logStrengthSet()">Complete set</button>');
+    }
+    return html;
+  };
+
+  /* Question frequency powers quick access; organized dropdown remains intact. */
+  const _ask=fsCoachAsk;
+  fsCoachAsk=function(){const sel=document.querySelector('#fs-coach-question');const key=sel?.value;if(key)state.v930.coachQuestionCounts[key]=(Number(state.v930.coachQuestionCounts[key])||0)+1;saveState();return _ask();};
+  window.fsV930AskQuick=function(key){const sel=document.querySelector('#fs-coach-question');if(!sel)return;sel.value=key;fsCoachAsk();};
+
+  const painQuestions=[
+    ['pain_handling','How is Coach handling my current limitations?'],
+    ['pain_training','Can I train around my current pain?'],
+    ['pain_resolved','What happens when I mark pain resolved?']
+  ];
+  if(Array.isArray(window.FS_COACH_GROUPS)&&!window.FS_COACH_GROUPS.some(g=>g[0]==='Pain & Limitations'))window.FS_COACH_GROUPS.splice(4,0,['Pain & Limitations',painQuestions]);
+  for(const q of painQuestions)if(!FS_COACH_QUESTIONS.some(x=>x[0]===q[0]))FS_COACH_QUESTIONS.push(q);
+  const _reply=fsCoachPreparednessReply;
+  fsCoachPreparednessReply=function(key){
+    if(key==='pain_handling'){const a=activeLimits();return a.length?`Coach is currently protecting ${a.map(l=>limitationLabel(l)).join(', ')}. These are treated as local programming constraints, not evidence that you lost strength. Known aggravating exercises are avoided when a safer alternative is available.`:'You have no active pain limitations saved. A “Something hurt” set can record the area and optionally tell Coach to protect it in future workouts.';}
+    if(key==='pain_training'){const a=activeLimits();return a.length?`Yes, as long as the rest of the plan is tolerable. Coach modifies exercises that load ${a.map(l=>limitationLabel(l)).join(', ')} while unrelated strength, walking, endurance and climbing can continue. A localized limitation does not automatically stop phase progress.`:'There is no active limitation currently changing your exercise selection.';}
+    if(key==='pain_resolved')return 'When you mark a limitation resolved, Coach stops avoiding that region. Your prior strength history remains intact; the first return exposure is treated cautiously before normal progression resumes.';
+    return _reply(key);
+  };
+  function coachOptions930(){
+    const groups=Array.isArray(window.FS_COACH_GROUPS)?window.FS_COACH_GROUPS:[];
+    return `<option value="">Choose a question…</option>`+groups.map(([name,qs])=>`<optgroup label="${esc(name)}">${qs.map(([k,q])=>`<option value="${esc(k)}">${esc(q)}</option>`).join('')}</optgroup>`).join('');
+  }
+  function quickKeys(){const defaults=['today_remaining','week','walking_endurance','recovery_trend'];const counts=state.v930.coachQuestionCounts||{};const ranked=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);return [...new Set([...ranked,...defaults])].filter(k=>FS_COACH_QUESTIONS.some(q=>q[0]===k)).slice(0,4);}
+  renderFsCoachChat=function(){
+    const prep=fsPreparedness(),hist=(state.v113?.coachHistory||[]).filter(h=>h?.key!=='body').slice(0,2).reverse(),map=Object.fromEntries(FS_COACH_QUESTIONS);
+    const messages=hist.length?hist.map(h=>`<div class="coach-msg user">${esc(h.label)}</div><div class="coach-msg coach">${esc(h.answer)}<div class="coach-msg-time">${fmtDate(new Date(h.date))}</div></div>`).join(''):`<div class="coach-msg coach">Pick a quick question or browse the organized question library below.</div>`;
+    const quick=quickKeys().map(k=>`<button class="fs-v930-quick" onclick="fsV930AskQuick('${k}')"><span>${esc(map[k]||k)}</span><span>›</span></button>`).join('');
+    const lim=activeLimits();const limHTML=lim.length?`<div class="fs-v930-limit-strip section"><div class="mark">⚠︎</div><div><strong>Active limitation${lim.length>1?'s':''}</strong><div class="subtle small">${esc(lim.map(l=>limitationLabel(l)).join(' · '))} · Coach is modifying relevant exercise selection.</div></div><button class="ghost-btn" onclick="navigate('profile')">Manage</button></div>`:'';
+    return `<main class="shell fs-v930-clean fs-v930-coach"><div class="topbar"><div class="brand">Fitn<span>Smart</span></div></div><h1 class="page-title">Coach</h1><section class="section"><div class="coach-chat-card"><div class="coach-chat-status"><div><div class="eyebrow">Right now</div><strong>${esc(fsPhase().name)} · ${prep.onTrackCount}/5 on track</strong></div><span class="tag">${esc(prep.programStatus)}</span></div><div style="padding:14px 16px 4px"><div class="fs-v930-quick-title">Frequently asked</div><div class="fs-v930-quick-grid">${quick}</div>${limHTML}</div><div id="fs-chatlog" class="coach-chatlog">${messages}</div><div class="coach-composer fs-v930-other"><label for="fs-coach-question">Other questions</label><select id="fs-coach-question">${coachOptions930()}</select><button type="button" class="coach-send" onclick="fsCoachAsk()" aria-label="Send question">↑</button></div></div></section>${nav('coach')}</main>`;
+  };
+
+  /* Progress: preserve radar/chart/scoring; only collapse the score explanations. */
+  const _progress=renderProgress;
+  renderProgress=function(){
+    let html=_progress();html=html.replace('<main class="shell">','<main class="shell fs-v930-clean fs-v930-progress">');
+    const start=html.indexOf('<section class="section" id="preparedness">');
+    if(start>=0){let depth=0,end=-1,re=/<section\b|<\/section>/g,m;re.lastIndex=start;while((m=re.exec(html))){if(m[0].startsWith('<section'))depth++;else depth--;if(depth===0){end=re.lastIndex;break;}}
+      if(end>start){let block=html.slice(start,end);const marker='<div style="margin-top:10px">';const mi=block.indexOf(marker);if(mi>=0){const innerStart=mi+marker.length;let d=1,j=innerStart,tag=/<div\b|<\/div>/g,x;tag.lastIndex=mi;while((x=tag.exec(block))){if(x.index===mi){continue;}if(x[0].startsWith('<div'))d++;else d--;if(d===0){j=tag.lastIndex;break;}}if(j>innerStart){const inner=block.slice(innerStart,j-6);block=block.slice(0,mi)+`<details class="fs-v930-details"><summary>Why these scores?</summary><div style="margin-top:4px">${inner}</div></details>`+block.slice(j);} }html=html.slice(0,start)+block+html.slice(end);}
+    }
+    return html;
+  };
+
+  /* Today: cleaner density; Canyon tracker is not altered or reconstructed. */
+  const _today=renderToday;
+  renderToday=function(){let html=_today();html=html.replace('<main class="shell">','<main class="shell fs-v930-clean fs-v930-today">');const lim=activeLimits();if(lim.length){const strip=`<section class="section"><div class="fs-v930-limit-strip"><div class="mark">⚠︎</div><div><strong>Coach is protecting ${esc(limitationLabel(lim[0]))}${lim.length>1?` +${lim.length-1} more`:''}</strong><div class="subtle small">Relevant exercises will be modified when safer alternatives are available.</div></div></div></section>`;const ni=html.lastIndexOf('<nav class="nav">');if(ni>=0)html=html.slice(0,ni)+strip+html.slice(ni);}return html;};
+
+  /* Calendar: month view is preserved; week mode is an additional compact view. */
+  function weekDates(anchor){const d=new Date(`${anchor}T12:00:00`),day=(d.getDay()+6)%7,start=new Date(d);start.setDate(d.getDate()-day);return Array.from({length:7},(_,i)=>{const x=new Date(start);x.setDate(start.getDate()+i);return fsLocalDateKey(x);});}
+  window.fsV930SetCalendarMode=function(v){state.v930.calendarMode=v==='week'?'week':'month';saveState();render();};
+  window.fsV930SelectCalendarDate=function(k){state.v10.selectedDate=k;state.v10.calendarMonth=k.slice(0,7);saveState();render();};
+  const _calendar=renderCalendar;
+  renderCalendar=function(){let html=_calendar();html=html.replace('<main class="shell">',`<main class="shell fs-v930-clean fs-v930-calendar-${state.v930.calendarMode}">`);const selected=state.v10?.selectedDate||fsTodayKey();const dates=weekDates(selected),strip=`<div class="fs-v930-weekmonth"><button class="${state.v930.calendarMode==='week'?'active':''}" onclick="fsV930SetCalendarMode('week')">Week</button><button class="${state.v930.calendarMode==='month'?'active':''}" onclick="fsV930SetCalendarMode('month')">Month</button></div><div class="fs-v930-week-strip">${dates.map(k=>{const d=new Date(`${k}T12:00:00`);return `<button class="fs-v930-day-chip ${k===selected?'selected':''} ${k===fsTodayKey()?'today':''}" onclick="fsV930SelectCalendarDate('${k}')">${d.toLocaleDateString(undefined,{weekday:'short'}).slice(0,1)}<strong>${d.getDate()}</strong></button>`}).join('')}</div>`;const hero=html.indexOf('<section class="card calendar-hero">');if(hero>=0)html=html.slice(0,hero)+strip+html.slice(hero);return html;};
+
+  /* Profile: add Pain & Limitations without removing any existing controls,
+     especially Import/Export JSON. */
+  function limitationsSection(){
+    const active=activeLimits(),resolved=state.v930.limitations.filter(x=>x?.status==='resolved').slice(-5).reverse();
+    const card=l=>`<div class="fs-v930-limit-card"><div class="row between"><div><strong>${esc(limitationLabel(l))}</strong><div class="subtle small">${l.kind==='joint'?'Joint':'Muscle'} · ${l.lastSeverity||'Saved'}${l.aggravators?.length?` · ${l.aggravators.length} aggravating exercise${l.aggravators.length===1?'':'s'}`:''}</div></div><span class="tag">${l.status==='active'?'Active':'Resolved'}</span></div>${l.status==='active'?`<div class="fs-v930-limit-actions"><button class="primary-btn" onclick="fsV930ResolveLimit('${l.id}')">Pain resolved</button></div>`:`<div class="fs-v930-limit-actions"><button class="secondary-btn" onclick="fsV930ReactivateLimit('${l.id}')">Make active again</button></div>`}</div>`;
+    return `<section class="section"><div class="section-head"><div><h3>Pain & Limitations</h3><span class="section-label">programming constraints</span></div><button class="ghost-btn" onclick="openSheet('v930AddLimitation')">+ Add</button></div><div class="card flat"><div class="subtle small">Pain limitations protect affected joints or muscles without erasing the strength you already demonstrated.</div>${active.length?active.map(card).join(''):'<div class="muted-box" style="margin-top:12px">No active limitations.</div>'}${resolved.length?`<details class="fs-v930-details"><summary>Recently resolved (${resolved.length})</summary>${resolved.map(card).join('')}</details>`:''}</div></section>`;
+  }
+  const _profile=renderProfile;
+  renderProfile=function(){let html=_profile();html=html.replace('<main class="shell">','<main class="shell fs-v930-clean fs-v930-profile">');const block=limitationsSection();const dataMarkers=['<section class="section"><h3>Move / back up data</h3>','<section class="section"><h3>Data</h3>'];let i=-1;for(const m of dataMarkers){i=html.indexOf(m);if(i>=0)break;}if(i>=0)html=html.slice(0,i)+block+html.slice(i);else html=html.replace(nav('profile'),block+nav('profile'));return html;};
+
+  /* Persist new pain metadata through import normalization. */
+  const _import=fsImportDataFile;
+  fsImportDataFile=function(input){window.__fsV930AfterImport=true;return _import(input);};
+
+  /* One easier exposure after a limitation is resolved, then restore the saved progression. */
+  const _finalize930=fsFinalizeWorkout;
+  fsFinalizeWorkout=function(reason='completed'){
+    const before=(state.history||[]).length;_finalize930(reason);
+    if((state.history||[]).length>before){const h=state.history[state.history.length-1];for(const l of state.v930.limitations.filter(x=>x?.status==='resolved'&&x.returnTestPending)){const tested=(h.exercises||[]).some(e=>{if(!(l.kind==='joint'?anatomy(e.exerciseId).joints.includes(l.region):anatomy(e.exerciseId).muscles.includes(l.region)))return false;return !(e.sets||[]).some(s=>s.feedback==='pain')&&e.feedback!=='pain';});if(tested){l.returnTestPending=false;l.returnTestCompletedAt=new Date().toISOString();}}saveState();}
+  };
+  finishWorkout=function(){return fsFinalizeWorkout('completed');};
+
+  /* Explain that localized limitations are handled locally instead of implying whole-body fatigue. */
+  const _prep930=fsPreparedness;
+  fsPreparedness=function(...args){const out=_prep930(...args),a=out?.areas?.find(x=>x.key==='recovery'),lim=activeLimits();if(a&&lim.length)a.detail+=` Active limitation${lim.length>1?'s':''}: ${lim.map(l=>limitationLabel(l)).join(', ')}. Coach handles these primarily through exercise modification rather than treating them as lost fitness.`;return out;};
+  const _hikePrep930=fsHikePreparedness;
+  fsHikePreparedness=function(...args){const out=_hikePrep930(...args),a=out?.areas?.find(x=>x.key==='recovery'),lim=activeLimits();if(a&&lim.length)a.detail+=` Local limitation${lim.length>1?'s':''} are being managed separately from overall hike capacity.`;return out;};
+
+  saveState();render();
+})();
+</script>
+
+
+<script>
+/* =========================================================
+   v9.3.0 — Context-aware Today Coach note
+   - Brief (1–3 sentences)
+   - Relevant to today's workout / current week
+   - Local limitations surface only when today's work uses them
+   - Hides completely when there is nothing useful to say
+   ========================================================= */
+(function(){
+  function activeHistory931(){
+    try{if(typeof window.fsV924ActiveHistory==='function')return window.fsV924ActiveHistory();}catch(_){ }
+    return Array.isArray(state.history)?state.history.filter(h=>!h?.archivedDuplicate):[];
+  }
+  function localKey931(d){
+    try{if(typeof fsLocalDateKey==='function')return fsLocalDateKey(d);}catch(_){ }
+    const x=new Date(d),y=x.getFullYear(),m=String(x.getMonth()+1).padStart(2,'0'),day=String(x.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  function activeLimits931(){
+    const rows=state?.v930?.limitations;
+    return Array.isArray(rows)?rows.filter(x=>x&&x.status==='active'):[];
+  }
+  function limitLabel931(l){
+    const side=String(l?.side||'').toLowerCase();
+    const region=String(l?.region||'').toLowerCase();
+    return `${side&&side!=='both / center'?side+' ':''}${region}`.trim();
+  }
+  function anatomy931(id){
+    try{if(typeof window.fsV930Anatomy==='function')return window.fsV930Anatomy(id)||{joints:[],muscles:[]};}catch(_){ }
+    return {joints:[],muscles:[]};
+  }
+  function relevantLimit931(lim,meta){
+    const ids=Array.isArray(meta?.ids)?meta.ids:[];
+    const direct=ids.some(id=>{const a=anatomy931(id);return lim.kind==='joint'?a.joints.includes(lim.region):a.muscles.includes(lim.region);});
+    if(direct)return true;
+    const t=String(meta?.type||'').toLowerCase();
+    if(['hill','long','easy','hiking_stepups'].includes(t)){
+      const lowerJoints=['Hip','Knee','Ankle / Foot','Lower Back'];
+      const lowerMuscles=['Glutes','Hip Flexors','Adductors / Groin','Abductors / Outer Hip','Quads','Hamstrings','Calves','Tibialis / Shin','Lower Back'];
+      return lim.kind==='joint'?lowerJoints.includes(lim.region):lowerMuscles.includes(lim.region);
+    }
+    return false;
+  }
+  function recent931(days=7){
+    const now=Date.now(),cut=now-days*86400000;
+    return activeHistory931().filter(h=>{const t=new Date(h?.date||h?.completedAt||h?.startedAt||0).getTime();return Number.isFinite(t)&&t>=cut&&t<=now+3600000;});
+  }
+  function feedbackCounts931(rows,ids){
+    let challenging=0,hard=0,pain=0;
+    const useIds=new Set(ids||[]);
+    for(const h of rows)for(const e of h?.exercises||[]){
+      if(useIds.size&&e?.exerciseId&&!useIds.has(e.exerciseId))continue;
+      for(const set of e?.sets||[]){const f=String(set?.feedback||'');if(f==='challenging')challenging++;else if(f==='too_hard')hard++;else if(f==='pain')pain++;}
+    }
+    return {challenging,hard,pain};
+  }
+  function weekStats931(){
+    const rows=recent931(7);let miles=0,strength=0,hill=0,long=0;
+    for(const h of rows){
+      const d=Number(h?.cardio?.distance||0);if(Number.isFinite(d)&&d>0)miles+=d;
+      const txt=`${h?.workoutTitle||''} ${h?.sessionType||''} ${h?.cardioType||''} ${h?.cardio?.type||''}`.toLowerCase();
+      if((h?.exercises||[]).length||/strength|upper body|lower body|full body|core/.test(txt))strength++;
+      if(/hill|stair|step/.test(txt)||Number(h?.cardio?.incline||0)>=2)hill++;
+      if(/long|hike/.test(txt))long++;
+    }
+    return {sessions:rows.length,miles,strength,hill,long};
+  }
+  function todaysContextNote931(){
+    let s=null,meta=null;
+    try{s=typeof fsTodayRecommendationState==='function'?fsTodayRecommendationState():null;}catch(_){ }
+    try{meta=s?.meta||(typeof fsPlanMeta==='function'?fsPlanMeta():null);}catch(_){ }
+    if(!meta)return null;
+    const title=String(meta.title||'today’s session');
+    const type=String(meta.type||'').toLowerCase();
+    const ids=Array.isArray(meta.ids)?meta.ids:[];
+
+    /* 1) Only surface a limitation if today's work actually uses that area. */
+    const lim=activeLimits931().find(l=>relevantLimit931(l,meta));
+    if(lim){
+      const label=limitLabel931(lim)||'that area';
+      if(type==='hill'||type==='long'||type==='easy'||type==='hiking_stepups')
+        return `I’m protecting your ${label} during today’s ${title.toLowerCase()}. I’ll keep the climbing/walking progression conservative around that area without treating the rest of your fitness as lost.`;
+      return `I’m protecting your ${label} in today’s workout, so exercises that load it heavily may be modified or swapped. Your previous strength progress stays intact.`;
+    }
+
+    /* 2) Session-specific thinking. */
+    if(type==='hill'){
+      return `Today’s hill work is the climbing stimulus, not just another walk. I’m counting the incline/elevation toward climbing progress and will only progress the next hill dose if this one is well tolerated.`;
+    }
+    if(type==='long'){
+      return `Today is about time on your feet, not chasing pace. I’m using the completed distance, duration and effort to decide when the next long-walk increase is earned.`;
+    }
+    if(type==='hiking_stepups'){
+      return `Today’s step work is building climbing-specific leg endurance. I’m treating completed step volume as real hiking evidence, even when it comes in smaller chunks.`;
+    }
+
+    if(type==='strength'||type==='override'){
+      const fb=feedbackCounts931(recent931(14),ids);
+      if(fb.hard>0)return `I’ve seen recent “Too hard” feedback on movements relevant to today. I’ll hold or reduce those specific prescriptions rather than treating the whole workout as a setback.`;
+      if(fb.challenging>0)return `Some recent sets in this training lane were challenging but doable. That’s useful work—I’ll keep those loads available and let reps become more comfortable before pushing weight higher.`;
+      if(s?.mile)return `Your walking target is already covered, so today can stay focused on strength instead of adding duplicate cardio. I’m still using your set-by-set feedback to decide what progresses next.`;
+    }
+
+    /* 3) Completion matters only when it changes what is required. */
+    if(s?.complete)return `Today’s planned work is satisfied. I’m not creating extra cardio or make-up work just to make the day look fuller.`;
+
+    /* 4) A short weekly-context note when there is enough data to be useful. */
+    const w=weekStats931();
+    if(w.sessions>=2){
+      const bits=[];
+      if(w.miles>0)bits.push(`${w.miles.toFixed(1)} walking/hiking mi`);
+      if(w.strength>0)bits.push(`${w.strength} strength session${w.strength===1?'':'s'}`);
+      const summary=bits.length?bits.join(' and '):`${w.sessions} logged sessions`;
+      return `So far this week you’ve logged ${summary}. Today’s ${title.toLowerCase()} fills a different part of the plan, so I’m keeping the progression balanced rather than adding bonus work.`;
+    }
+
+    return null;
+  }
+
+  window.fsV930TodayCoachNote=todaysContextNote931;
+  const _renderToday931=renderToday;
+  renderToday=function(){
+    let html=_renderToday931();
+    const note=todaysContextNote931();
+    const re=/<section class="section"><div class="section-head"><h3>Coach<\/h3>[\s\S]*?<\/section>/;
+    if(note){
+      const block=`<section class="section"><div class="section-head"><h3>Coach</h3></div><div class="coach-note"><div class="coach-kicker">Coach note</div><p>${esc(note)}</p></div></section>`;
+      html=html.replace(re,block);
+    }else{
+      html=html.replace(re,'');
+    }
+    return html;
+  };
+  render();
+})();
+</script>
+
 </body>
 </html>
