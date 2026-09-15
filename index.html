@@ -1502,6 +1502,8 @@ function fsNormalizeImportedState(imported){
   state.v930.painEvents=Array.isArray(state.v930.painEvents)?state.v930.painEvents:[];
   state.v930.coachQuestionCounts=(state.v930.coachQuestionCounts&&typeof state.v930.coachQuestionCounts==='object')?state.v930.coachQuestionCounts:{};
   state.v930.calendarMode=state.v930.calendarMode==='week'?'week':'month';
+  state.v950=(state.v950&&typeof state.v950==='object')?state.v950:{};
+  state.v950.version='9.5.0';
   return state;
 }
 function fsImportDataFile(input){
@@ -8432,7 +8434,7 @@ saveState();render();
     const messages=hist.length?hist.map(h=>`<div class="coach-msg user">${esc(h.label)}</div><div class="coach-msg coach">${esc(h.answer)}<div class="coach-msg-time">${fmtDate(new Date(h.date))}</div></div>`).join(''):`<div class="coach-msg coach">Pick a quick question or browse the organized question library below.</div>`;
     const quick=quickKeys().map(k=>`<button class="fs-v930-quick" onclick="fsV930AskQuick('${k}')"><span>${esc(map[k]||k)}</span><span>›</span></button>`).join('');
     const lim=activeLimits();const limHTML=lim.length?`<div class="fs-v930-limit-strip section"><div class="mark">⚠︎</div><div><strong>Active limitation${lim.length>1?'s':''}</strong><div class="subtle small">${esc(lim.map(l=>limitationLabel(l)).join(' · '))} · Coach is modifying relevant exercise selection.</div></div><button class="ghost-btn" onclick="navigate('profile')">Manage</button></div>`:'';
-    return `<main class="shell fs-v930-clean fs-v930-coach"><div class="topbar"><div class="brand">Fitn<span>Smart</span></div></div><h1 class="page-title">Coach</h1><section class="section"><div class="coach-chat-card"><div class="coach-chat-status"><div><div class="eyebrow">Right now</div><strong>${esc(fsPhase().name)} · ${prep.onTrackCount}/5 on track</strong></div><span class="tag">${esc(prep.programStatus)}</span></div><div style="padding:14px 16px 4px"><div class="fs-v930-quick-title">Frequently asked</div><div class="fs-v930-quick-grid">${quick}</div>${limHTML}</div><div id="fs-chatlog" class="coach-chatlog">${messages}</div><div class="coach-composer fs-v930-other"><label for="fs-coach-question">Other questions</label><select id="fs-coach-question">${coachOptions930()}</select><button type="button" class="coach-send" onclick="fsCoachAsk()" aria-label="Send question">↑</button></div></div></section>${nav('coach')}</main>`;
+    return `<main class="shell fs-v930-clean fs-v930-coach"><div class="topbar"><div class="brand">Fitn<span>Smart</span></div></div><h1 class="page-title">Coach</h1><section class="section"><div class="coach-chat-card"><div class="coach-chat-status"><div><div class="eyebrow">Right now</div><strong>${esc(fsPhase().name)} · ${prep.onTrackCount}/5 on track</strong></div><span class="tag">${esc(prep.programStatus)}</span></div><div id="fs-chatlog" class="coach-chatlog">${messages}</div><div class="coach-composer fs-v930-other"><label for="fs-coach-question">Other questions</label><select id="fs-coach-question">${coachOptions930()}</select><button type="button" class="coach-send" onclick="fsCoachAsk()" aria-label="Send question">↑</button></div>${limHTML}<div class="fs-v950-faq-wrap"><div class="fs-v930-quick-title">Frequently asked</div><div class="fs-v930-quick-grid">${quick}</div></div></div></section>${nav('coach')}</main>`;
   };
 
   /* Progress: preserve radar/chart/scoring; only collapse the score explanations. */
@@ -8998,7 +9000,7 @@ saveState();render();
   }
 
   function fsV931StrengthRows(){
-    const rows=Object.entries(state.exerciseState||{}).filter(([,v])=>(v.completedCount||0)>0).sort((a,b)=>(b[1].completedCount||0)-(a[1].completedCount||0)).slice(0,5);
+    const rows=Object.entries(state.exerciseState||{}).filter(([,v])=>(v.completedCount||0)>0).sort((a,b)=>(b[1].completedCount||0)-(a[1].completedCount||0)||String(EXERCISES[a[0]]?.name||a[0]).localeCompare(String(EXERCISES[b[0]]?.name||b[0])));
     if(!rows.length)return `<div class="empty">Strength history will appear after your first completed session.</div>`;
     return rows.map(([id,v])=>{const ex=EXERCISES[id]||{},timed=!!ex.timeBased,unit=timed?'sec':'reps',load=v.load?`${v.load} lb`:(timed?'Bodyweight / band':'Bodyweight / band'),vals=(v.lastReps||[]).filter(x=>Number(x)>=0);return `<div class="profile-row fs-v931-strength-row"><div><strong>${esc(ex.name||id)}</strong><div class="subtle small">${v.completedCount} session${v.completedCount===1?'':'s'}</div></div><div class="value">${esc(load)}${vals.length?`<br>${vals.map(x=>Number(x)).join(' · ')} ${unit}`:''}</div></div>`}).join('');
   }
@@ -9033,6 +9035,487 @@ saveState();render();
     const lower=`<div class="fs-v931-lower">${fsV931Coverage()}${fsV931Accordion('roadmap','Phase Roadmap',`${p.name} · week ${fsWeek()} of ${p.end}`,fsV931Roadmap())}${fsV931Accordion('rhythm','Expected Weekly Rhythm',`Strength ${rh.strength} · easy walking · ${rh.hill}`,fsV931Rhythm())}${fsV931Accordion('benchmarks','Fitness Benchmarks',latest?`Standard Mile · ${miles.length} test${miles.length===1?'':'s'} · ${latest.avgHr??'—'} bpm latest`:'Standard Mile · no assessments yet',fsV931Benchmarks())}${fsV931Accordion('strength','Strength Progress',`${completed} sessions · ${strengthProgress} movements learned`,fsV931StrengthProgress())}</div>`;
     return html.slice(0,prepEnd)+lower+html.slice(navStart);
   };
+})();
+</script>
+
+
+<!-- =========================================================
+     v9.5.0 — Calendar behavior + coverage semantics +
+     strength history expansion + workout cooldown handoff
+     ========================================================= -->
+<style id="fs-v950-style">
+.fs-v950-faq-wrap{padding:14px 16px 16px;border-top:1px solid var(--line);margin-top:2px}
+.fs-v950-week-range{font-variant-numeric:tabular-nums}
+.fs-v930-day-chip .fs-v950-dots{display:flex;justify-content:center;gap:3px;min-height:6px;margin-top:5px}
+.fs-v930-day-chip .fs-v950-dot{width:5px;height:5px;border-radius:50%;display:block;background:var(--teal)}
+.fs-v930-day-chip .fs-v950-dot.plan{background:var(--rust)}
+.fs-v930-day-chip .fs-v950-dot.manual{background:var(--sage)}
+.fs-v950-cooldown-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fs-v950-stretch-finish{margin-top:10px;width:100%}
+@media(max-width:420px){.fs-v950-cooldown-actions{grid-template-columns:1fr}}
+</style>
+<script>
+(function(){
+  'use strict';
+  state.v950=(state.v950&&typeof state.v950==='object')?state.v950:{};
+  state.v950.version='9.5.0';
+
+  /* Calendar: Sunday-first everywhere, week view is a real seven-day navigator,
+     and weekly day chips carry the same planned/completed dots as month view. */
+  fsCalendarCells=function(){
+    const [y,m]=state.v10.calendarMonth.split('-').map(Number),first=new Date(y,m-1,1),start=new Date(first);
+    start.setDate(first.getDate()-first.getDay());
+    const out=[];
+    for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);out.push({date:fsLocalDateKey(d),day:d.getDate(),other:d.getMonth()!==m-1});}
+    return out;
+  };
+  function fsV950WeekDates(anchor){
+    const d=new Date(`${anchor}T12:00:00`),start=new Date(d);start.setDate(d.getDate()-d.getDay());
+    return Array.from({length:7},(_,i)=>{const x=new Date(start);x.setDate(start.getDate()+i);return fsLocalDateKey(x);});
+  }
+  function fsV950WeekLabel(dates){
+    const a=new Date(`${dates[0]}T12:00:00`),b=new Date(`${dates[6]}T12:00:00`);
+    const sameYear=a.getFullYear()===b.getFullYear(),sameMonth=sameYear&&a.getMonth()===b.getMonth();
+    if(sameMonth)return `${a.toLocaleDateString(undefined,{month:'short'})} ${a.getDate()}–${b.getDate()}, ${b.getFullYear()}`;
+    if(sameYear)return `${a.toLocaleDateString(undefined,{month:'short'})} ${a.getDate()} – ${b.toLocaleDateString(undefined,{month:'short'})} ${b.getDate()}, ${b.getFullYear()}`;
+    return `${a.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})} – ${b.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}`;
+  }
+  window.fsV950MoveCalendar=function(delta){
+    if(state.v930?.calendarMode==='week'){
+      const base=state.v10.selectedDate||fsTodayKey(),d=new Date(`${base}T12:00:00`);d.setDate(d.getDate()+7*delta);
+      const k=fsLocalDateKey(d);state.v10.selectedDate=k;state.v10.calendarMonth=k.slice(0,7);saveState();render();return;
+    }
+    fsMoveMonth(delta);
+  };
+  const fsV950CalendarBase=renderCalendar;
+  renderCalendar=function(){
+    let html=fsV950CalendarBase();
+    html=html.replace(/<div class="calendar-dow">Mon<\/div><div class="calendar-dow">Tue<\/div><div class="calendar-dow">Wed<\/div><div class="calendar-dow">Thu<\/div><div class="calendar-dow">Fri<\/div><div class="calendar-dow">Sat<\/div><div class="calendar-dow">Sun<\/div>/,
+      '<div class="calendar-dow">Sun</div><div class="calendar-dow">Mon</div><div class="calendar-dow">Tue</div><div class="calendar-dow">Wed</div><div class="calendar-dow">Thu</div><div class="calendar-dow">Fri</div><div class="calendar-dow">Sat</div>');
+    html=html.replace(/onclick="fsMoveMonth\(-1\)"/g,'onclick="fsV950MoveCalendar(-1)"').replace(/onclick="fsMoveMonth\(1\)"/g,'onclick="fsV950MoveCalendar(1)"');
+    if(state.v930?.calendarMode==='week'){
+      const selected=state.v10?.selectedDate||fsTodayKey(),dates=fsV950WeekDates(selected);
+      const strip=`<div class="fs-v930-week-strip">${dates.map(k=>{const d=new Date(`${k}T12:00:00`),hist=fsHistOn(k),plans=fsPlansOn(k);return `<button class="fs-v930-day-chip ${k===selected?'selected':''} ${k===fsTodayKey()?'today':''}" onclick="fsV930SelectCalendarDate('${k}')">${d.toLocaleDateString(undefined,{weekday:'short'}).slice(0,1)}<strong>${d.getDate()}</strong><span class="fs-v950-dots">${plans.slice(0,2).map(()=>'<i class="fs-v950-dot plan"></i>').join('')}${hist.slice(0,3).map(h=>`<i class="fs-v950-dot ${h.source==='manual'?'manual':''}"></i>`).join('')}</span></button>`}).join('')}</div>`;
+      html=html.replace(/<div class="fs-v930-week-strip">[\s\S]*?<\/div>/,strip);
+      const label=fsV950WeekLabel(dates);
+      html=html.replace(/(<div class="eyebrow">Training calendar<\/div><h2 style="margin:0">)[\s\S]*?(<\/h2>)/,`$1<span class="fs-v950-week-range">${esc(label)}</span>$2`);
+    }
+    return html;
+  };
+
+  /* Coverage: primary muscles keep full credit; secondary muscles now receive
+     75% credit. Thresholds and pill appearance are intentionally unchanged. */
+  fsV9Coverage=function(days=14){
+    const muscles=['Chest','Shoulders','Upper Back','Lats','Biceps','Triceps','Quads','Hamstrings','Glutes','Abductors','Adductors','Calves','Tibialis','Core','Lower Back'];
+    const score=Object.fromEntries(muscles.map(x=>[x,0])),patterns={};
+    const alias=x=>({
+      'chest':'Chest','shoulders':'Shoulders','traps':'Upper Back','upper back':'Upper Back','middle back':'Upper Back','back':'Upper Back','lats':'Lats','biceps':'Biceps','triceps':'Triceps',
+      'quadriceps':'Quads','quads':'Quads','hamstrings':'Hamstrings','glutes':'Glutes','abductors':'Abductors','adductors':'Adductors','calves':'Calves','tibialis':'Tibialis',
+      'abdominals':'Core','core':'Core','lower back':'Lower Back'
+    }[String(x||'').toLowerCase()]||null);
+    for(const h of (state.history||[])){
+      if(fsV9DaysAgo(h.date)>days)continue;
+      if((h.exercises||[]).length){
+        for(const e of fsV9StrengthSetsFromHistory(h)){
+          const meta=fsV9Meta(e.exerciseId),sets=Math.max(1,(e.sets||[]).length||1),mult=Math.min(1.5,.7+.2*sets),direct=new Set(meta.direct||[]);
+          for(const m of (meta.direct||[]))if(score[m]!=null)score[m]+=mult;
+          for(const m of (meta.secondary||[]))if(score[m]!=null&&!direct.has(m))score[m]+=mult*.75;
+          for(const p of (meta.patterns||[]))patterns[p]=(patterns[p]||0)+mult;
+        }
+      }else if(String(h.sessionType||'').toLowerCase()==='strength'){
+        const custom=h.customExercises||[];
+        if(custom.length){
+          for(const ex of custom){const mult=Math.min(1.2,.55+.15*Math.max(1,Number(ex.sets)||1));for(const raw of (ex.muscles||[])){const m=alias(raw);if(m)score[m]+=mult;}}
+        }else{
+          for(const raw of (h.activityDetails?.focus||[])){
+            if(String(raw).toLowerCase()==='full body'){for(const m of ['Chest','Shoulders','Upper Back','Lats','Quads','Hamstrings','Glutes','Core'])score[m]+=.45;continue;}
+            const m=alias(raw);if(m)score[m]+=.7;
+          }
+        }
+      }
+    }
+    const status={};for(const m of muscles){const v=score[m];status[m]=v>=2.2?'green':v>=.8?'yellow':'red';}
+    return {score,status,patterns,days};
+  };
+
+  /* Make the existing neglected-area logic explicit: when Full Body has a red
+     area, primary-target slots remain the first catch-up choice. Safety still
+     wins later through the pain-aware strength-plan wrapper. */
+  window.fsV950CoachStrengthAudit=function(){
+    const c=fsV9Coverage(),red=Object.keys(c.status||{}).filter(m=>c.status[m]==='red');
+    return {red,activeLimitations:(state.v930?.limitations||[]).filter(x=>x?.status==='active').map(x=>({kind:x.kind,region:x.region,side:x.side}))};
+  };
+
+  /* Main work -> explicit optional cooldown handoff. */
+  window.fsV950ContinueToStretching=function(){
+    const w=state.activeWorkout;if(!w)return;
+    const idx=(w.plan||[]).findIndex(p=>{const ex=EXERCISES[p.exerciseId];return fsV8IsOptionalExercise(ex)&&!p.completed&&!p.skipped;});
+    if(idx<0){finishWorkout();return;}
+    w.index=idx;state.ui.view='active';saveState();render();
+  };
+  const fsV950WorkoutOverviewBase=renderWorkoutOverview;
+  renderWorkoutOverview=function(){
+    let html=fsV950WorkoutOverviewBase();const w=state.activeWorkout;
+    if(!w)return html;
+    const stats=fsCompletionStatsFromPlan(w),hasOptional=(w.plan||[]).some(p=>fsV8IsOptionalExercise(EXERCISES[p.exerciseId])&&!p.completed&&!p.skipped);
+    if(stats.pct>=100&&hasOptional){
+      html=html.replace('<div class="sticky-action"><button class="primary-btn" onclick="finishWorkout()">Finish workout</button></div>',
+        '<div class="sticky-action"><div class="fs-v950-cooldown-actions"><button class="primary-btn" onclick="fsV950ContinueToStretching()">Continue to stretching</button><button class="secondary-btn" onclick="finishWorkout()">Finish workout</button></div></div>');
+    }
+    return html;
+  };
+  const fsV950ActiveStrengthBase=renderActiveStrength;
+  renderActiveStrength=function(item,ex){
+    let html=fsV950ActiveStrengthBase(item,ex);
+    if(ex&&fsV8IsOptionalExercise(ex)){
+      const marker='</section></main>';
+      const btn='<button class="secondary-btn fs-v950-stretch-finish" onclick="finishWorkout()">Finish workout</button>';
+      const i=html.lastIndexOf(marker);if(i>=0)html=html.slice(0,i)+btn+html.slice(i);
+    }
+    return html;
+  };
+
+  /* One easier return exposure after a resolved limitation. Keep prior strength
+     progression intact; do not reduce every related exercise in the session. */
+  const fsV950SuggestedBase=getSuggestedLoad;
+  function fsV950LimMatches(l,id){
+    if(!l||l.status!=='resolved'||!l.returnTestPending)return false;
+    const a=typeof fsV930Anatomy==='function'?fsV930Anatomy(id):{joints:[],muscles:[]};
+    return l.kind==='joint'?(a.joints||[]).includes(l.region):(a.muscles||[]).includes(l.region);
+  }
+  getSuggestedLoad=function(id){
+    const pending=(state.v930?.limitations||[]).filter(l=>fsV950LimMatches(l,id));
+    if(!pending.length)return fsV950SuggestedBase(id);
+    const w=state.activeWorkout;
+    if(!w)return fsV950SuggestedBase(id);
+    const isFirstForAny=pending.some(l=>{
+      const first=(w.plan||[]).find(p=>{const ex=EXERCISES[p.exerciseId];return ex&&!fsV8IsOptionalExercise(ex)&&fsV950LimMatches(l,p.exerciseId);});
+      return first?.exerciseId===id;
+    });
+    if(isFirstForAny)return fsV950SuggestedBase(id);
+    const touched=[];
+    for(const l of pending){touched.push([l,l.returnTestPending]);l.returnTestPending=false;}
+    try{return fsV950SuggestedBase(id);}finally{for(const [l,v] of touched)l.returnTestPending=v;}
+  };
+
+  saveState();
+})();
+</script>
+
+
+
+<!-- =========================================================
+     FitnSmart v9.6.0 — reliability + data-integrity pass
+     ========================================================= -->
+<style>
+.fs-v960-duration{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+</style>
+<script>
+(function(){
+  'use strict';
+  state.v960=(state.v960&&typeof state.v960==='object')?state.v960:{};
+  state.v960.version='9.6.0';
+
+  /* ---------- Exercise-library cleanup ---------- */
+  EXERCISES.hip_thrust_machine={...EXERCISES.hip_thrust_machine,
+    name:'Glute Press Machine (per leg)',
+    movement:'glute_hip_extension',
+    why:'Builds glute strength with a stable machine setup. FitnSmart records the displayed machine load per leg.',
+    muscles:['Glutes'],
+    loadPerSide:true,
+    laterality:'unilateral'
+  };
+  if(typeof FS_ALT_META!=='undefined')FS_ALT_META.hip_thrust_machine=['glute_hip_extension','machine','unilateral'];
+
+  if(!EXERCISES.unilateral_leg_press){
+    EXERCISES.unilateral_leg_press={id:'unilateral_leg_press',name:'Unilateral Leg Press',type:'strength',movement:'unilateral',altGroup:'unilateral',equipmentType:'machine',sets:2,repMin:8,repMax:12,defaultLoad:40,priority:2,
+      why:'Trains one leg at a time with much less balance demand than a lunge, while keeping strong quad and glute loading.',
+      cues:['Set the seat so the working knee bends comfortably.','Keep the whole foot planted and the knee tracking with the toes.','Press through one leg without twisting the pelvis; lower under control.'],
+      mistakes:['Letting the knee collapse inward','Lifting the hip off the pad','Using a range that causes pinching'],
+      muscles:['Quads','Glutes'],substitutions:['step_up','supported_split_squat','smith_split_squat','reverse_lunge']};
+    if(typeof FS_ALT_META!=='undefined')FS_ALT_META.unilateral_leg_press=['unilateral','machine'];
+    state.exerciseState.unilateral_leg_press=state.exerciseState.unilateral_leg_press||{load:40,lastReps:[],lastRpe:null,feedback:null,completedCount:0};
+    if(typeof FS_IMG_MAP!=='undefined'&&FS_IMG_MAP.leg_press)FS_IMG_MAP.unilateral_leg_press=FS_IMG_MAP.leg_press;
+  }
+  if(EXERCISES.reverse_lunge)EXERCISES.reverse_lunge.substitutions=['unilateral_leg_press','step_up','supported_split_squat','smith_split_squat',...(EXERCISES.reverse_lunge.substitutions||[])].filter((x,i,a)=>a.indexOf(x)===i);
+  if(EXERCISES.db_reverse_lunge)EXERCISES.db_reverse_lunge.substitutions=['unilateral_leg_press','step_up','supported_split_squat','smith_split_squat',...(EXERCISES.db_reverse_lunge.substitutions||[])].filter((x,i,a)=>a.indexOf(x)===i);
+  if(EXERCISES.step_up)EXERCISES.step_up.substitutions=['unilateral_leg_press','supported_split_squat','reverse_lunge',...(EXERCISES.step_up.substitutions||[])].filter((x,i,a)=>a.indexOf(x)===i);
+  if(EXERCISES.back_extension){
+    EXERCISES.back_extension={...EXERCISES.back_extension,name:'Back Extension Machine',movement:'trunk_extension',muscles:['Lower Back','Glutes']};
+  }
+
+  /* Make the canonical taxonomy agree with the corrected exercise identities. */
+  if(typeof fsV9Meta==='function'){
+    const metaBase=fsV9Meta;
+    fsV9Meta=function(id){
+      if(id==='unilateral_leg_press')return {family:'unilateral_leg_press',patterns:['unilateral','knee_dominant'],direct:['Quads','Glutes'],primary:['Quads','Glutes'],secondary:['Adductors'],laterality:'unilateral',role:'compound'};
+      if(id==='hip_thrust_machine')return {family:'glute_hip_extension',patterns:['glute_hip_extension','unilateral'],direct:['Glutes'],primary:['Glutes'],secondary:['Hamstrings'],laterality:'unilateral',role:'compound'};
+      if(id==='back_extension')return {family:'trunk_extension',patterns:['trunk_extension'],direct:['Lower Back','Glutes'],primary:['Lower Back'],secondary:['Glutes','Hamstrings'],laterality:'bilateral',role:'accessory'};
+      return metaBase(id);
+    };
+  }
+
+  /* Equipment availability for the new machine movement. */
+  const availBase=fsExerciseAvailable;
+  fsExerciseAvailable=function(id,loc=state.activeWorkout?.location||state.ui.location){
+    if(id==='unilateral_leg_press')return ['Work Gym','Commercial Gym'].includes(loc)&&!!(fsCaps(loc)||{}).machines;
+    return availBase(id,loc);
+  };
+
+  function fsV960ActiveLimitationHits(id){
+    const a=typeof fsV930Anatomy==='function'?fsV930Anatomy(id):{joints:[],muscles:[]};
+    return (state.v930?.limitations||[]).some(l=>l?.status==='active'&&(l.kind==='joint'?(a.joints||[]).includes(l.region):(a.muscles||[]).includes(l.region)));
+  }
+  function fsV960Primary(id){const m=fsV9Meta(id)||{};return m.primary||m.direct||[];}
+  function fsV960Secondary(id){const m=fsV9Meta(id)||{};return m.secondary||[];}
+  function fsV960Family(id){if(['loaded_carry','suitcase_hold'].includes(id))return 'carry';return (fsV9Meta(id)||{}).family||EXERCISES[id]?.altGroup||id;}
+  function fsV960CanUse(id,loc){try{return !!EXERCISES[id]&&fsExerciseAvailable(id,loc)&&!fsV960ActiveLimitationHits(id);}catch(_){return !!EXERCISES[id];}}
+
+  const primaryCandidates={
+    'Chest':['machine_chest_press','db_chest_press','incline_chest_press'],
+    'Shoulders':['machine_shoulder_press','db_overhead_press'],
+    'Upper Back':['machine_row','seated_cable_row','one_arm_db_row'],
+    'Lats':['lat_pulldown','db_pullover','band_lat_pulldown'],
+    'Biceps':['cable_curl','db_biceps_curl'],
+    'Triceps':['cable_pressdown','db_triceps_extension'],
+    'Quads':['unilateral_leg_press','leg_press','step_up','goblet_squat'],
+    'Hamstrings':['seated_leg_curl','dumbbell_rdl','lying_leg_curl'],
+    'Glutes':['hip_thrust_machine','step_up','unilateral_leg_press','db_hip_thrust','glute_bridge'],
+    'Abductors':['hip_abductor_machine','band_lateral_walk'],
+    'Adductors':['hip_adductor_machine','sumo_goblet_squat','cable_hip_adduction'],
+    'Calves':['machine_calf_raise','calf_raise'],
+    'Tibialis':['tibialis_raise','cable_dorsiflexion','band_tibialis_raise'],
+    'Core':['cable_pallof','pallof_press','plank','cable_crunch','weighted_crunch'],
+    'Lower Back':['back_extension']
+  };
+
+  function fsV960TuneActivePlan(){
+    const w=state.activeWorkout;if(!w||!Array.isArray(w.plan))return;
+    const loc=w.location||state.ui.location;
+
+    /* Suitcase hold and loaded carry are one training family for scheduling.
+       Keep whichever appears first; history IDs remain untouched. */
+    let seenCarry=false;
+    w.plan=w.plan.filter(p=>{
+      if(fsV960Family(p.exerciseId)!=='carry')return true;
+      if(!seenCarry){seenCarry=true;return true;}
+      return false;
+    });
+
+    /* Reverse-lunge preference is location-aware, not a ban. At gym locations
+       use stable unilateral options; at home/travel the lunge/squat family stays available. */
+    if(['Work Gym','Commercial Gym'].includes(loc)){
+      for(const p of w.plan){
+        if(!['reverse_lunge','db_reverse_lunge'].includes(p.exerciseId))continue;
+        const climbingRed=typeof fsV9Coverage==='function'&&fsV9Coverage().status?.Quads==='red';
+        const replacement=(climbingRed&&fsV960CanUse('step_up',loc))?'step_up':fsV960CanUse('unilateral_leg_press',loc)?'unilateral_leg_press':fsV960CanUse('step_up',loc)?'step_up':null;
+        if(replacement){p.prescribedExerciseId=p.prescribedExerciseId||p.exerciseId;p.exerciseId=replacement;}
+      }
+    }
+
+    /* If a neglected muscle is present only as SECONDARY exposure in this
+       workout, prefer one primary-target movement when a safe/location-valid
+       option exists. This fixes the old 'RDL counts as enough lower-back work'
+       behavior without chasing every red pill in one session. */
+    if(typeof fsV9Coverage==='function'){
+      const cov=fsV9Coverage(),reds=Object.keys(cov.status||{}).filter(m=>cov.status[m]==='red').sort((a,b)=>(cov.score?.[a]||0)-(cov.score?.[b]||0));
+      for(const target of reds){
+        if(w.plan.some(p=>fsV960Primary(p.exerciseId).includes(target)))continue;
+        if(!w.plan.some(p=>fsV960Secondary(p.exerciseId).includes(target)))continue;
+        const add=(primaryCandidates[target]||[]).find(id=>!w.plan.some(p=>p.exerciseId===id)&&fsV960CanUse(id,loc));
+        if(!add)continue;
+        const replaceIdx=w.plan.map((p,i)=>({p,i,m:fsV9Meta(p.exerciseId)||{}})).filter(x=>EXERCISES[x.p.exerciseId]?.type==='strength'&&!fsV8IsOptionalExercise(EXERCISES[x.p.exerciseId])&&!fsV960Primary(x.p.exerciseId).some(m=>cov.status?.[m]==='red')&&x.m.role==='accessory').map(x=>x.i).pop();
+        if(replaceIdx!=null){const old=w.plan[replaceIdx];w.plan[replaceIdx]={...old,prescribedExerciseId:old.prescribedExerciseId||old.exerciseId,exerciseId:add,sets:[],feedback:null,note:'',completed:false,skipped:false,skipReason:null};}
+        break;
+      }
+    }
+    w.index=Math.max(0,Math.min(Number(w.index)||0,Math.max(0,w.plan.length-1)));
+  }
+
+  /* ---------- Real workout lifecycle / resume controller ---------- */
+  function fsV960NormalizeActive(){
+    const w=state.activeWorkout;
+    if(!w){if(state.ui?.view==='active')state.ui.view='today';return false;}
+    w.plan=Array.isArray(w.plan)?w.plan.filter(p=>p&&EXERCISES[p.exerciseId]):[];
+    if(!w.plan.length){state.activeWorkout=null;if(state.ui?.view==='active')state.ui.view='today';return false;}
+    w.performanceOrder=Array.isArray(w.performanceOrder)?w.performanceOrder:[];
+    w.meta=(w.meta&&typeof w.meta==='object')?w.meta:{};
+    w.location=w.location||state.ui.location||'Home';
+    let idx=Math.max(0,Math.min(Number(w.index)||0,w.plan.length-1));
+    if(w.plan[idx]?.completed||w.plan[idx]?.skipped){const next=w.plan.findIndex(p=>!p.completed&&!p.skipped);if(next>=0)idx=next;}
+    w.index=idx;
+    return true;
+  }
+  window.fsV960ResumeWorkout=function(){
+    if(!fsV960NormalizeActive()){saveState();state.ui.view='today';render();toast('There is no workout to resume.');return;}
+    state.ui.view='active';state.ui.sheet=null;saveState();render();window.scrollTo({top:0,behavior:'smooth'});
+  };
+
+  const navigateBase=navigate;
+  navigate=function(v){if(v==='active'&&state.activeWorkout){fsV960ResumeWorkout();return;}return navigateBase(v);};
+
+  const startBase=startWorkout;
+  startWorkout=function(){const out=startBase();if(state.activeWorkout){fsV960TuneActivePlan();state.ui.view='active';state.ui.sheet=null;saveState();render();}return out;};
+  if(typeof window.fsV923StartPlan==='function'){
+    const startPlanBase=window.fsV923StartPlan;
+    window.fsV923StartPlan=function(id){const out=startPlanBase(id);if(state.activeWorkout){fsV960TuneActivePlan();state.ui.view='active';state.ui.sheet=null;saveState();render();}return out;};
+  }
+
+  /* Persist active cardio form edits as a draft so tab/app suspension cannot
+     erase what the user has already typed. */
+  function fsV960DraftFromDOM(){
+    const w=state.activeWorkout;if(!w)return;
+    const ids=['cardio-distance','cardio-time','cardio-speed','cardio-incline','cardio-elev-gain','cardio-elev-loss','cardio-pack','cardio-avg','cardio-peak','cardio-end','cardio-hr60','cardio-rpe','cardio-note','cardio-pain'];
+    if(!ids.some(id=>document.getElementById(id)))return;
+    w.cardioDraft=w.cardioDraft||{};
+    for(const id of ids){const el=document.getElementById(id);if(!el)continue;w.cardioDraft[id]=el.type==='checkbox'?!!el.checked:el.value;}
+    saveState();
+  }
+  document.addEventListener('input',e=>{if(e.target?.id?.startsWith('cardio-'))fsV960DraftFromDOM();});
+  document.addEventListener('change',e=>{if(e.target?.id?.startsWith('cardio-'))fsV960DraftFromDOM();});
+
+  function fsV960ReloadSavedState(){
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY);if(raw){const fresh=JSON.parse(raw);if(fresh&&typeof fresh==='object')state=fresh;}
+      state.v960=(state.v960&&typeof state.v960==='object')?state.v960:{version:'9.6.0'};
+      fsV960NormalizeActive();
+      render();
+    }catch(_e){render();}
+  }
+  window.addEventListener('pageshow',()=>{fsV960ReloadSavedState();});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')fsV960ReloadSavedState();});
+
+  /* ---------- Duration input ---------- */
+  function fsV960FormatDuration(mins){
+    const sec=Math.max(0,Math.round((Number(mins)||0)*60)),h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+    return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+  function fsV960ParseDuration(v){
+    const raw=String(v??'').trim();if(!raw)return null;
+    if(!raw.includes(':')){const n=Number(raw);return Number.isFinite(n)&&n>=0?n:null;}
+    const parts=raw.split(':').map(x=>x.trim());if(parts.some(x=>x===''||!/^\d+(?:\.\d+)?$/.test(x)))return null;
+    let h=0,m=0,s=0;if(parts.length===3)[h,m,s]=parts.map(Number);else if(parts.length===2)[m,s]=parts.map(Number);else return null;
+    if(m>=60||s>=60)return null;return (h*3600+m*60+s)/60;
+  }
+  window.fsV960FormatDuration=fsV960FormatDuration;window.fsV960ParseDuration=fsV960ParseDuration;
+
+  const cardioRenderBase=renderActiveCardio;
+  renderActiveCardio=function(item,ex){
+    let html=cardioRenderBase(item,ex);const d=state.activeWorkout?.cardioDraft||{};
+    html=html.replace(/<input id="cardio-time" type="number"[^>]*value="([^"]*)"[^>]*>/,m=>{
+      const vm=m.match(/value="([^"]*)"/)?.[1]||'';const val=d['cardio-time']??fsV960FormatDuration(vm||state.activeWorkout?.cardioRx?.minutes||0);
+      return `<input id="cardio-time" class="fs-v960-duration" type="text" inputmode="numeric" placeholder="0:00:00" value="${esc(val)}">`;
+    });
+    const setVal=(id,val)=>{if(val==null)return;const re=new RegExp(`(<input id="${id}"[^>]*)(?: value="[^"]*")?([^>]*>)`);html=html.replace(re,`$1 value="${esc(String(val))}"$2`);};
+    for(const id of ['cardio-distance','cardio-speed','cardio-incline','cardio-elev-gain','cardio-elev-loss','cardio-pack','cardio-avg','cardio-peak','cardio-end','cardio-hr60'])setVal(id,d[id]);
+    if(d['cardio-note']!=null)html=html.replace(/(<textarea id="cardio-note"[^>]*>)[\s\S]*?(<\/textarea>)/,`$1${esc(String(d['cardio-note']))}$2`);
+    if(d['cardio-pain'])html=html.replace(/(<input id="cardio-pain"[^>]*)(>)/,'$1 checked$2');
+    if(d['cardio-rpe']!=null&&d['cardio-rpe']!=='')html=html.replace(new RegExp(`<option>${esc(String(d['cardio-rpe']))}<\/option>`),`<option selected>${esc(String(d['cardio-rpe']))}</option>`);
+    return html;
+  };
+
+  /* ---------- HR validation + sanitization ---------- */
+  function fsV960HR(v){if(v==null||v==='')return null;const n=Number(v);return Number.isFinite(n)&&n>=40&&n<=240?n:null;}
+  function fsV960ValidateHRFields(vals){
+    for(const [label,v] of Object.entries(vals)){if(v==null||v==='')continue;if(fsV960HR(v)==null)return `${label} should be between 40 and 240 bpm.`;}
+    const avg=fsV960HR(vals['Average HR']),peak=fsV960HR(vals['Peak HR']);if(avg!=null&&peak!=null&&peak<avg)return 'Peak HR cannot be lower than average HR. Please check those values.';
+    return null;
+  }
+  function fsV960SanitizeCardio(c){if(!c)return;for(const k of ['avgHr','peakHr','endHr','hr60']){if(c[k]!=null&&fsV960HR(c[k])==null){c[k]=null;c._fsInvalidHrRemoved=true;}}if(c.avgHr!=null&&c.peakHr!=null&&Number(c.peakHr)<Number(c.avgHr)){c.peakHr=null;c._fsInvalidHrRemoved=true;}c.hrr60=(c.endHr!=null&&c.hr60!=null)?Number(c.endHr)-Number(c.hr60):null;}
+  for(const h of (state.history||[]))fsV960SanitizeCardio(h.cardio);
+  for(const m of (state.standardMiles||[]))fsV960SanitizeCardio(m);
+
+  const saveCardioBase=saveCardio;
+  saveCardio=function(){
+    const err=fsV960ValidateHRFields({'Average HR':document.querySelector('#cardio-avg')?.value,'Peak HR':document.querySelector('#cardio-peak')?.value,'End HR':document.querySelector('#cardio-end')?.value,'1-minute HR':document.querySelector('#cardio-hr60')?.value});if(err){toast(err);return;}
+    const timeEl=document.querySelector('#cardio-time'),mins=fsV960ParseDuration(timeEl?.value);if(timeEl&&mins==null){toast('Enter time as h:mm:ss, for example 0:21:23.');return;}
+    const w=state.activeWorkout,original=timeEl?.value;if(timeEl&&mins!=null)timeEl.value=String(mins);
+    const out=saveCardioBase();
+    if(w?.cardio&&mins!=null){w.cardio.minutes=mins;delete w.cardioDraft;fsV960SanitizeCardio(w.cardio);saveState();}
+    if(timeEl&&document.body.contains(timeEl))timeEl.value=original;
+    return out;
+  };
+
+  if(typeof logStandardMile==='function'){
+    const smBase=logStandardMile;
+    logStandardMile=function(){const err=fsV960ValidateHRFields({'Average HR':document.querySelector('#sm-avg')?.value,'Peak HR':document.querySelector('#sm-peak')?.value,'End HR':document.querySelector('#sm-end')?.value,'1-minute HR':document.querySelector('#sm-hr60')?.value});if(err){toast(err);return;}return smBase();};
+  }
+
+  /* Cardio duration is the authoritative actual duration for cardio-only
+     FitnSmart sessions, not browser-screen elapsed time. */
+  const finalizeBase=fsFinalizeWorkout;
+  fsFinalizeWorkout=function(reason='completed'){
+    const id=state.activeWorkout?.id,cardioMinutes=Number(state.activeWorkout?.cardio?.minutes);
+    const out=finalizeBase(reason);
+    if(id&&Number.isFinite(cardioMinutes)&&cardioMinutes>0){const h=(state.history||[]).find(x=>x.id===id);if(h&&!(h.exercises||[]).length){h.actualMinutes=cardioMinutes;fsV960SanitizeCardio(h.cardio);saveState();if(state.ui?.lastComplete?.historyItem?.id===id)state.ui.lastComplete.historyItem=h;}}
+    return out;
+  };
+  finishWorkout=function(){return fsFinalizeWorkout('completed');};
+
+  /* Manual interval/treadmill cardio can satisfy the Daily Walking Habit when
+     the underlying data clearly represents walking: realistic walking speed,
+     positive distance, and no incompatible modality marker. */
+  function fsV960EligibleMiles(h){
+    const d=Math.max(0,Number(h?.cardio?.distance||0));if(!d)return 0;
+    const speed=Number(h?.cardio?.speed),inc=Number(h?.cardio?.incline),t=`${h?.workoutTitle||''} ${h?.sessionType||''} ${h?.cardioType||''} ${h?.cardio?.type||''}`.toLowerCase();
+    if(/walk|mile|easy|hill|hike/.test(t))return d;
+    if(/bike|cycl|row|elliptical|swim|stair/.test(t))return 0;
+    if(/cardio/.test(t)&&Number.isFinite(speed)&&speed>=1.5&&speed<=4.5&&(Number.isFinite(inc)||['Home','Work Gym','Commercial Gym','Outdoors'].includes(h?.location)))return d;
+    return 0;
+  }
+  window.fsV960EligibleMiles=fsV960EligibleMiles;
+  if(typeof window.fsV923HabitProgress==='function'){
+    const oldHabit=window.fsV923HabitProgress;
+    window.fsV923HabitProgress=function(date=fsTodayKey()){
+      const habit=fsV82Habit();if(!habit.enabled)return oldHabit(date);
+      let miles=0,trainingMiles=0;for(const h of (state.history||[])){if(fsLocalDateKey(h.date)!==date)continue;const d=fsV960EligibleMiles(h);miles+=d;if(d){const loc=String(h.location||''),inc=Number(h.cardio?.incline),rx=window.fsV923BaselineRx?window.fsV923BaselineRx(date,loc):{incline:0};if(loc==='Outdoors'||loc==='Home'||loc==='Travel / Minimal'||(Number.isFinite(inc)&&inc+.01>=Number(rx.incline||0)))trainingMiles+=d;}}
+      const target=Math.max(.25,Number(habit.distance)||1);return {enabled:true,miles,trainingMiles,target,fraction:Math.min(1,miles/target),complete:miles+1e-9>=target,loadMet:trainingMiles+1e-9>=target,rx:window.fsV923BaselineRx?window.fsV923BaselineRx(date):oldHabit(date).rx};
+    };
+    fsDailyMileLogged=function(date=fsTodayKey()){return window.fsV923HabitProgress(date).complete;};
+  }
+  if(typeof window.fsV923ReconcilePlans==='function')window.fsV923ReconcilePlans();
+
+  /* ---------- Resolved-pain return test: require meaningful exposure ---------- */
+  function fsV960MeaningfulReturn(l,e){
+    if(!l||!e?.exerciseId||(e.skipped&&!e.sets?.length))return false;
+    const id=e.exerciseId,ex=EXERCISES[id]||{},a=typeof window.fsV930Anatomy==='function'?window.fsV930Anatomy(id):{joints:[],muscles:[]},meta=fsV9Meta(id)||{},primary=meta.primary||meta.direct||[],patterns=(meta.patterns||[]).map(x=>String(x).toLowerCase()),name=String(ex.name||id).toLowerCase();
+    let regionMatch=false;
+    if(l.kind==='muscle')regionMatch=primary.includes(l.region);
+    else if((a.joints||[]).includes(l.region)){
+      if(l.region==='Elbow')regionMatch=/press|row|pull|curl|tricep|extension/.test(name)||patterns.some(p=>/push|pull/.test(p));
+      else if(l.region==='Shoulder')regionMatch=/press|row|pull|raise|fly|pullover|chop/.test(name)||patterns.some(p=>/push|pull|rotation/.test(p));
+      else if(l.region==='Knee')regionMatch=/squat|lunge|leg press|step|leg curl|extension/.test(name)||patterns.some(p=>/squat|knee|step|unilateral/.test(p));
+      else if(l.region==='Hip')regionMatch=/squat|lunge|leg press|step|deadlift|rdl|hinge|hip|glute|abduct|adduct/.test(name)||patterns.some(p=>/squat|hinge|step|hip|unilateral/.test(p));
+      else if(l.region==='Lower Back')regionMatch=primary.includes('Lower Back')||/back extension|deadlift|rdl|good morning/.test(name)||patterns.includes('trunk_extension');
+      else regionMatch=true;
+    }
+    if(!regionMatch||(e.sets||[]).length===0)return false;
+    if(e.feedback==='pain'||e.skipReason==='pain'||(e.sets||[]).some(s=>s.feedback==='pain'))return false;
+    return true;
+  }
+  const finishPainBase=finishWorkout;
+  finishWorkout=function(){
+    const w=state.activeWorkout,finishedId=w?.id,pending=(state.v930?.limitations||[]).filter(l=>l?.status==='resolved'&&l.returnTestPending).map(l=>l.id);
+    const out=finishPainBase();
+    const h=finishedId?(state.history||[]).find(x=>x.id===finishedId):null;
+    if(h&&pending.length){for(const lid of pending){const l=(state.v930?.limitations||[]).find(x=>x.id===lid);if(!l)continue;const meaningful=(h.exercises||[]).some(e=>fsV960MeaningfulReturn(l,e));if(!meaningful){l.returnTestPending=true;delete l.returnTestCompletedAt;}else{l.returnTestPending=false;l.returnTestCompletedAt=h.date;}}saveState();}
+    return out;
+  };
+
+  /* ---------- Canonical Strength Progress counters ---------- */
+  function fsV960RebuildExerciseProgress(){
+    const rows=typeof fsV924ActiveHistory==='function'?fsV924ActiveHistory():(state.history||[]),acc={};
+    for(const h of rows){for(const e of (h.exercises||[])){if(!e?.exerciseId||!(e.sets||[]).length)continue;const a=acc[e.exerciseId]||(acc[e.exerciseId]={count:0,last:null,date:null});a.count++;if(!a.date||new Date(h.date)>new Date(a.date)){a.last=e;a.date=h.date;}}}
+    for(const [id,rec] of Object.entries(state.exerciseState||{})){const a=acc[id];if(!a){if((rec.completedCount||0)>0)rec.completedCount=0;continue;}rec.completedCount=a.count;const sets=a.last?.sets||[];rec.lastReps=sets.map(s=>Number(s.reps)).filter(Number.isFinite);const loads=sets.map(s=>Number(s.weight)).filter(n=>Number.isFinite(n)&&n>0);if(loads.length)rec.load=loads.at(-1);rec.feedback=a.last?.feedback||rec.feedback;}
+  }
+  fsV960RebuildExerciseProgress();
+
+  /* Per-leg wording in the existing clean Strength Progress UI, no redesign. */
+  const progressBase=renderProgress;
+  renderProgress=function(){let html=progressBase();html=html.replace(/Glute Press Machine \(per leg\)<\/strong>([\s\S]*?<div class="value">)([0-9.]+) lb/g,'Glute Press Machine (per leg)</strong>$1$2 lb / leg');return html;};
+
+  fsV960NormalizeActive();
+  saveState();
 })();
 </script>
 </body>
