@@ -9518,5 +9518,309 @@ saveState();render();
   saveState();
 })();
 </script>
+
+
+<!-- =========================================================
+     FitnSmart v9.7.0 — reliability + planning coherence + polish
+     ========================================================= -->
+<style id="fs-v970-style">
+/* Progress accordions: a little more Canyon accent while keeping open content calm. */
+.fs-v931-acc:not(.open){background:var(--rust);border-color:var(--rust)}
+.fs-v931-acc:not(.open) .fs-v931-acc-toggle{color:#FFF8F0}
+.fs-v931-acc:not(.open) .fs-v931-acc-toggle .summary{color:#F7DED0}
+.fs-v931-acc:not(.open) .fs-v931-chevron{color:#FFF8F0}
+.fs-v931-acc.open{background:var(--surface)}
+.fs-v931-acc.open .fs-v931-acc-toggle{background:#F8EEE5;color:var(--text)}
+
+/* Weekly selected date: keep plan/completion dots legible on Canyon orange. */
+.fs-v930-day-chip.selected .fs-v950-dot,
+.fs-v930-day-chip.selected .fs-v950-dot.plan{background:#FFF4E8 !important;box-shadow:0 0 0 1px rgba(255,255,255,.22)}
+.fs-v930-day-chip.selected .fs-v950-dot.manual{background:#BFD1BC !important}
+
+/* Coach note is allowed to be useful without making Today noisy. */
+.fs-v970-coach-details{border:1px solid #D8C8B9;background:linear-gradient(145deg,#FFFDF9,#F4E9DD);border-radius:20px;overflow:hidden}
+.fs-v970-coach-details>summary{list-style:none;cursor:pointer;padding:15px 16px;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.fs-v970-coach-details>summary::-webkit-details-marker{display:none}
+.fs-v970-coach-details>summary:after{content:'⌄';color:var(--rust);font-weight:900;font-size:18px}
+.fs-v970-coach-details[open]>summary:after{content:'⌃'}
+.fs-v970-coach-preview{color:#6B5A4F;font-size:12px;line-height:1.35;margin-top:3px}
+.fs-v970-coach-body{border-top:1px solid #E4D4C6;padding:14px 16px 16px;color:#5C4E45;line-height:1.55}
+
+/* New exercise photo treatment; falls back to the existing SVG system if remote media fails. */
+.fs-v970-form-photo{width:100%;height:100%;min-height:150px;object-fit:cover;display:block;border-radius:inherit;background:#ECE3DA}
+.fs-v970-form-wrap{position:relative;width:100%;height:100%}
+.fs-v970-form-badge{position:absolute;left:10px;bottom:10px;background:rgba(255,250,245,.92);color:#6B3A21;border:1px solid #E4CDBD;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:800;letter-spacing:.2px}
+
+/* True mobile duration mask. */
+.fs-v970-duration{font-variant-numeric:tabular-nums;letter-spacing:.4px}
+</style>
+<script>
+(function(){
+  'use strict';
+  state.v970=(state.v970&&typeof state.v970==='object')?state.v970:{};
+  state.v970.version='9.7.0';
+
+  /* ---------- import compatibility ---------- */
+  if(typeof fsNormalizeImportedState==='function'){
+    const baseNormalize=fsNormalizeImportedState;
+    fsNormalizeImportedState=function(imported){
+      const s=baseNormalize(imported);
+      s.v970=(s.v970&&typeof s.v970==='object')?s.v970:{};
+      s.v970.version='9.7.0';
+      return s;
+    };
+  }
+
+  /* ---------- modest, recognizable home/core expansion ---------- */
+  function add970(ex){
+    if(!EXERCISES[ex.id])EXERCISES[ex.id]=ex;
+    else Object.assign(EXERCISES[ex.id],ex);
+    if(!state.exerciseState[ex.id])state.exerciseState[ex.id]={load:ex.defaultLoad||0,lastReps:[],lastRpe:null,feedback:null,completedCount:0};
+  }
+  add970({id:'dead_bug',name:'Dead Bug',type:'strength',movement:'core',altGroup:'anti_extension',equipmentType:'bodyweight',sets:2,repMin:6,repMax:10,defaultLoad:0,priority:4,
+    why:'Builds core control while the arms and legs move, with no equipment required.',
+    cues:['Lie on your back with arms pointing up and hips/knees bent about 90°.','Gently brace so your ribs and pelvis stay controlled.','Slowly extend one arm and the opposite leg without letting the low back arch.','Return with control and alternate sides while breathing normally.'],
+    mistakes:['Letting the lower back arch','Moving too quickly','Holding your breath','Reaching farther than you can control'],muscles:['Core'],substitutions:['bird_dog','plank','plank_shoulder_tap']});
+  add970({id:'plank_shoulder_tap',name:'Plank Shoulder Tap',type:'strength',movement:'core',altGroup:'anti_rotation',equipmentType:'bodyweight',sets:2,repMin:8,repMax:12,defaultLoad:0,priority:4,
+    why:'Trains anti-rotation core stability with a simple bodyweight plank variation.',
+    cues:['Start in a high plank with hands under shoulders and feet a little wider than hips.','Brace your trunk and squeeze your glutes.','Lift one hand to tap the opposite shoulder without letting your hips twist.','Replace the hand and alternate sides slowly.'],
+    mistakes:['Rocking the hips side to side','Rushing the taps','Letting the low back sag','Shrugging into the shoulders'],muscles:['Core','Shoulders'],substitutions:['dead_bug','bird_dog','plank']});
+  add970({id:'russian_twist',name:'Russian Twist',type:'strength',movement:'core_rotation',altGroup:'core_rotation',equipmentType:'bodyweight',sets:2,repMin:8,repMax:12,defaultLoad:0,priority:5,
+    why:'Provides a familiar bodyweight rotational-core option when bands or cables are unavailable.',
+    cues:['Sit tall with knees bent and feet planted; lean back slightly while keeping a long spine.','Brace your core and keep your chest lifted.','Rotate the ribcage and hands together from side to side through a comfortable range.','Move slowly; add a light dumbbell only after bodyweight control is solid.'],
+    mistakes:['Rounding the lower back','Swinging the arms without turning the trunk','Moving too fast','Using load that pulls you out of position'],muscles:['Core'],substitutions:['cable_chop','band_chop','dead_bug']});
+
+  /* Keep taxonomy honest: close alternatives share purpose, but rotation is not Pallof anti-rotation. */
+  if(window.FS_V912_TAXONOMY){
+    window.FS_V912_TAXONOMY.dead_bug={family:'trunk_stability',patterns:['anti_extension','trunk_stability'],primary:['Core'],secondary:[],laterality:'contralateral',role:'core'};
+    window.FS_V912_TAXONOMY.plank_shoulder_tap={family:'trunk_stability',patterns:['anti_rotation','anti_extension','trunk_stability'],primary:['Core'],secondary:['Shoulders'],laterality:'alternating',role:'core'};
+    window.FS_V912_TAXONOMY.russian_twist={family:'trunk_rotation',patterns:['rotation'],primary:['Core'],secondary:[],laterality:'alternating',role:'core'};
+  }
+
+  const FS_V970_MEDIA={
+    dead_bug:{url:'https://d1ldvf68ux039x.cloudfront.net/thumbs/photos/1505/1942620/1000w_q95.jpg',credit:'U.S. Army / public domain'},
+    plank_shoulder_tap:{url:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/10th_AAMDC_host_%E2%80%9CKey_Leader_Physical_Readiness_Training%E2%80%9D_%288448512%29.jpg/1280px-10th_AAMDC_host_%E2%80%9CKey_Leader_Physical_Readiness_Training%E2%80%9D_%288448512%29.jpg',credit:'U.S. Army / public domain'},
+    russian_twist:{url:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Functional_Fitness_for_Senior_Leaders_%287032782%29.jpg/1280px-Functional_Fitness_for_Senior_Leaders_%287032782%29.jpg',credit:'U.S. National Guard / public domain'}
+  };
+  const exSvg970=exerciseSVG;
+  exerciseSVG=function(id,large=false){
+    const m=FS_V970_MEDIA[id];if(!m)return exSvg970(id,large);
+    const fallback=exSvg970(id,large);
+    return `<div class="fs-v970-form-wrap"><img class="fs-v970-form-photo" src="${m.url}" alt="${esc(EXERCISES[id]?.name||'Exercise')} form reference" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div style="display:none;width:100%;height:100%">${fallback}</div><span class="fs-v970-form-badge">Form reference</span></div>`;
+  };
+
+  /* Home availability must never depend on cable-only equipment. */
+  const available970=fsExerciseAvailable;
+  fsExerciseAvailable=function(id,loc=state.activeWorkout?.location||state.ui.location){
+    if(['dead_bug','plank_shoulder_tap','russian_twist','bird_dog','plank','crunch','weighted_crunch','standing_march'].includes(id))return true;
+    if(id==='pallof_press'){
+      const c=fsCaps(loc)||{};
+      return !!c.cable || !!c.loops; // Pallof needs an anchored cable or resistance band.
+    }
+    if(id==='cable_pallof'||id==='cable_chop'||id==='cable_crunch')return !!(fsCaps(loc)||{}).cable;
+    return available970(id,loc);
+  };
+
+  /* More useful core pools at home; known/common movements first. */
+  const plan970=fsStrengthPlan;
+  fsStrengthPlan=function(loc=state.ui.location,focus='Full Body'){
+    let ids=(plan970(loc,focus)||[]).filter(Boolean);
+    const home=['Home','Travel / Minimal'].includes(loc);
+    if(home){
+      ids=ids.map(id=>id==='cable_pallof'||id==='pallof_press'&&!fsExerciseAvailable(id,loc)?'dead_bug':id);
+      // Replace the obscure around-the-world default if it appears in a generated home plan.
+      ids=ids.map(id=>id==='kb_around_world'?'plank_shoulder_tap':id);
+    }
+    return [...new Set(ids)].filter(id=>EXERCISES[id]&&fsExerciseAvailable(id,loc));
+  };
+
+  /* ---------- persistent neglected-muscle prioritization ---------- */
+  const CATCHUP={
+    Tibialis:['tibialis_raise','band_tibialis_raise'],
+    'Lower Back':['back_extension'],Adductors:['hip_adductor_machine','sumo_goblet_squat','side_lunge'],Abductors:['hip_abductor_machine','band_lateral_walk'],
+    Calves:['machine_calf_raise','calf_raise'],Hamstrings:['seated_leg_curl','dumbbell_rdl'],Glutes:['hip_thrust_machine','step_up','db_hip_thrust'],Quads:['unilateral_leg_press','leg_press','step_up'],
+    Chest:['machine_chest_press','db_chest_press'],Shoulders:['machine_shoulder_press','db_overhead_press'],Lats:['lat_pulldown','db_pullover'],
+    'Upper Back':['machine_row','seated_cable_row','one_arm_db_row'],Biceps:['cable_curl','db_biceps_curl'],Triceps:['cable_pressdown','db_triceps_extension'],Core:['dead_bug','plank_shoulder_tap','plank']
+  };
+  function primary970(id){const m=fsV9Meta(id)||{};return m.primary||m.direct||[];}
+  function safe970(id,loc){if(!EXERCISES[id]||!fsExerciseAvailable(id,loc))return false;try{if(typeof window.fsV930ExerciseRisk==='function'&&window.fsV930ExerciseRisk(id).risky)return false;}catch(_){}return true;}
+  function relevantMuscle970(m,focus){
+    if(focus==='Lower Body + Core')return ['Quads','Hamstrings','Glutes','Abductors','Adductors','Calves','Tibialis','Lower Back','Core'].includes(m);
+    if(focus==='Upper Body + Core')return ['Chest','Shoulders','Upper Back','Lats','Biceps','Triceps','Core'].includes(m);
+    return true;
+  }
+  function injectCatchup970(ids,loc,focus){
+    if(typeof fsV9Coverage!=='function')return ids;
+    const c14=fsV9Coverage(14),c28=fsV9Coverage(28);
+    const debts=Object.keys(c14.status||{}).filter(m=>c14.status[m]==='red'&&relevantMuscle970(m,focus)).sort((a,b)=>{
+      const persistentA=(c28.score?.[a]||0)<.8?1:0,persistentB=(c28.score?.[b]||0)<.8?1:0;
+      return persistentB-persistentA || (c14.score?.[a]||0)-(c14.score?.[b]||0);
+    });
+    if(!debts.length)return ids;
+    const target=debts.find(m=>!ids.some(id=>primary970(id).includes(m))&&(CATCHUP[m]||[]).some(id=>safe970(id,loc)));
+    if(!target)return ids;
+    const add=(CATCHUP[target]||[]).find(id=>safe970(id,loc)&&!ids.includes(id));if(!add)return ids;
+    const out=[...ids];
+    // Lower Body gets one direct tibialis/neglected-area slot instead of starving it forever.
+    // Prefer replacing a non-core accessory that is not itself serving another red primary target.
+    const protectedRed=new Set(debts.slice(0,3));
+    let idx=-1;
+    for(let i=out.length-1;i>=0;i--){const id=out[i],ex=EXERCISES[id],p=primary970(id);if(!ex||ex.type!=='strength')continue;if(p.includes('Core'))continue;if(p.some(m=>protectedRed.has(m)))continue;if((ex.priority||5)>=4){idx=i;break;}}
+    if(idx>=0)out[idx]=add;else if(out.length<9)out.push(add);else out[out.length-1]=add;
+    EXERCISES[add]._v9Why=`${EXERCISES[add].name} is here because ${target} has stayed under-covered across recent training. Coach is giving it direct work instead of waiting for secondary exposure to fix the gap.`;
+    return [...new Set(out)];
+  }
+  const planCatchBase=fsStrengthPlan;
+  fsStrengthPlan=function(loc=state.ui.location,focus='Full Body'){return injectCatchup970(planCatchBase(loc,focus),loc,focus);};
+
+  /* ---------- Daily Mile cannot complete a separately planned workout ---------- */
+  function pendingPrimary970(date=fsTodayKey()){
+    return (state.v10?.plannedSessions||[]).filter(p=>p.date===date&&p.status!=='completed'&&!/daily walking|progressive daily mile/i.test(`${p.type||''} ${p.title||''}`));
+  }
+  const todayState970=fsTodayRecommendationState;
+  fsTodayRecommendationState=function(){
+    const base=todayState970();const pending=pendingPrimary970();
+    if(!pending.length)return base;
+    const todayHist=(state.history||[]).filter(h=>fsLocalDateKey(h.date)===fsTodayKey());
+    const mileDone=todayHist.some(h=>/daily walking|progressive daily mile/i.test(`${h.workoutTitle||''} ${h.cardioType||''} ${h.sessionType||''}`)&&Number(h.cardio?.distance||0)>0);
+    if(base?.complete||mileDone){
+      const names=[...new Set(pending.map(p=>p.title||p.type||'Planned workout'))];
+      return {...base,complete:false,optional:false,title:'You still have training planned today',credit:mileDone?'Walking complete|Your Progressive Daily Mile is in the record.':base?.credit,remaining:`Still planned today: ${names.join(' · ')}.`};
+    }
+    return base;
+  };
+
+  /* ---------- Today: unfinished same-day plans first, then future plans ---------- */
+  window.fsV83FuturePlans=function(limit=3){
+    const today=fsTodayKey();
+    return (state.v10?.plannedSessions||[]).filter(p=>p.date>=today&&p.status!=='completed').sort((a,b)=>a.date.localeCompare(b.date)).slice(0,limit);
+  };
+  window.fsV83ComingUpHTML=function(){
+    const today=fsTodayKey(),plans=window.fsV83FuturePlans(4);if(!plans.length)return '';
+    const same=plans.filter(p=>p.date===today),future=plans.filter(p=>p.date>today);
+    const preview=p=>{try{const ids=(fsPreviewIdsForPlan(p.date,p)||[]).filter(id=>EXERCISES[id]&&!fsV8IsOptionalExercise(EXERCISES[id])),names=ids.map(id=>EXERCISES[id].name);return names.length?names.slice(0,3).join(' · ')+(names.length>3?` · +${names.length-3} more`:''):'Tap to preview';}catch(_){return 'Tap to preview';}};
+    const row=p=>`<button class="today-activity fs-v83-plan-preview" style="width:100%;text-align:left;background:none;border:0;color:var(--text)" onclick="fsPreviewPlan('${p.date}','${p.id}')"><div><strong>${esc(p.title)}</strong><div class="subtle small">${p.date===today?'Today':esc(fsDayLabel(p.date))} · ${esc(p.location)} · ${esc(p.duration)}</div><div class="subtle tiny fs-v83-preview-line">${esc(preview(p))}</div></div><span class="agenda-badge plan">Planned</span></button>`;
+    let inner='';if(same.length)inner+=`<div class="eyebrow" style="padding:10px 0 2px">Still today</div>${same.map(row).join('')}`;if(future.length)inner+=`${same.length?'<div class="eyebrow" style="padding:14px 0 2px">Next</div>':''}${future.map(row).join('')}`;
+    return `<section class="section fs-v83-coming"><div class="section-head"><h3>Coming up</h3><button class="linkish" onclick="navigate('calendar')">Calendar</button></div><div class="card flat">${inner}</div></section>`;
+  };
+  const todayRender970=renderToday;
+  renderToday=function(){
+    let html=todayRender970();
+    const repl=window.fsV83ComingUpHTML();
+    const re=/<section class="section fs-v83-coming">[\s\S]*?<\/section>/;
+    if(re.test(html))html=html.replace(re,repl);
+    return html;
+  };
+
+  /* ---------- Weekly objective: completed and planned are different numbers ---------- */
+  const weekly970=fsV82WeeklyObjectives;
+  fsV82WeeklyObjectives=function(dateKey=fsTodayKey()){
+    const out=weekly970(dateKey)||[],row=out.find(o=>o?.key==='habit');if(!row)return out;
+    const dates=(typeof fsV82WeekDates==='function'?fsV82WeekDates(dateKey):[]),set=new Set(dates);
+    const plannedDates=new Set((state.v10?.plannedSessions||[]).filter(p=>set.has(p.date)&&/daily walking|progressive daily mile/i.test(`${p.type||''} ${p.title||''}`)).map(p=>p.date));
+    const complete=dates.filter(d=>{try{return fsDailyMileLogged(d);}catch(_){return false;}}).length;
+    row.count=complete;row.target=7;row.scheduledCount=plannedDates.size;
+    row.status=`${complete}/7 completed · ${plannedDates.size}/7 planned`;
+    return out;
+  };
+
+  /* ---------- Incline progression: 1% steps, speed is the first adjustment knob ---------- */
+  function ceiling970(w){if(w<=4)return 0;if(w===5)return 1;if(w===6)return 2;if(w<=8)return 3;if(w<=12)return 4;if(w<=16)return 5;return 6;}
+  function recentTol970(dateKey,loc){
+    const ref=new Date(`${dateKey}T12:00:00`).getTime();
+    const rows=(state.history||[]).filter(h=>{
+      const when=new Date(h.date).getTime(),d=(ref-when)/86400000;if(d<0||d>10||String(h.location||'')!==loc)return false;
+      const dist=Number(h.cardio?.distance||0),inc=Number(h.cardio?.incline),txt=`${h.workoutTitle||''} ${h.sessionType||''} ${h.cardioType||''} ${h.cardio?.type||''}`.toLowerCase();
+      return dist>=.5&&Number.isFinite(inc)&&/walk|mile|easy|hill/.test(txt);
+    }).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,4);
+    const vals=rows.map(h=>Number(h.cardio?.rpe)).filter(Number.isFinite),avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+    const hard=rows.some(h=>h.cardio?.pain||Number(h.cardio?.rpe)>=8);return {rows,avg,hard};
+  }
+  function weekForDate970(dateKey){
+    const start=new Date(`${String(state.v06?.programStart||fsTodayKey()).slice(0,10)}T12:00:00`),d=new Date(`${dateKey}T12:00:00`);
+    return Math.max(1,Math.floor((d-start)/604800000)+1);
+  }
+  function baseline970(dateKey=fsTodayKey(),loc=state.ui.location){
+    const h=fsV82Habit(),w=weekForDate970(dateKey),c=fsCaps(loc)||{},treadmill=!!c.treadmill&&['Work Gym','Commercial Gym'].includes(loc),outdoor=loc==='Outdoors',usual=Number(state.v06.usualPace)||2.8,distance=Math.max(.25,Number(h.distance)||1);
+    let incline=treadmill?Math.max(Number(h.incline||0),ceiling970(w)):outdoor?null:0,speed=usual,note='Weeks 1–4 are the habit-building block: show up, walk the mile, and keep the baseline uncomplicated.';
+    if(treadmill){
+      if(w===5)note='The daily mile moves to 1% incline this week.';
+      else if(w===6)note='The daily mile moves to 2% incline this week.';
+      else if(w<=8)note='The daily mile is 3% incline through the end of Foundation.';
+      else {
+        const tol=recentTol970(dateKey,loc);
+        if(tol.hard||tol.avg!=null&&tol.avg>6.5){speed=Math.max(1.5,Math.round((usual-.1)*10)/10);note=`Coach is keeping the ${incline}% grade and easing speed to ${speed.toFixed(1)} mph while you adapt. Grade is only reduced if tolerance is genuinely worsening.`;}
+        else note=`The baseline progresses in 1% grade steps. Coach keeps ${incline}% and uses speed as the first adjustment if the new grade is temporarily demanding.`;
+      }
+    }else if(outdoor)note='Outdoor terrain replaces a treadmill grade; elevation can be logged when available.';
+    else note='Home walking stays easy because treadmill grade is not available; structured hill work comes from terrain, stairs, step work, or gym sessions.';
+    return {name:w<=4?'Daily Walking Habit':'Progressive Daily Mile',distance,speed,incline,minutes:treadmill?Math.round(distance/speed*60):null,purpose:w<=4?'Build consistency and an aerobic base.':'Reliable baseline cardio with progressive incline exposure.',progressionNote:note,week:w,location:loc,progressive:w>=5,treadmill};
+  }
+  window.fsV921BaselineRx=baseline970;window.fsV923BaselineRx=baseline970;
+
+  /* ---------- HH:MM:SS mobile digit-entry mask ---------- */
+  function digitsToTime970(digits){const d=String(digits||'').replace(/\D/g,'').slice(-6).padStart(6,'0');return `${d.slice(0,2)}:${d.slice(2,4)}:${d.slice(4,6)}`;}
+  function minsToTime970(mins){const sec=Math.max(0,Math.round((Number(mins)||0)*60)),h=Math.min(99,Math.floor(sec/3600)),m=Math.floor((sec%3600)/60),s=sec%60;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;}
+  function parseTime970(v){const raw=String(v??'').trim();if(!raw)return null;const d=raw.replace(/\D/g,'').slice(-6).padStart(6,'0'),h=Number(d.slice(0,2)),m=Number(d.slice(2,4)),s=Number(d.slice(4,6));if(m>=60||s>=60)return null;return (h*3600+m*60+s)/60;}
+  window.fsV960FormatDuration=minsToTime970;window.fsV960ParseDuration=parseTime970;
+  const cardioRender970=renderActiveCardio;
+  renderActiveCardio=function(item,ex){
+    let html=cardioRender970(item,ex);
+    html=html.replace(/(<input id="cardio-time"[^>]*class="[^"]*fs-v960-duration[^"]*"[^>]*value=")([^"]*)("[^>]*>)/,(_,a,v,c)=>a+minsToTime970((parseTime970(v)??Number(v))||0)+c);
+    html=html.replace('class="fs-v960-duration"','class="fs-v960-duration fs-v970-duration" autocomplete="off"');
+    return html;
+  };
+  document.addEventListener('focusin',e=>{if(e.target?.id==='cardio-time'){e.target.dataset.fs970Ready='1';setTimeout(()=>{try{e.target.select();}catch(_){}},0);}});
+  document.addEventListener('input',e=>{
+    if(e.target?.id!=='cardio-time')return;
+    const digits=String(e.target.value||'').replace(/\D/g,'').slice(-6);
+    e.target.value=digitsToTime970(digits);
+    if(typeof fsV960DraftFromDOM==='function')try{fsV960DraftFromDOM();}catch(_){}
+  });
+
+  /* ---------- Coach note: first person, gap-aware, earned, collapsible ---------- */
+  function activeHist970(){try{return typeof window.fsV924ActiveHistory==='function'?window.fsV924ActiveHistory():(state.history||[]).filter(h=>!h.archivedDuplicate);}catch(_){return state.history||[];}}
+  function returnGap970(){
+    const rows=activeHist970().filter(h=>new Date(h.date)<=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));if(rows.length<2)return null;
+    const dates=[...new Set(rows.map(h=>fsLocalDateKey(h.date)))];if(dates.length<2)return null;
+    let best=null;for(let i=1;i<dates.length;i++){const a=new Date(`${dates[i-1]}T12:00:00`),b=new Date(`${dates[i]}T12:00:00`),gap=Math.round((b-a)/86400000)-1;if(gap>=7)best={gap,returnDate:dates[i]};}
+    if(!best)return null;const daysSince=(new Date(`${fsTodayKey()}T12:00:00`)-new Date(`${best.returnDate}T12:00:00`))/86400000;if(daysSince<0||daysSince>7)return null;
+    const since=rows.filter(h=>fsLocalDateKey(h.date)>=best.returnDate),strength=since.filter(h=>(h.exercises||[]).length).length,miles=since.reduce((s,h)=>s+Math.max(0,Number(h.cardio?.distance||0)),0);
+    return {...best,strength,miles,sessions:since.length};
+  }
+  const oldNote970=window.fsV930TodayCoachNote;
+  window.fsV930TodayCoachNote=function(){
+    const gap=returnGap970();
+    if(gap){
+      if(gap.sessions>=4)return `I can see you’ve re-established the habit after a ${gap.gap}-day gap in structured training. You’ve logged ${gap.sessions} sessions since returning, so I’m shifting my attention back to normal Aerobic Base progression instead of treating the layoff as the main story.`;
+      if(gap.sessions>=2)return `I can see the recent ${gap.gap}-day gap, and I also see that you’re already rebuilding your normal rhythm. I’m not assigning make-up debt; I’m looking for your usual strength, walking, hill and long-endurance pattern to become consistent again. ${gap.strength?`You already have ${gap.strength} strength session${gap.strength===1?'':'s'} back in the record.`:''}`.trim();
+      return `I can see the recent ${gap.gap}-day gap in structured training. I’m not going to make you repay missed workouts; I’m watching how your normal Aerobic Base schedule feels as you resume it, and I’ll react to the work you actually complete.`;
+    }
+    return typeof oldNote970==='function'?oldNote970():null;
+  };
+  const renderTodayNote970=renderToday;
+  renderToday=function(){
+    let html=renderTodayNote970();const note=window.fsV930TodayCoachNote?.();
+    const re=/<section class="section"><div class="section-head"><h3>Coach<\/h3>[\s\S]*?<\/section>/;
+    if(note){const preview=note.length>92?note.slice(0,92).replace(/\s+\S*$/,'')+'…':note;const block=`<section class="section"><details class="fs-v970-coach-details"><summary><span><span class="coach-kicker">Coach note</span><span class="fs-v970-coach-preview">${esc(preview)}</span></span></summary><div class="fs-v970-coach-body">${esc(note)}</div></details></section>`;html=html.replace(re,block);}else html=html.replace(re,'');
+    return html;
+  };
+
+  /* ---------- New-exercise technique sheet: full metadata + source note ---------- */
+  const sheet970=renderSheet;
+  renderSheet=function(){
+    let html=sheet970();const s=state.ui.sheet,id=s?.data?.id,m=FS_V970_MEDIA[id];
+    if(s?.name==='technique'&&m&&html.includes(EXERCISES[id]?.name||'')){
+      html=html.replace('</div></div>','</div></div>');
+      html=html.replace(/<p class="subtle small" style="margin-top:18px">/,`<div class="subtle tiny" style="margin-top:12px">Instruction photo reference: ${esc(m.credit)}.</div><p class="subtle small" style="margin-top:18px">`);
+    }
+    return html;
+  };
+
+  /* Reconcile once after installing the new rules. */
+  try{if(typeof window.fsV923ReconcilePlans==='function')window.fsV923ReconcilePlans();}catch(_){}
+  saveState();render();
+})();
+</script>
 </body>
 </html>
