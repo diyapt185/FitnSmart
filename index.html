@@ -9822,5 +9822,222 @@ saveState();render();
   saveState();render();
 })();
 </script>
+
+
+<!-- =========================================================
+     FitnSmart v9.8.0 — hiking-specific weekly structure
+     - required strength: Upper+Core / Lower / Lower+Core
+     - Full Body is optional
+     - weekly aerobic volume replaces required daily mile
+     - Work Gym hill endurance uses step-ups
+     - location equipment rules hardened upstream
+     - 0.5% working/exposure incline model
+     - set-by-set strength autoregulation
+     ========================================================= -->
+<script>
+(function(){
+  state.v980=state.v980||{};
+  state.v980.version='9.8.0';
+  state.v980.weeklyAerobicModel=true;
+
+  /* ---------- Required strength architecture ---------- */
+  const requiredSplits=['Upper Body + Core','Lower Body','Lower Body + Core'];
+  if(Array.isArray(window.FS_STRENGTH_SPLITS||FS_STRENGTH_SPLITS)){
+    FS_STRENGTH_SPLITS.splice(0,FS_STRENGTH_SPLITS.length,...requiredSplits);
+  }
+
+  /* ---------- Work Gym means the equipment that is actually usable ---------- */
+  state.v06=state.v06||{};state.v06.locationCapabilities=state.v06.locationCapabilities||{};
+  state.v06.locationCapabilities['Work Gym']={...(state.v06.locationCapabilities['Work Gym']||{}),treadmill:true,step:true,cable:true,machines:true,stairmaster:false};
+  state.v06.locationCapabilities['Commercial Gym']={...(state.v06.locationCapabilities['Commercial Gym']||{}),stairmaster:true};
+
+  const avail980=fsExerciseAvailable;
+  fsExerciseAvailable=function(id,loc=state.ui.location){
+    if(loc==='Work Gym'&&['stairmaster','incline_chest_press','lying_leg_curl'].includes(id))return false;
+    if(['Work Gym','Commercial Gym'].includes(loc)&&['bird_dog','reverse_lunge','db_reverse_lunge'].includes(id))return false;
+    if(id==='bird_dog'&&!['Home','Travel / Minimal'].includes(loc))return false;
+    return avail980(id,loc);
+  };
+
+  /* Lower Body is a true no-core strength exposure; Lower Body + Core keeps core. */
+  function isDirectCore980(id){const m=fsV9Meta(id)||{};const p=m.primary||m.direct||[];return p.includes('Core')||['plank','dead_bug','plank_shoulder_tap','russian_twist','weighted_crunch','crunch','cable_crunch','ab_machine','cable_pallof','pallof_press','cable_chop','band_chop','suitcase_hold','kb_around_world','standing_march'].includes(id);}
+  const strength980=fsStrengthPlan;
+  fsStrengthPlan=function(loc=state.ui.location,focus='Full Body'){
+    let requested=focus;
+    if(focus==='Lower Body')focus='Lower Body + Core';
+    let ids=(strength980(loc,focus)||[]).filter(id=>EXERCISES[id]&&fsExerciseAvailable(id,loc));
+    if(requested==='Lower Body')ids=ids.filter(id=>!isDirectCore980(id));
+    if(['Work Gym','Commercial Gym'].includes(loc)){
+      ids=ids.map(id=>id==='lying_leg_curl'?'seated_leg_curl':id==='incline_chest_press'?'machine_chest_press':id);
+      ids=ids.filter(id=>!['bird_dog','reverse_lunge','db_reverse_lunge'].includes(id));
+    }
+    return [...new Set(ids)];
+  };
+
+  /* ---------- Full Body moves to optional workouts ---------- */
+  const meta980=fsV82MetaForPlan;
+  fsV82MetaForPlan=function(plan){
+    const txt=String(plan?.type||plan?.title||'');const loc=plan?.location||state.ui.location,p=fsPhase();
+    if(/Strength\s*[—-]\s*Lower Body$/i.test(txt)||/^Lower Body$/i.test(txt)){
+      const ids=fsStrengthPlan(loc,'Lower Body');return {type:'strength',title:'Lower Body',focus:'Lower Body',strengthSplit:'Lower Body',ids,phase:p,estimated:estimatedMinutes(ids),reason:'Dedicated lower-body strength. Core is reserved for the second lower-body exposure.'};
+    }
+    if(/Optional.*Full Body|Full Body.*Optional/i.test(txt)){
+      const ids=fsStrengthPlan(loc,'Full Body');return {type:'strength_optional',title:'Full Body',focus:'Full Body',strengthSplit:null,ids,phase:p,estimated:estimatedMinutes(ids),reason:'Optional coverage-aware full-body strength. It does not replace one of the three required weekly strength exposures.'};
+    }
+    return meta980(plan);
+  };
+
+  const preview980=fsPreviewIdsForPlan;
+  fsPreviewIdsForPlan=function(date,plan){const m=fsV82MetaForPlan(plan);if(m?.ids?.length)return m.ids;return preview980(date,plan);};
+
+  /* ---------- Daily mile graduates into weekly aerobic movement ---------- */
+  state.v10.dailyMileHabitActive=false;
+  state.v82=state.v82||{};state.v82.dailyWalkHabit=state.v82.dailyWalkHabit||{};state.v82.dailyWalkHabit.enabled=false;
+  const oldDailyRE=/daily walking habit|progressive daily mile/i;
+  state.v10.plannedSessions=(state.v10.plannedSessions||[]).filter(p=>p.status==='completed'||!oldDailyRE.test(`${p.type||''} ${p.title||''}`));
+
+  function weekDates980(dateKey=fsTodayKey()){return typeof fsV82WeekDates==='function'?fsV82WeekDates(dateKey):[dateKey];}
+  function aerobicTarget980(dateKey=fsTodayKey()){
+    const mid=new Date(`${weekDates980(dateKey)[3]||dateKey}T12:00:00`),w=typeof fsWeekFrom==='function'?fsWeekFrom(mid):fsWeek();
+    return w<=8?75:w<=16?90:w<=28?120:w<=40?150:180;
+  }
+  function aerobicStatus980(dateKey=fsTodayKey()){
+    const dates=new Set(weekDates980(dateKey));let minutes=0,miles=0,sessions=0,maxIncline=null;
+    for(const h of (state.history||[])){
+      if(!dates.has(fsLocalDateKey(h.date)))continue;
+      const t=`${h.workoutTitle||''} ${h.sessionType||''} ${h.cardioType||''} ${h.cardio?.type||''}`.toLowerCase();
+      if(!/walk|hike|hill|easy|step_up|step-ups|step ups/.test(t))continue;
+      const min=Number(h.cardio?.minutes||h.actualMinutes||0);if(min>0){minutes+=min;sessions++;}
+      miles+=Math.max(0,Number(h.cardio?.distance||0));const inc=Number(h.cardio?.incline);if(Number.isFinite(inc))maxIncline=maxIncline==null?inc:Math.max(maxIncline,inc);
+    }
+    const target=aerobicTarget980(dateKey);return {minutes:Math.round(minutes),miles,target,sessions,maxIncline,complete:minutes>=target};
+  }
+  window.fsV980AerobicStatus=aerobicStatus980;
+
+  const weekly980=fsV82WeeklyObjectives;
+  fsV82WeeklyObjectives=function(dateKey=fsTodayKey()){
+    let out=(weekly980(dateKey)||[]).filter(o=>!['habit','easy'].includes(o?.key)&&o?.key!=='strength:Full Body'&&o?.key!=='strength:Lower Body / Legs'&&o?.key!=='strength:Hiking Support + Core');
+    const hist=typeof fsV82HistInWeek==='function'?fsV82HistInWeek(dateKey):[];
+    const plans=typeof fsV82PlansInWeek==='function'?fsV82PlansInWeek(dateKey):[];
+    for(const split of requiredSplits){
+      if(out.some(o=>o.key===`strength:${split}`))continue;
+      const done=hist.some(h=>fsIsStrengthHistory(h)&&fsV9HistorySplit(h)===split);
+      const scheduled=!done&&plans.some(p=>p.status!=='completed'&&String(p.type||'').includes(split));
+      out.unshift({key:`strength:${split}`,label:split,detail:split==='Lower Body'?'Dedicated lower-body strength':split==='Lower Body + Core'?'Lower-body strength or periodic incline-hybrid exposure':'Upper-body strength + trunk work',kind:'strength',done,scheduled,status:done?'Completed':scheduled?'Scheduled':'To do'});
+    }
+    const a=aerobicStatus980(dateKey);out.splice(3,0,{key:'aerobic',label:'Weekly Aerobic Movement',detail:`Walking / hiking / incline / step work · ${a.target} min weekly target`,kind:'aerobic',count:a.minutes,target:a.target,scheduledCount:0,status:`${a.minutes}/${a.target} min${a.complete?' · target met':''}`});
+    return out;
+  };
+
+  const objective980=fsV82ObjectivePlan;
+  fsV82ObjectivePlan=function(key,date=state.v10.selectedDate||fsTodayKey()){
+    if(key==='strength:Lower Body')return {id:null,date,location:state.ui.location||'Work Gym',duration:'Recommended',type:'Strength — Lower Body',title:'Lower Body'};
+    if(key==='aerobic')return {id:null,date,location:state.ui.location||'Work Gym',duration:'Recommended',type:'Easy endurance',title:'Optional Easy Walk'};
+    return objective980(key,date);
+  };
+
+  /* Plan sheet mirrors the new schedule: no required Daily Mile, Full Body optional. */
+  const sheet980=renderSheet;
+  renderSheet=function(){
+    let html=sheet980();const s=state.ui.sheet;if(s?.name!=='planSession')return html;
+    html=html.replace(/<option value="Strength — Full Body"[^>]*>Strength — Full Body<\/option>/g,'<option value="Optional — Full Body">Optional — Full Body</option>');
+    html=html.replace(/<option value="Daily walking habit"[^>]*>Daily walking habit<\/option>/gi,'');
+    html=html.replace(/<option value="Strength — Lower Body \+ Core"/g,'<option value="Strength — Lower Body + Core"');
+    if(!html.includes('value="Strength — Lower Body"'))html=html.replace('<option value="Strength — Lower Body + Core"','<option value="Strength — Lower Body">Strength — Lower Body</option><option value="Strength — Lower Body + Core"');
+    return html;
+  };
+
+  /* ---------- Lower + Core periodically becomes a strength + incline hybrid ---------- */
+  EXERCISES.incline_finish_walk=EXERCISES.incline_finish_walk||{id:'incline_finish_walk',name:'Incline Conditioning Walk',type:'cardio',movement:'endurance',why:'Adds repeatable hiking-specific incline exposure without turning every day into another standalone mile.'};
+  function hybridDue980(dateKey,loc){const w=typeof fsWeekFrom==='function'?fsWeekFrom(new Date(`${dateKey}T12:00:00`)):fsWeek();return ['Work Gym','Commercial Gym'].includes(loc)&&!!fsCaps(loc)?.treadmill&&w>=9&&w%2===0;}
+  const metaHybrid980=fsV82MetaForPlan;
+  fsV82MetaForPlan=function(plan){
+    const m=metaHybrid980(plan);if(!m)return m;const loc=plan?.location||state.ui.location,date=plan?.date||fsTodayKey();
+    if(m.strengthSplit==='Lower Body + Core'&&hybridDue980(date,loc)){
+      const strength=(m.ids||fsStrengthPlan(loc,'Lower Body + Core')).filter(id=>EXERCISES[id]?.type==='strength');
+      const core=strength.filter(isDirectCore980).slice(0,1),legs=strength.filter(id=>!isDirectCore980(id)).slice(0,3);
+      m.ids=[...legs,...core,'incline_finish_walk'];m.title='Lower Body + Core · Incline Hybrid';m.reason='This is the periodic hybrid version: focused lower-body/core strength plus controlled incline conditioning. The separate full-strength lower-body day remains in the week.';m.estimated=estimatedMinutes(m.ids);
+    }
+    return m;
+  };
+
+  /* ---------- Working incline vs exposure incline ---------- */
+  function phaseCeiling980(w){if(w<=4)return 0;if(w<=6)return Math.max(1,w-4);if(w<=8)return 3;if(w<=12)return 4;if(w<=16)return 5;if(w<=28)return 6;if(w<=40)return 8;return 10;}
+  function recentInclines980(dateKey,loc){const ref=new Date(`${dateKey}T23:59:59`);return (state.history||[]).filter(h=>{const d=(ref-new Date(h.date))/86400000,inc=Number(h.cardio?.incline),txt=`${h.workoutTitle||''} ${h.cardioType||''} ${h.cardio?.type||''}`.toLowerCase();return d>=0&&d<=28&&String(h.location||'')===loc&&Number.isFinite(inc)&&/walk|hill|easy/.test(txt)&&Number(h.cardio?.distance||0)>=.5&&!h.cardio?.pain;}).sort((a,b)=>new Date(b.date)-new Date(a.date));}
+  function baseline980(dateKey=fsTodayKey(),loc=state.ui.location){
+    const w=typeof fsWeekFrom==='function'?fsWeekFrom(new Date(`${dateKey}T12:00:00`)):fsWeek(),usual=Number(state.v06?.usualPace)||2.8,c=fsCaps(loc)||{},treadmill=!!c.treadmill&&['Work Gym','Commercial Gym'].includes(loc),outdoor=loc==='Outdoors';
+    if(!treadmill)return {name:'Aerobic Movement',distance:1,speed:usual,incline:outdoor?null:0,minutes:20,purpose:'Easy aerobic movement when useful; no standalone daily-mile obligation.',progressionNote:outdoor?'Terrain provides the grade exposure.':'Keep this easy unless it is a planned hill or hybrid session.',week:w,location:loc,progressive:true,treadmill:false};
+    const rows=recentInclines980(dateKey,loc),ceiling=phaseCeiling980(w);let working=3;
+    if(rows.length){const grades={};for(const h of rows){const inc=Math.round(Number(h.cardio.incline)*2)/2;grades[inc]=(grades[inc]||0)+1;}const established=Object.entries(grades).filter(([g,n])=>n>=2&&Number(g)<=ceiling).map(([g])=>Number(g));if(established.length)working=Math.max(...established);else working=Math.min(ceiling,Math.round(Number(rows[0].cardio.incline)*2)/2);}
+    working=Math.min(ceiling,Math.max(0,working));const next=Math.min(ceiling,working+.5);const exposure=next>working&&rows.filter(h=>Number(h.cardio?.rpe||0)>=8||h.cardio?.pain).length===0;
+    return {name:'Incline Conditioning',distance:1,speed:usual,incline:working,exposureIncline:exposure?next:working,minutes:20,purpose:'Build repeatable aerobic conditioning while still reaching the phase incline targets.',progressionNote:exposure&&next>working?`${working}% is the working grade. ${next}% is available as the next controlled exposure; it does not become the new normal until it is tolerated repeatedly.`:`Coach is consolidating ${working}% before the next 0.5% step.`,week:w,location:loc,progressive:true,treadmill:true};
+  }
+  window.fsV921BaselineRx=baseline980;window.fsV923BaselineRx=baseline980;
+
+  const rx980=window.fsV923CardioRxFor||window.fsV922CardioRxFor;
+  window.fsV923CardioRxFor=function(id,dateKey=fsTodayKey(),loc=state.ui.location){
+    if(id==='incline_finish_walk'){const b=baseline980(dateKey,loc),inc=b.exposureIncline??b.incline;return {name:'Incline Conditioning Walk',minutes:15,distance:null,speed:b.speed,incline:inc,purpose:'Controlled incline exposure after a reduced lower-body/core strength dose.',progressionNote:b.progressionNote};}
+    if(id==='hike_stepups'){const w=typeof fsWeekFrom==='function'?fsWeekFrom(new Date(`${dateKey}T12:00:00`)):fsWeek();let total=w<=8?150:w<=16?200:w<=28?Math.min(400,250+Math.floor((w-17)/4)*50):w<=40?Math.min(650,450+Math.floor((w-29)/4)*50):Math.min(1000,700+Math.floor((w-41)/4)*50);return {name:'Hill Endurance · Step-Ups',minutes:null,distance:null,speed:null,incline:null,totalSteps:total,purpose:'Sustained hiking-specific climbing at Work Gym without the StairMaster.',progressionNote:`Complete ${total} total step-ups. One ascent onto the platform = one step-up; alternate legs naturally. Break into sets as needed and recover by heart rate rather than racing the clock.`};}
+    return rx980?rx980(id,dateKey,loc):fsCardioRx(id);
+  };
+  window.fsV922CardioRxFor=window.fsV923CardioRxFor;
+
+  const cardioId980=fsCardioId;
+  fsCardioId=function(kind,loc=state.ui.location){if(kind==='hill'&&loc==='Work Gym')return 'hike_stepups';return cardioId980(kind,loc);};
+
+  /* Any Work Gym Hill Endurance plan is a step-up workout, never the old machine. */
+  const metaHill980=fsV82MetaForPlan;
+  fsV82MetaForPlan=function(plan){const m=metaHill980(plan);if(m&&String(plan?.location||state.ui.location)==='Work Gym'&&/hill endurance/i.test(`${plan?.type||''} ${plan?.title||''}`)){m.ids=['hike_stepups'];m.title='Hill Endurance · Step-Ups';m.type='hill';m.reason='Work Gym hill endurance uses step-ups because the StairMaster is excluded at this location.';m.estimated=estimatedMinutes(m.ids);}return m;};
+
+  /* ---------- Strength set autoregulation ---------- */
+  function lowerLoad980(load,loc,id){if(!(load>0))return 0;if(loc==='Home'&&typeof fsV9HomeLoadClosest==='function'){try{return fsV9HomeLoadClosest(load,'down');}catch(_){}}const step=/machine|cable/i.test(`${EXERCISES[id]?.equipmentType||''} ${EXERCISES[id]?.name||''}`)?5:2.5;return Math.max(0,Math.round((load-step)*2)/2);}
+  const nextSet980=fsV9NextSetCoach;
+  fsV9NextSetCoach=function(item,ex){
+    const last=item?.sets?.at(-1);if(!last)return nextSet980(item,ex);const loc=state.activeWorkout?.location||state.ui.location,prior=Number(state.exerciseState?.[ex.id]?.load||0),load=Number(last.weight)||0;
+    if(last.feedback==='too_hard')return {value:lowerLoad980(load,loc,ex.id),reason:'That set was too hard. Coach is reducing load for the next set rather than asking you to grind through the same prescription.'};
+    if(last.feedback==='challenging')return {value:load,reason:'Keep this load, but reduce the next rep target. Challenging means productive but close enough to the limit that volume should adjust.'};
+    if(load>prior&&prior>0)return {value:load,reason:'You tried a higher load. Coach will keep the new weight provisionally and lower the rep target while you establish it.'};
+    return nextSet980(item,ex);
+  };
+  function nextReps980(item,ex){
+    const last=item?.sets?.at(-1);if(!last)return ex.repMin;const r=Number(last.reps)||ex.repMin,prior=Number(state.exerciseState?.[ex.id]?.load||0),load=Number(last.weight)||0;
+    if(last.feedback==='too_hard')return Math.max(ex.repMin,Math.min(ex.repMax,r-3));
+    if(last.feedback==='challenging')return Math.max(ex.repMin,Math.min(ex.repMax,r-2));
+    if(load>prior&&prior>0)return Math.max(ex.repMin,Math.min(ex.repMax,Math.min(r,ex.repMin+2)));
+    if(last.feedback==='too_easy')return Math.min(ex.repMax,r+2);
+    return Math.max(ex.repMin,Math.min(ex.repMax,r));
+  }
+  const activeStrength980=renderActiveStrength;
+  renderActiveStrength=function(item,ex){
+    let html=activeStrength980(item,ex);if(!ex||fsV8IsOptionalExercise(ex))return html;const reps=nextReps980(item,ex),coach=fsV9NextSetCoach(item,ex);
+    html=html.replace(/(<input id="set-reps"[^>]*value=")[^"]*(")/,`$1${reps}$2`);
+    if(item?.sets?.length)html=html.replace(/<div class="metric-label">Coach recommends<\/div><strong>[\s\S]*?<\/strong>/,`<div class="metric-label">Coach recommends</div><strong>${coach.value>0?`${coach.value} lb · `:''}${reps}${ex.timeBased?' sec':' reps'}</strong>`);
+    return html;
+  };
+
+  /* ---------- Progress explicitly reflects the new aerobic model ---------- */
+  const progress980=renderProgress;
+  renderProgress=function(){
+    let html=progress980(),a=aerobicStatus980(),rx=baseline980(fsTodayKey(),state.ui.location);
+    const card=`<section class="section fs-v980-aerobic"><div class="section-head"><div><h3>Aerobic Movement</h3><div class="subtle small">Weekly volume replaces the old daily-mile requirement</div></div></div><div class="card flat"><div class="profile-row"><strong>This week</strong><div class="value">${a.minutes} / ${a.target} min</div></div><div class="profile-row"><strong>Qualifying sessions</strong><div class="value">${a.sessions}</div></div><div class="profile-row"><strong>Walking / hiking distance</strong><div class="value">${a.miles.toFixed(2)} mi</div></div>${rx.treadmill?`<div class="profile-row"><strong>Working incline</strong><div class="value">${rx.incline}%</div></div><div class="profile-row"><strong>Next exposure</strong><div class="value">${rx.exposureIncline}%</div></div>`:''}<div class="subtle small" style="margin-top:10px">Hill Endurance, Long Walk/Hike, optional easy walking, step-ups, and incline-hybrid work can all contribute. No seven-day walking streak is required.</div></div></section>`;
+    const marker='<section class="section"><div class="section-head"><h3>Strength';const i=html.indexOf(marker);return i>=0?html.slice(0,i)+card+html.slice(i):html.replace(nav('progress'),card+nav('progress'));
+  };
+
+  /* Update explanatory Coach copy when stale daily-mile language bubbles up. */
+  const today980=renderToday;
+  renderToday=function(){let html=today980();html=html.replace(/Progressive Daily Mile/g,'Aerobic movement').replace(/Daily Walking Habit/g,'Aerobic movement');return html;};
+
+  /* Import compatibility: re-apply v9.8 semantics after replacing local state. */
+  const import980=fsImportDataFile;
+  fsImportDataFile=function(input){
+    import980(input);
+    setTimeout(()=>{try{state.v980=state.v980||{};state.v980.version='9.8.0';state.v10.dailyMileHabitActive=false;state.v82=state.v82||{};state.v82.dailyWalkHabit=state.v82.dailyWalkHabit||{};state.v82.dailyWalkHabit.enabled=false;state.v10.plannedSessions=(state.v10.plannedSessions||[]).filter(p=>p.status==='completed'||!oldDailyRE.test(`${p.type||''} ${p.title||''}`));state.v06.locationCapabilities['Work Gym'].stairmaster=false;saveState();render();}catch(_){}},250);
+  };
+
+  try{if(typeof window.fsV923ReconcilePlans==='function')window.fsV923ReconcilePlans();}catch(_){}
+  saveState();
+})();
+</script>
+
 </body>
 </html>
