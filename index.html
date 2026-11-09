@@ -10039,5 +10039,725 @@ saveState();render();
 })();
 </script>
 
+
+<!-- FitnSmart v10.0.0 -->
+<script>
+(function(){
+  'use strict';
+
+  /* =========================================================
+     FitnSmart v10.0.0 — Coach architecture consolidation
+     Grand Canyon plan stays authoritative. Coach operates inside it.
+     ========================================================= */
+  state.v1000=(state.v1000&&typeof state.v1000==='object')?state.v1000:{};
+  state.v1000.version='10.0.0';
+  state.v1000.schema=1;
+  state.v1000.setConfirm=null;
+
+  const V10_SPLITS=['Upper Body','Lower Body','Core + Hiking'];
+  const V10_STRENGTH_TYPE={
+    'Upper Body':'Strength — Upper Body',
+    'Lower Body':'Strength — Lower Body',
+    'Core + Hiking':'Strength — Core + Hiking'
+  };
+  if(Array.isArray(FS_STRENGTH_SPLITS)) FS_STRENGTH_SPLITS.splice(0,FS_STRENGTH_SPLITS.length,...V10_SPLITS);
+
+  /* ---------- Exercise library additions ---------- */
+  function addV10(ex,folder){
+    if(typeof fsV9AddExercise==='function') fsV9AddExercise(ex,folder);
+    else { EXERCISES[ex.id]={...(EXERCISES[ex.id]||{}),...ex}; if(!state.exerciseState[ex.id])state.exerciseState[ex.id]={load:ex.defaultLoad||0,lastReps:[],lastRpe:null,feedback:null,completedCount:0}; }
+  }
+  addV10({id:'neutral_grip_pulldown',name:'Neutral-Grip Cable Pulldown',type:'strength',movement:'vertical_pull',sets:2,repMin:8,repMax:12,defaultLoad:40,priority:3,why:'Vertical pulling option with a neutral grip for lat and upper-back development.',cues:['Sit tall.','Drive elbows down toward the ribs.','Control the return overhead.'],mistakes:['Swinging backward','Shrugging','Rushing the eccentric'],muscles:['Lats','Upper Back','Biceps'],substitutions:['underhand_pulldown','lat_pulldown','single_arm_cable_pulldown']},'Wide-Grip_Lat_Pulldown');
+  addV10({id:'single_arm_cable_pulldown',name:'Single-Arm Cable Pulldown',type:'strength',movement:'vertical_pull',sets:2,repMin:8,repMax:12,defaultLoad:20,priority:4,why:'Unilateral vertical pulling that lets each side work independently.',cues:['Keep the torso quiet.','Pull the elbow toward the hip.','Reach fully without shrugging.'],mistakes:['Rotating excessively','Yanking the cable','Shortening the return'],muscles:['Lats','Upper Back','Biceps'],substitutions:['neutral_grip_pulldown','underhand_pulldown']},'Underhand_Cable_Pulldowns');
+  addV10({id:'straight_arm_pulldown',name:'Straight-Arm Cable Pulldown',type:'strength',movement:'shoulder_extension',sets:2,repMin:10,repMax:15,defaultLoad:20,priority:4,why:'Adds shoulder-extension work for the lats without another elbow-flexion dominant pull.',cues:['Keep a soft elbow bend.','Pull toward the thighs.','Keep ribs stacked.'],mistakes:['Turning it into a triceps pressdown','Arching the back','Using momentum'],muscles:['Lats','Upper Back'],substitutions:['db_pullover','lat_pulldown']},'Straight-Arm_Pulldown');
+  addV10({id:'face_pull',name:'Cable Face Pull',type:'strength',movement:'scapular_pull',sets:2,repMin:10,repMax:15,defaultLoad:15,priority:4,why:'Adds rear-delt and scapular pulling work that rows and pulldowns do not fully replace.',cues:['Pull toward eye level.','Let the elbows travel wide.','Finish without shrugging.'],mistakes:['Using excessive load','Leaning backward','Turning it into a row'],muscles:['Upper Back','Shoulders'],substitutions:['machine_row','band_row']},'Seated_Cable_Rows');
+  addV10({id:'knee_pushup',name:'Knee Push-Up',type:'strength',movement:'horizontal_push',sets:2,repMin:8,repMax:15,defaultLoad:0,priority:3,why:'Home horizontal pushing progression using bodyweight.',cues:['Keep a straight line from knees through shoulders.','Lower the chest under control.','Press the floor away.'],mistakes:['Hips sagging','Elbows flaring excessively','Short range'],muscles:['Chest','Shoulders','Triceps'],substitutions:['db_chest_press','wall_pushup']},'Pushups');
+  addV10({id:'cable_glute_kickback',name:'Cable Glute Kickback',type:'strength',movement:'glute_extension',sets:2,repMin:10,repMax:15,defaultLoad:10,priority:2,why:'Direct glute-extension work using your ankle cuff; this shares a programming slot with hip thrusts.',cues:['Brace the trunk.','Drive the leg back from the hip.','Pause briefly without arching the lower back.'],mistakes:['Swinging','Hyperextending the spine','Turning the foot outward excessively'],muscles:['Glutes'],substitutions:['hip_thrust_machine','db_hip_thrust','glute_bridge']},'Kickback');
+  addV10({id:'cable_hip_abduction',name:'Cable Hip Abduction',type:'strength',movement:'abduction',sets:2,repMin:10,repMax:15,defaultLoad:10,priority:4,why:'Cable alternative to the hip abductor machine using the ankle cuff.',cues:['Stand tall with support.','Move the leg out from the hip.','Return slowly.'],mistakes:['Leaning away','Swinging','Rotating the pelvis'],muscles:['Abductors','Glutes'],substitutions:['hip_abductor_machine','band_lateral_walk']},'Thigh_Abductor');
+  addV10({id:'leg_press_calf_raise',name:'Leg Press Calf Raise',type:'strength',movement:'calves',sets:2,repMin:12,repMax:20,defaultLoad:60,priority:4,why:'Calf training on the leg press so the lower-body session can keep familiar equipment.',cues:['Keep knees softly extended.','Move through the ankle.','Pause at the top and lower under control.'],mistakes:['Bouncing','Locking knees aggressively','Using a tiny range'],muscles:['Calves'],substitutions:['machine_calf_raise','calf_raise']},'Seated_Calf_Raise');
+
+  /* Existing cable adduction already exists. Keep names clear. */
+  if(EXERCISES.cable_hip_adduction) EXERCISES.cable_hip_adduction.substitutions=['hip_adductor_machine'];
+  if(EXERCISES.loaded_carry) EXERCISES.loaded_carry.name='Farmer Carry / Loaded Carry';
+
+  /* ---------- Hard location rules ---------- */
+  const availV10Base=fsExerciseAvailable;
+  fsExerciseAvailable=function(id,loc=state.ui.location){
+    if(loc==='Work Gym'&&['stairmaster','incline_chest_press','lying_leg_curl','smith_rdl','smith_squat','smith_split_squat'].includes(id))return false;
+    if(['Work Gym','Commercial Gym'].includes(loc)&&['bird_dog','reverse_lunge','db_reverse_lunge'].includes(id))return false;
+    if(id==='bird_dog'&&loc!=='Home')return false;
+    if(id==='knee_pushup'&&loc!=='Home'&&loc!=='Travel / Minimal')return false;
+    if(['cable_glute_kickback','cable_hip_abduction','cable_hip_adduction','face_pull','straight_arm_pulldown','neutral_grip_pulldown','single_arm_cable_pulldown'].includes(id)&&!['Work Gym','Commercial Gym'].includes(loc))return false;
+    return availV10Base(id,loc);
+  };
+
+  /* ---------- Canonical movement / equivalence architecture ---------- */
+  const V10_FAMILY={
+    glute_extension:new Set(['cable_glute_kickback','hip_thrust_machine','db_hip_thrust','glute_bridge']),
+    abduction:new Set(['hip_abductor_machine','cable_hip_abduction','band_lateral_walk']),
+    adduction:new Set(['hip_adductor_machine','cable_hip_adduction']),
+    calf:new Set(['leg_press_calf_raise','machine_calf_raise','calf_raise']),
+    vertical_pull:new Set(['underhand_pulldown','lat_pulldown','neutral_grip_pulldown','single_arm_cable_pulldown','band_lat_pulldown']),
+    horizontal_pull:new Set(['machine_row','seated_cable_row','one_arm_db_row','band_row']),
+    horizontal_push:new Set(['machine_chest_press','db_chest_press','knee_pushup','wall_pushup','standing_band_press']),
+    unilateral:new Set(['unilateral_leg_press','step_up','supported_split_squat','reverse_lunge','db_reverse_lunge','side_lunge']),
+    core_flexion:new Set(['ab_machine','cable_crunch','weighted_crunch','crunch']),
+    anti_rotation:new Set(['cable_pallof','pallof_press']),
+    rotation:new Set(['cable_chop','band_chop','russian_twist','kb_around_world']),
+    anti_lateral:new Set(['suitcase_hold']),
+    locomotion:new Set(['standing_march','loaded_carry']),
+    posterior_core:new Set(['back_extension','plank','bird_dog'])
+  };
+  function familyOf(id){for(const [k,set] of Object.entries(V10_FAMILY))if(set.has(id))return k;return null;}
+  function usedFamily(ids,fam){return fam&&ids.some(id=>familyOf(id)===fam);}
+  function lastUsedMs(id){for(const h of [...(state.history||[])].reverse()){if((h.exercises||[]).some(e=>e.exerciseId===id))return new Date(h.date).getTime();}return 0;}
+  function usable(cands,loc,ids=[]){return cands.filter(id=>EXERCISES[id]&&fsExerciseAvailable(id,loc)&&!ids.includes(id)&&!usedFamily(ids,familyOf(id)));}
+  function pickPreferred(cands,loc,ids=[]){return usable(cands,loc,ids)[0]||null;}
+  function pickLeastRecent(cands,loc,ids=[]){const u=usable(cands,loc,ids);return u.sort((a,b)=>lastUsedMs(a)-lastUsedMs(b))[0]||null;}
+
+  function v10DaysAgo(date,ref=new Date()){return Math.max(0,(ref-new Date(date))/86400000);}
+  function tibialisDays(dateKey=fsTodayKey()){
+    const ref=new Date(`${dateKey}T23:59:59`),days=[];
+    for(const h of state.history||[]){if(v10DaysAgo(h.date,ref)>14)continue;if((h.exercises||[]).some(e=>['tibialis_raise','band_tibialis_raise','cable_dorsiflexion'].includes(e.exerciseId)&&(e.sets||[]).length))days.push(fsLocalDateKey(h.date));}
+    return [...new Set(days)];
+  }
+  function tibialisDue(dateKey=fsTodayKey()){const ref=new Date(`${dateKey}T23:59:59`);return !(state.history||[]).some(h=>v10DaysAgo(h.date,ref)<=7&&(h.exercises||[]).some(e=>['tibialis_raise','band_tibialis_raise','cable_dorsiflexion'].includes(e.exerciseId)&&(e.sets||[]).length));}
+  window.fsV10TibialisDue=tibialisDue;
+
+  function splitForHistory(h){
+    const raw=String(h?.strengthSplit||h?.plannedTitle||h?.workoutTitle||'').toLowerCase();
+    if(raw.includes('core + hiking'))return 'Core + Hiking';
+    if(raw.includes('upper'))return 'Upper Body';
+    if(raw.includes('lower'))return 'Lower Body';
+    if(raw.includes('hiking support'))return 'Core + Hiking';
+    return null;
+  }
+  fsHistorySplit=splitForHistory;
+  fsV9HistorySplit=splitForHistory;
+  fsNextStrengthSplit=function(){
+    const recent=[...(state.history||[])].reverse().filter(h=>fsIsStrengthHistory(h)&&fsAgo(h.date)<=10),seen=new Map();
+    for(const h of recent){const s=splitForHistory(h);if(s&&!seen.has(s))seen.set(s,new Date(h.date).getTime());}
+    const missing=V10_SPLITS.find(s=>!seen.has(s));if(missing)return missing;
+    return [...V10_SPLITS].sort((a,b)=>(seen.get(a)||0)-(seen.get(b)||0))[0];
+  };
+
+  function durationLimit(duration=state.ui.duration){return duration==='20 min'?4:duration==='40 min'?6:8;}
+  function chooseHipPlane(dateKey,loc,ids){
+    const abd=lastUsedMs('hip_abductor_machine')||lastUsedMs('cable_hip_abduction')||lastUsedMs('band_lateral_walk');
+    const add=lastUsedMs('hip_adductor_machine')||lastUsedMs('cable_hip_adduction');
+    return abd<=add?pickPreferred(['hip_abductor_machine','cable_hip_abduction','band_lateral_walk'],loc,ids):pickPreferred(['hip_adductor_machine','cable_hip_adduction'],loc,ids);
+  }
+  function append(ids,id){if(id&&!ids.includes(id)&&!usedFamily(ids,familyOf(id)))ids.push(id);return ids;}
+
+  function upperPlan(loc,dateKey,duration){
+    const ids=[];
+    append(ids,pickPreferred(loc==='Home'?['one_arm_db_row','band_row']:['machine_row','seated_cable_row','one_arm_db_row'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['band_lat_pulldown','db_pullover']:['underhand_pulldown','neutral_grip_pulldown','lat_pulldown','single_arm_cable_pulldown'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['db_chest_press','knee_pushup','wall_pushup']:['machine_chest_press','db_chest_press'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['db_overhead_press']:['machine_shoulder_press','db_overhead_press'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['db_biceps_curl']:['cable_curl','db_biceps_curl'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['db_triceps_extension']:['cable_pressdown','db_triceps_extension'],loc,ids));
+    append(ids,pickLeastRecent(loc==='Home'?['db_pullover']:['face_pull','straight_arm_pulldown'],loc,ids));
+    append(ids,pickLeastRecent(loc==='Home'?['knee_pushup','db_pullover']:['straight_arm_pulldown','face_pull','single_arm_cable_pulldown'],loc,ids));
+    return ids.slice(0,durationLimit(duration));
+  }
+
+  function lowerPlan(loc,dateKey,duration){
+    const ids=[];
+    append(ids,pickPreferred(loc==='Home'?['goblet_squat','sumo_goblet_squat']:['leg_press','hack_squat','goblet_squat'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['dumbbell_rdl','band_rdl']:['seated_leg_curl','lying_leg_curl'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['dumbbell_rdl','band_rdl']:['dumbbell_rdl','cable_pull_through'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['db_hip_thrust','glute_bridge']:['cable_glute_kickback','hip_thrust_machine','db_hip_thrust'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['db_reverse_lunge','reverse_lunge','supported_split_squat']:['unilateral_leg_press','step_up','supported_split_squat'],loc,ids));
+    append(ids,chooseHipPlane(dateKey,loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['calf_raise']:['leg_press_calf_raise','machine_calf_raise','calf_raise'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['tibialis_raise','band_tibialis_raise']:['tibialis_raise','cable_dorsiflexion','band_tibialis_raise'],loc,ids));
+    let limit=durationLimit(duration),out=ids.slice(0,limit);
+    if(tibialisDue(dateKey)&&!out.some(id=>['tibialis_raise','band_tibialis_raise','cable_dorsiflexion'].includes(id))){
+      const tib=ids.find(id=>['tibialis_raise','band_tibialis_raise','cable_dorsiflexion'].includes(id));if(tib){out=out.slice(0,Math.max(0,limit-1));out.push(tib);}
+    }
+    return [...new Set(out)];
+  }
+
+  function weekPlans(dateKey){try{return typeof fsV82PlansInWeek==='function'?fsV82PlansInWeek(dateKey):[];}catch(_){return[];}}
+  function weekHist(dateKey){try{return typeof fsV82HistInWeek==='function'?fsV82HistInWeek(dateKey):[];}catch(_){return[];}}
+  function lowerStressLastDays(dateKey,days=3){const ref=new Date(`${dateKey}T23:59:59`);return (state.history||[]).filter(h=>v10DaysAgo(h.date,ref)<=days&&(splitForHistory(h)==='Lower Body'||['hill','long','hike'].includes(String(h.cardioType||h.cardio?.type||h.sessionType||'').toLowerCase()))).length;}
+  function hikingModule(loc,dateKey,ids=[]){
+    const plans=weekPlans(dateKey),hist=weekHist(dateKey),target=new Date(`${dateKey}T12:00:00`);
+    const hillDone=hist.some(h=>/hill/.test(`${h.cardioType||''} ${h.cardio?.type||''} ${h.workoutTitle||''}`.toLowerCase()));
+    const hillPlanned=plans.some(p=>p.status!=='completed'&&/hill endurance/i.test(`${p.type||''} ${p.title||''}`));
+    const adjacentHill=plans.some(p=>p.status!=='completed'&&/hill endurance/i.test(`${p.type||''} ${p.title||''}`)&&Math.abs((new Date(`${p.date}T12:00:00`)-target)/86400000)<=1);
+    const recentUni=(state.history||[]).some(h=>v10DaysAgo(h.date,new Date(`${dateKey}T23:59:59`))<=7&&(h.exercises||[]).some(e=>['unilateral_leg_press','step_up','reverse_lunge','db_reverse_lunge','supported_split_squat'].includes(e.exerciseId)));
+    if(loc==='Outdoors')return 'outdoor_hill_walk';
+    /* A nearby dedicated hill day already supplies the leg-specific hiking dose.
+       Loaded marching inside Core + Hiking is enough; do not pile step-ups/lunges on top. */
+    if(adjacentHill)return ids.includes('standing_march')?null:pickPreferred(['standing_march','loaded_carry'],loc,ids);
+    if(['Work Gym','Commercial Gym'].includes(loc)){
+      if(lowerStressLastDays(dateKey,2)>=2)return ids.includes('standing_march')?null:pickPreferred(['loaded_carry','standing_march'],loc,ids);
+      if(!recentUni)return pickPreferred(['unilateral_leg_press','step_up','supported_split_squat'],loc,ids);
+      if(!hillDone&&!hillPlanned&&fsCaps(loc)?.treadmill)return 'incline_finish_walk';
+      return pickLeastRecent(['step_up','unilateral_leg_press','loaded_carry','incline_finish_walk'],loc,ids);
+    }
+    if(loc==='Home'){if(lowerStressLastDays(dateKey,2)>=1)return null;return pickPreferred(['db_reverse_lunge','reverse_lunge','supported_split_squat'],loc,ids)||null;}
+    return pickPreferred(['supported_split_squat','reverse_lunge'],loc,ids)||null;
+  }
+
+  function coreHikingPlan(loc,dateKey,duration){
+    const ids=[];
+    append(ids,pickPreferred(loc==='Home'?['weighted_crunch','crunch']:['ab_machine','cable_crunch'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['pallof_press']:['cable_pallof'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['russian_twist','band_chop','kb_around_world']:['cable_chop'],loc,ids));
+    append(ids,pickPreferred(['suitcase_hold'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['standing_march','kb_around_world']:['standing_march','loaded_carry'],loc,ids));
+    append(ids,pickPreferred(loc==='Home'?['plank','bird_dog']:['back_extension'],loc,ids));
+    const module=hikingModule(loc,dateKey,ids);if(module&&!ids.includes(module))ids.push(module);
+    const lim=durationLimit(duration);if(duration==='20 min')return ids.length?ids.slice(0,Math.max(3,lim-1)).concat(module&&!ids.slice(0,Math.max(3,lim-1)).includes(module)?[module]:[]).slice(0,lim):[];
+    return ids.slice(0,Math.min(7,lim));
+  }
+
+  function v10StrengthPlan(loc=state.ui.location,focus='Upper Body',dateKey=fsTodayKey(),duration=state.ui.duration){
+    if(focus==='Upper Body + Core')focus='Upper Body';
+    if(focus==='Lower Body + Core'||focus==='Hiking Support + Core')focus='Core + Hiking';
+    if(focus==='Full Body')return typeof fsV9StrengthPlan==='function'?fsV9StrengthPlan(loc,'Full Body'):[];
+    let ids=focus==='Upper Body'?upperPlan(loc,dateKey,duration):focus==='Lower Body'?lowerPlan(loc,dateKey,duration):coreHikingPlan(loc,dateKey,duration);
+    ids=ids.filter(id=>EXERCISES[id]&&fsExerciseAvailable(id,loc));
+    return [...new Set(ids)];
+  }
+  window.fsV10StrengthPlan=v10StrengthPlan;
+  fsStrengthPlan=v10StrengthPlan;
+
+  /* ---------- Duration-aware set volume ---------- */
+  const adaptiveV10Base=fsV9AdaptiveSets;
+  fsV9AdaptiveSets=function(id){
+    const duration=state.activeWorkout?.durationMode||state.ui.duration||'Recommended',ex=EXERCISES[id],base=adaptiveV10Base(id);
+    if(!ex||ex.type!=='strength')return base;
+    if(duration==='20 min')return Math.min(2,base||2);
+    if(duration==='40 min')return Math.min(3,base||2);
+    return Math.min(3,Math.max(2,base||2));
+  };
+
+  /* ---------- Plan interpretation: title and type are both authoritative ---------- */
+  function normalizeSplitText(plan){const txt=`${plan?.type||''} ${plan?.title||''}`.toLowerCase();if(txt.includes('core + hiking'))return 'Core + Hiking';if(txt.includes('upper body'))return 'Upper Body';if(txt.includes('lower body + core'))return 'Core + Hiking';if(/lower body|lower body \/ legs/.test(txt))return 'Lower Body';if(txt.includes('hiking support + core'))return 'Core + Hiking';return null;}
+  const metaV10Base=fsV82MetaForPlan;
+  fsV82MetaForPlan=function(plan){
+    const split=normalizeSplitText(plan),loc=plan?.location||state.ui.location,date=plan?.date||fsTodayKey(),duration=plan?.duration||state.ui.duration,p=fsPhase();
+    if(split){const ids=v10StrengthPlan(loc,split,date,duration);return {type:'strength',title:split,focus:split,strengthSplit:split,ids,phase:p,estimated:estimatedMinutes(ids),reason:split==='Upper Body'?'Focused upper-body strength with stable anchors plus targeted pulling/coverage work.':split==='Lower Body'?'Focused lower-body strength: bilateral, hamstrings, hinge, glutes, unilateral work, hip-plane accessory, calves and weekly tibialis exposure.':'Focused core training plus one hiking-specific module chosen from the week’s broader training context.'};}
+    if(/coach-selected workout|coach recommendation/i.test(`${plan?.type||''} ${plan?.title||''}`)){const s=fsNextStrengthSplit();const ids=v10StrengthPlan(loc,s,date,duration);return {type:'strength',title:s,focus:s,strengthSplit:s,ids,phase:p,estimated:estimatedMinutes(ids),reason:'Coach selected the required strength session that best fits the current three-session rotation.'};}
+    return metaV10Base(plan);
+  };
+  fsPreviewIdsForPlan=function(dateKey,plan){const m=fsV82MetaForPlan({...plan,date:dateKey});return m?.ids||[];};
+
+  /* ---------- Weekly objectives + schedule migration ---------- */
+  function migratePlansV10(){
+    state.v10=state.v10||{};state.v10.plannedSessions=Array.isArray(state.v10.plannedSessions)?state.v10.plannedSessions:[];
+    const today=fsTodayKey();
+    for(const p of state.v10.plannedSessions){if(p.status==='completed'||p.date<today)continue;const txt=`${p.type||''} ${p.title||''}`.toLowerCase();
+      if(txt.includes('upper body + core')){p.title='Upper Body';p.type=V10_STRENGTH_TYPE['Upper Body'];}
+      else if(txt.includes('lower body + core')){p.title='Core + Hiking';p.type=V10_STRENGTH_TYPE['Core + Hiking'];}
+      else if((txt.includes('lower body')||txt.includes('lower body / legs'))&&!txt.includes('core')){p.title='Lower Body';p.type=V10_STRENGTH_TYPE['Lower Body'];}
+    }
+    state.v1000.plansMigratedAt=state.v1000.plansMigratedAt||new Date().toISOString();
+  }
+  migratePlansV10();
+
+  const weeklyV10Base=fsV82WeeklyObjectives;
+  fsV82WeeklyObjectives=function(dateKey=fsTodayKey()){
+    let out=(weeklyV10Base(dateKey)||[]).filter(o=>!String(o?.key||'').startsWith('strength:'));
+    const hist=weekHist(dateKey),plans=weekPlans(dateKey);
+    for(const split of [...V10_SPLITS].reverse()){
+      const done=hist.some(h=>fsIsStrengthHistory(h)&&splitForHistory(h)===split),scheduled=!done&&plans.some(p=>p.status!=='completed'&&normalizeSplitText(p)===split);
+      out.unshift({key:`strength:${split}`,label:split,detail:split==='Upper Body'?'Focused upper-body strength':split==='Lower Body'?'Complete lower-body strength + tibialis':'Core strength + adaptive hiking-specific module',kind:'strength',done,scheduled,status:done?'Completed':scheduled?'Scheduled':'To do'});
+    }
+    return out;
+  };
+  const objectiveV10Base=fsV82ObjectivePlan;
+  fsV82ObjectivePlan=function(key,date=state.v10.selectedDate||fsTodayKey()){
+    if(key.startsWith('strength:')){const split=key.slice(9);if(V10_SPLITS.includes(split))return {id:null,date,location:state.ui.location||'Work Gym',duration:'Recommended',type:V10_STRENGTH_TYPE[split],title:split};}
+    return objectiveV10Base(key,date);
+  };
+
+  /* ---------- One central training state ---------- */
+  function latestDistance(kind,days=42){const rows=(state.history||[]).filter(h=>fsAgo(h.date)<=days);let vals=[];for(const h of rows){const t=`${h.workoutTitle||''} ${h.sessionType||''} ${h.cardioType||''} ${h.cardio?.type||''}`.toLowerCase();if(kind==='long'&&/long|hike/.test(t))vals.push(Number(h.cardio?.distance||0));if(kind==='hill'&&/hill|step/.test(t))vals.push(Number(h.cardio?.incline||0));}return vals.length?Math.max(...vals):0;}
+  function trainingStateV10(dateKey=fsTodayKey()){
+    const p=fsPhase(),w=typeof fsWeekFrom==='function'?fsWeekFrom(new Date(`${dateKey}T12:00:00`)):fsWeek(),a=window.fsV980AerobicStatus?window.fsV980AerobicStatus(dateKey):{minutes:0,target:0},longMax=latestDistance('long'),hillMax=latestDistance('hill');
+    const longTarget=Array.isArray(p.long)?Number(p.long[1]||0):0,hillTarget=Array.isArray(p.hill)?Number(p.hill[1]||0):0;
+    let focus='Hike preparedness';let reason='The Grand Canyon phase plan remains the governing priority.';
+    if(longTarget&&longMax<longTarget*.85){focus='Long-duration endurance';reason=`Long-walk capacity is the clearest phase-specific opportunity right now (${longMax.toFixed(2)} mi recent max vs about ${longTarget} mi at the top of this phase).`;}
+    else if(hillTarget&&hillMax&&hillMax<hillTarget*.75){focus='Climbing capacity';reason='Climbing exposure has more room to develop relative to the current phase than strength does.';}
+    else if(a.target&&a.minutes<a.target*.55){focus='Aerobic volume';reason='Weekly aerobic movement is currently the clearest missing dose.';}
+    const strengthStatus='Progressing';
+    return {dateKey,phase:p,week:w,focus,reason,strengthStatus,tibialisDue:tibialisDue(dateKey),aerobic:a,longMax,longTarget,hillMax,hillTarget};
+  }
+  window.fsV10TrainingState=trainingStateV10;
+
+  /* ---------- Coach rationale and chat integration ---------- */
+  function coachNoteV10(){
+    const ts=trainingStateV10(),today=(state.v10?.plannedSessions||[]).find(p=>p.date===fsTodayKey()&&p.status!=='completed'),m=today?fsV82MetaForPlan(today):null;
+    let bits=[`Hike preparedness remains the top priority in ${ts.phase.name}. ${ts.reason}`];
+    bits.push('Strength is still allowed to progress normally when your sets support it; being ahead of the hike minimum is not a reason to hold you back.');
+    if(ts.tibialisDue)bits.push('Tibialis is due for its weekly direct exposure, so Coach will place it in an appropriate lower-body or hiking-support session rather than chasing the coverage pill in an unrelated workout.');
+    if(m)bits.push(`Today’s planned ${m.title} session is being built around that workout’s actual purpose rather than whichever coverage category happens to be lowest.`);
+    return bits.join(' ');
+  }
+  window.fsV930TodayCoachNote=coachNoteV10;
+  const coachReplyV10Base=fsCoachPreparednessReply;
+  fsCoachPreparednessReply=function(key){
+    const ts=trainingStateV10();
+    if(key==='week')return `This week’s Coach focus is ${ts.focus.toLowerCase()}. ${ts.reason} Strength remains in normal progressive-overload mode as long as performance and recovery support it.`;
+    if(key==='strength')return `Strength is progressing, not merely being maintained. Coach will keep advancing loads/reps when your logged sets support it, while preventing extra lower-body volume from displacing the hill and long-duration work that drives Grand Canyon readiness.`;
+    if(key==='today'){const plan=(state.v10?.plannedSessions||[]).find(p=>p.date===fsTodayKey()&&p.status!=='completed');if(plan){const m=fsV82MetaForPlan(plan);return `${m.title}: ${m.reason} ${ts.tibialisDue&&m.title==='Lower Body'?'Tibialis is also due this week, so it is protected in this session.':''}`.trim();}}
+    return coachReplyV10Base(key);
+  };
+  try{for(const q of FS_COACH_QUESTIONS){if(q[0]==='strength')q[1]='How is my strength progressing?';if(q[0]==='week')q[1]='What is Coach focusing on this week?';}}catch(_){}
+
+  /* ---------- Progress: hike-first + weight moved ---------- */
+  function suspiciousStrengthSet(ex,set){const reps=Number(set?.reps||0);return !!(ex&&!ex.timeBased&&!['step_up','hike_stepups'].includes(ex.id)&&Number(ex.repMax||20)<=30&&reps>=100&&!set?.sanityConfirmed);}
+  function volumeTotals(){let month=0,total=0,priorMonth=0;const now=new Date(),day=now.getDate(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`,pmDate=new Date(now.getFullYear(),now.getMonth()-1,1),pm=`${pmDate.getFullYear()}-${String(pmDate.getMonth()+1).padStart(2,'0')}`;
+    for(const h of state.history||[]){const dateKey=fsLocalDateKey(h.date),key=dateKey.slice(0,7),dom=Number(dateKey.slice(8,10));for(const e of h.exercises||[]){const ex=EXERCISES[e.exerciseId];if(!ex||ex.timeBased||['carry','core_brace','core_anti_lateral'].includes(ex.movement))continue;for(const s of e.sets||[]){if(suspiciousStrengthSet(ex,s))continue;const v=Math.max(0,Number(s.weight)||0)*Math.max(0,Number(s.reps)||0);total+=v;if(key===ym)month+=v;if(key===pm&&dom<=day)priorMonth+=v;}}}
+    return {month:Math.round(month),priorMonth:Math.round(priorMonth),total:Math.round(total),pct:priorMonth>0?Math.round((month-priorMonth)/priorMonth*100):null};
+  }
+  window.fsV10VolumeTotals=volumeTotals;
+  const progressV10Base=renderProgress;
+  renderProgress=function(){let html=progressV10Base(),v=volumeTotals(),ts=trainingStateV10();const fmt=n=>Math.round(n).toLocaleString();const delta=v.pct==null?'No prior-month comparison yet':`${v.pct>=0?'+':''}${v.pct}% vs last month`;
+    const block=`<section class="section fs-v10-progress"><div class="section-head"><div><h3>Strength Output</h3><div class="subtle small">Motivation metric · hike preparedness still comes first</div></div></div><div class="metric-grid"><div class="metric-card"><div class="subtle small">Weight moved this month</div><div class="value">${fmt(v.month)} lb</div><div class="subtle tiny">${esc(delta)}</div></div><div class="metric-card"><div class="subtle small">Total weight moved</div><div class="value">${fmt(v.total)} lb</div><div class="subtle tiny">Logged external-load volume</div></div></div><div class="card flat" style="margin-top:10px"><div class="profile-row"><div><strong>Coach focus</strong><div class="subtle small">${esc(ts.reason)}</div></div><div class="value">${esc(ts.focus)}</div></div><div class="profile-row"><div><strong>Strength status</strong><div class="subtle small">Progress when performance supports it; hike readiness sets priority, not a ceiling.</div></div><div class="value">Progressing</div></div></div></section>`;
+    const navMark=nav('progress'),idx=html.lastIndexOf(navMark);return idx>=0?html.slice(0,idx)+block+html.slice(idx):html+block;
+  };
+
+  /* ---------- Calendar: weekly focus ---------- */
+  const calendarV10Base=renderCalendar;
+  renderCalendar=function(){let html=calendarV10Base(),ts=trainingStateV10(state.v10?.selectedDate||fsTodayKey());const block=`<section class="section fs-v10-week-focus"><div class="card flat"><div class="eyebrow">Coach focus this week</div><strong style="font-size:18px">${esc(ts.focus)}</strong><div class="subtle small" style="margin-top:6px;line-height:1.45">${esc(ts.reason)} Strength can still progress normally when your performance supports it.</div></div></section>`;const pos=html.indexOf('<section');return pos>=0?html.slice(0,pos)+block+html.slice(pos):html+block;};
+
+  /* ---------- Today Coach note: no collapsed preview copy ---------- */
+  const todayV10Base=renderToday;
+  renderToday=function(){let html=todayV10Base();html=html.replace(/<span class="coach-kicker">Coach note<\/span>/g,'<span class="coach-kicker">Coach\'s note</span>').replace(/<span class="fs-v970-coach-preview">[\s\S]*?<\/span>/g,'');return html;};
+
+  /* ---------- Cardio distance/time -> average speed calculator ---------- */
+  function parseCardioMinutes(raw){if(typeof window.fsV960ParseDuration==='function'){const x=window.fsV960ParseDuration(raw);if(x!=null)return x;}const n=Number(raw);return Number.isFinite(n)?n:null;}
+  window.fsV10UpdateAverageSpeed=function(){const d=Number(document.querySelector('#cardio-distance')?.value),t=parseCardioMinutes(document.querySelector('#cardio-time')?.value);const out=document.querySelector('#fs-v10-speed-calc'),speed=document.querySelector('#cardio-speed');if(!(d>0)||!(t>0)){if(out)out.textContent='Enter distance and time to calculate average speed.';return;}const mph=d/(t/60);if(speed)speed.value=mph.toFixed(2);if(out)out.textContent=`Calculated average speed: ${mph.toFixed(2)} mph`;};
+  const cardioV10Base=renderActiveCardio;
+  renderActiveCardio=function(item,ex){let html=cardioV10Base(item,ex);if(['stairmaster','hike_stepups'].includes(ex?.id))return html;const box='<div id="fs-v10-speed-calc" class="muted-box" style="margin-top:10px"><strong>Average speed calculator</strong><div class="subtle small">Distance + elapsed time will calculate the weighted average speed automatically.</div></div>';if(!html.includes('fs-v10-speed-calc'))html=html.replace('<div class="section"><h3>Heart response',box+'<div class="section"><h3>Heart response');setTimeout(()=>window.fsV10UpdateAverageSpeed?.(),0);return html;};
+
+  /* ---------- Set-entry sanity check ---------- */
+  function currentStrengthContext(){const w=state.activeWorkout,item=w?.plan?.[w.index],ex=EXERCISES[item?.exerciseId];return {w,item,ex};}
+  function repNeedsCheck(ex,reps){return !!(ex&&!ex.timeBased&&!['step_up','hike_stepups'].includes(ex.id)&&Number(ex.repMax||20)<=30&&reps>=100);}
+  function paintRepSanity(){const inp=document.querySelector('#set-reps');if(!inp)return;const {ex}=currentStrengthContext(),reps=Number(inp.value);inp.classList.toggle('fs-v10-rep-warning',repNeedsCheck(ex,reps));}
+  const logV10Base=logStrengthSet;
+  logStrengthSet=function(){const {item,ex}=currentStrengthContext();const reps=Number(document.querySelector('#set-reps')?.value||0);if(repNeedsCheck(ex,reps)){
+      const key=`${item?.exerciseId||''}|${reps}|${Number(document.querySelector('#set-weight')?.value||0)}|${(item?.sets||[]).length}`;
+      if(state.v1000.setConfirm!==key){state.v1000.setConfirm=key;saveState();paintRepSanity();toast(`${reps} reps is far above the prescribed ${ex.repMin}–${ex.repMax}. Tap Complete set again if that is intentional.`);return;}
+    }
+    const before=(item?.sets||[]).length;state.v1000.setConfirm=null;const out=logV10Base();if(repNeedsCheck(ex,reps)&&item?.sets?.length>before){item.sets[item.sets.length-1].sanityConfirmed=true;saveState();}return out;
+  };
+  document.addEventListener('input',e=>{if(e.target?.id==='set-reps'){state.v1000.setConfirm=null;paintRepSanity();}if(['cardio-distance','cardio-time'].includes(e.target?.id))window.fsV10UpdateAverageSpeed?.();});
+
+  /* ---------- Timer tap feedback ---------- */
+  const timerStartV10Base=window.fsV930TimerStart;
+  window.fsV930TimerStart=function(){const b=document.activeElement?.closest?.('.fs-v930-timer-controls button')||document.querySelector('.fs-v930-timer-controls button');if(b){b.classList.add('fs-v10-timer-tap');setTimeout(()=>b.classList.remove('fs-v10-timer-tap'),220);}return timerStartV10Base?.();};
+
+  /* ---------- Plan sheet names ---------- */
+  const sheetV10Base=renderSheet;
+  renderSheet=function(){let html=sheetV10Base();if(state.ui.sheet?.name==='planSession'){
+      html=html.replace(/Strength — Upper Body \+ Core/g,'Strength — Upper Body').replace(/Strength — Lower Body \+ Core/g,'Strength — Core + Hiking').replace(/Upper Body \+ Core/g,'Upper Body').replace(/Lower Body \+ Core/g,'Core + Hiking');
+      if(!html.includes('Strength — Lower Body'))html=html.replace('Strength — Core + Hiking','Strength — Lower Body</option><option value="Strength — Core + Hiking">Strength — Core + Hiking');
+    }return html;};
+
+  /* ---------- Import normalization is synchronous and deterministic ---------- */
+  const normalizeV10Base=fsNormalizeImportedState;
+  fsNormalizeImportedState=function(imported){const out=normalizeV10Base(imported);state.v1000=(state.v1000&&typeof state.v1000==='object')?state.v1000:{version:'10.0.0',schema:1};state.v1000.version='10.0.0';state.v10.dailyMileHabitActive=false;state.v82=state.v82||{};state.v82.dailyWalkHabit=state.v82.dailyWalkHabit||{};state.v82.dailyWalkHabit.enabled=false;migratePlansV10();state.v06.locationCapabilities['Work Gym'].stairmaster=false;saveState();return out;};
+
+  /* ---------- v10 styling ---------- */
+  const css=document.createElement('style');css.id='fs-v1000-style';css.textContent=`
+    #set-reps.fs-v10-rep-warning{color:#a33b2b!important;border-color:#a33b2b!important;box-shadow:0 0 0 1px #a33b2b inset;font-weight:900}
+    .fs-v10-timer-tap{background:var(--rust)!important;color:#fff!important;transform:scale(.97);transition:background .08s ease,transform .08s ease}
+    .fs-v10-week-focus .card{border-color:rgba(178,84,46,.28)}
+    .fs-v10-progress .metric-card .value{font-variant-numeric:tabular-nums}
+  `;document.head.appendChild(css);
+
+  /* Reconcile future plans once. Completed history remains untouched. */
+  try{migratePlansV10();if(typeof window.fsV923ReconcilePlans==='function')window.fsV923ReconcilePlans();}catch(_){ }
+  saveState();render();
+})();
+
+</script>
+
+
+<!-- FitnSmart v10.1.0 -->
+<script>
+(function(){
+  'use strict';
+  /* =========================================================
+     FitnSmart v10.1.0 — stress-test refinement
+     - lower-body architecture: unilateral + bilateral press, extension/curl,
+       hinge, abductor/adductor, calf; tibialis may be a quick extra slot
+     - performance-confirmed step-up progression
+     - station-aware exercise ordering
+     - stricter input sanity checks
+     - corrected weight-moved totals placed with top Progress metrics
+     ========================================================= */
+  state.v1010=(state.v1010&&typeof state.v1010==='object')?state.v1010:{};
+  state.v1010.version='10.1.0';
+  state.v1010.schema=1;
+  state.v1010.setConfirm=null;
+  state.v1010.cardioConfirm=null;
+
+  /* ---------- New knee-extension exercise ---------- */
+  if(!EXERCISES.seated_leg_extension){
+    const ex={id:'seated_leg_extension',name:'Seated Leg Extension',type:'strength',movement:'knee_extension',altGroup:'knee_extension',equipmentType:'machine',sets:2,repMin:10,repMax:15,defaultLoad:20,priority:2,
+      why:'Direct quadriceps and knee-extensor strength to complement the seated leg curl and compound leg-press work.',
+      cues:['Set the knee joint close to the machine pivot.','Extend smoothly without kicking the stack.','Lower under control through a comfortable range.'],
+      mistakes:['Swinging the weight','Slamming into lockout','Using a painful range'],muscles:['Quadriceps'],substitutions:['leg_press','unilateral_leg_press']};
+    if(typeof fsV9AddExercise==='function')fsV9AddExercise(ex,null);else{EXERCISES[ex.id]=ex;state.exerciseState[ex.id]=state.exerciseState[ex.id]||{load:20,lastReps:[],lastRpe:null,feedback:null,completedCount:0};}
+  }
+  if(EXERCISES.unilateral_leg_press){
+    EXERCISES.unilateral_leg_press.sets=2;
+    EXERCISES.unilateral_leg_press.why='Single-leg knee-dominant strength. Use the same prescription on both sides; the weaker side governs progression.';
+  }
+  if(EXERCISES.leg_press)EXERCISES.leg_press.sets=2;
+
+  /* A simple offline visual for the new machine exercise. */
+  const svg101Base=exerciseSVG;
+  exerciseSVG=function(id,large=false){
+    if(id!=='seated_leg_extension')return svg101Base(id,large);
+    const draw=(extended)=>`<svg viewBox="0 0 240 180" role="img" aria-label="Seated Leg Extension ${extended?'extended':'start'}" xmlns="http://www.w3.org/2000/svg"><rect width="240" height="180" rx="18" fill="#0b0e12"/><path d="M55 132h88M68 65v68M68 68h54" stroke="#8d98a2" stroke-width="8" stroke-linecap="round"/><circle cx="104" cy="48" r="11" fill="#d7dde2"/><path d="M103 59l-12 49M91 76l27 19" stroke="#d7dde2" stroke-width="9" stroke-linecap="round"/><path d="M92 108l${extended?'50 2':'32 27'}" stroke="#ff6f76" stroke-width="12" stroke-linecap="round"/><path d="M${extended?'142 110':'124 135'}l${extended?'45 0':'21 19'}" stroke="#d7dde2" stroke-width="10" stroke-linecap="round"/><rect x="${extended?'181':'141'}" y="${extended?'102':'147'}" width="27" height="15" rx="4" fill="#8d98a2"/><path d="M165 37v102" stroke="#8d98a2" stroke-width="6"/><rect x="157" y="45" width="23" height="65" rx="5" fill="#202832" stroke="#8d98a2"/></svg>`;
+    if(!large)return draw(false);
+    return `<div style="display:flex;gap:8px"><div style="flex:1;text-align:center">${draw(false)}<div class="subtle small" style="margin-top:4px;font-weight:700;text-transform:uppercase">Start</div></div><div style="flex:1;text-align:center">${draw(true)}<div class="subtle small" style="margin-top:4px;font-weight:700;text-transform:uppercase">End</div></div></div>`;
+  };
+
+  /* ---------- Harder location eligibility ---------- */
+  const avail101Base=fsExerciseAvailable;
+  fsExerciseAvailable=function(id,loc=state.ui.location){
+    const homeOnlyAllowed=new Set(['goblet_squat','sumo_goblet_squat','bodyweight_squat','dumbbell_rdl','band_rdl','db_reverse_lunge','reverse_lunge','supported_split_squat','db_hip_thrust','glute_bridge','band_lateral_walk','side_lunge','calf_raise','tibialis_raise','band_tibialis_raise','one_arm_db_row','band_row','band_lat_pulldown','db_pullover','db_chest_press','knee_pushup','wall_pushup','db_overhead_press','db_biceps_curl','db_triceps_extension','pallof_press','plank','crunch','weighted_crunch','band_chop','russian_twist','suitcase_hold','standing_march','kb_around_world','bird_dog','step_up','loaded_carry']);
+    const machineCable=new Set(['leg_press','unilateral_leg_press','leg_press_calf_raise','machine_calf_raise','seated_leg_curl','lying_leg_curl','seated_leg_extension','hip_abductor_machine','hip_adductor_machine','hip_thrust_machine','machine_row','machine_chest_press','machine_shoulder_press','cable_curl','cable_pressdown','cable_pallof','cable_chop','cable_crunch','cable_glute_kickback','cable_hip_abduction','cable_hip_adduction','cable_dorsiflexion','face_pull','straight_arm_pulldown','neutral_grip_pulldown','single_arm_cable_pulldown','lat_pulldown','underhand_pulldown','back_extension']);
+    if((loc==='Home'||loc==='Travel / Minimal')&&machineCable.has(id))return false;
+    if(id==='seated_leg_extension'&&!['Work Gym','Commercial Gym'].includes(loc))return false;
+    if(loc==='Home'&&machineCable.has(id)&&!homeOnlyAllowed.has(id))return false;
+    return avail101Base(id,loc);
+  };
+
+  /* ---------- Station-aware ordering ---------- */
+  function stationOf(id,loc){
+    if(['incline_finish_walk','hill_walk','long_walk','outdoor_hill_walk','outdoor_long_walk','hike_stepups','stairmaster'].includes(id))return 90;
+    if(['unilateral_leg_press','leg_press','leg_press_calf_raise'].includes(id))return 10;
+    if(/cable|pulldown|face_pull/.test(id)||['lat_pulldown','underhand_pulldown','cable_pallof','cable_chop','cable_crunch'].includes(id))return 40;
+    if(/machine/.test(id)||['seated_leg_curl','lying_leg_curl','seated_leg_extension','back_extension','hip_abductor_machine','hip_adductor_machine'].includes(id))return 20;
+    if(/dumbbell|^db_|goblet|rdl|good_morning|pullover/.test(id))return 30;
+    if(/band/.test(id))return 35;
+    if(['plank','crunch','weighted_crunch','bird_dog','russian_twist','glute_bridge','knee_pushup','wall_pushup'].includes(id))return 60;
+    if(['loaded_carry','suitcase_hold','standing_march','kb_around_world','step_up','reverse_lunge','db_reverse_lunge','supported_split_squat','side_lunge','calf_raise','tibialis_raise'].includes(id))return 50;
+    return 45;
+  }
+  function stationAware(ids,loc,{keepLast=null}={}){
+    const last=keepLast&&ids.includes(keepLast)?keepLast:null;
+    const body=ids.filter(id=>id!==last).map((id,i)=>({id,i,s:stationOf(id,loc)}));
+    body.sort((a,b)=>a.s-b.s||a.i-b.i);
+    const out=body.map(x=>x.id);if(last)out.push(last);return out;
+  }
+
+  /* ---------- Lower Body: settled eight-slot architecture ---------- */
+  function dueTib(dateKey){return typeof window.fsV10TibialisDue==='function'?window.fsV10TibialisDue(dateKey):false;}
+  function firstAvail(cands,loc){return cands.find(id=>EXERCISES[id]&&fsExerciseAvailable(id,loc))||null;}
+  function lower101(loc,dateKey,duration){
+    const gym=['Work Gym','Commercial Gym'].includes(loc),due=dueTib(dateKey);let main=[];
+    if(gym){
+      main=[
+        firstAvail(['unilateral_leg_press'],loc),
+        firstAvail(['leg_press'],loc),
+        firstAvail(['seated_leg_extension'],loc),
+        firstAvail(['seated_leg_curl','lying_leg_curl'],loc),
+        firstAvail(['dumbbell_rdl','cable_pull_through'],loc),
+        firstAvail(['hip_abductor_machine','cable_hip_abduction'],loc),
+        firstAvail(['hip_adductor_machine','cable_hip_adduction'],loc),
+        firstAvail(['leg_press_calf_raise','machine_calf_raise','calf_raise'],loc)
+      ].filter(Boolean);
+      if(duration==='40 min')main=main.filter(id=>id!=='leg_press');
+      if(duration==='20 min')main=[firstAvail(['unilateral_leg_press'],loc),firstAvail(['seated_leg_extension'],loc),firstAvail(['seated_leg_curl','lying_leg_curl'],loc),firstAvail(['dumbbell_rdl','cable_pull_through'],loc)].filter(Boolean);
+    }else{
+      /* Home intentionally differs rather than pretending machines exist. */
+      main=[
+        firstAvail(['goblet_squat','bodyweight_squat'],loc),
+        firstAvail(['db_reverse_lunge','reverse_lunge','supported_split_squat'],loc),
+        firstAvail(['dumbbell_rdl','band_rdl'],loc),
+        firstAvail(['band_lateral_walk'],loc),
+        firstAvail(['sumo_goblet_squat','side_lunge'],loc),
+        firstAvail(['glute_bridge','db_hip_thrust'],loc),
+        firstAvail(['calf_raise'],loc)
+      ].filter(Boolean);
+      if(duration==='40 min')main=main.slice(0,6);
+      if(duration==='20 min')main=main.slice(0,4);
+    }
+    if(due){const tib=firstAvail(loc==='Home'?['tibialis_raise','band_tibialis_raise']:['tibialis_raise','cable_dorsiflexion','band_tibialis_raise'],loc);if(tib&&!main.includes(tib))main.push(tib);}
+    /* Lower Body has a deliberate order: leg-press station together, then hinge,
+       then the remaining machine block. Tibialis stays a quick final add-on. */
+    const tib=main.find(id=>['tibialis_raise','band_tibialis_raise','cable_dorsiflexion'].includes(id));
+    const gymOrder=['unilateral_leg_press','leg_press','leg_press_calf_raise','machine_calf_raise','calf_raise','dumbbell_rdl','cable_pull_through','seated_leg_extension','seated_leg_curl','lying_leg_curl','hip_abductor_machine','cable_hip_abduction','hip_adductor_machine','cable_hip_adduction'];
+    const homeOrder=['goblet_squat','bodyweight_squat','db_reverse_lunge','reverse_lunge','supported_split_squat','dumbbell_rdl','band_rdl','glute_bridge','db_hip_thrust','band_lateral_walk','sumo_goblet_squat','side_lunge','calf_raise'];
+    const order=gym?gymOrder:homeOrder;
+    let body=main.filter(id=>id!==tib).sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);if(ai>=0||bi>=0)return (ai<0?999:ai)-(bi<0?999:bi);return stationOf(a,loc)-stationOf(b,loc);});
+    if(tib)body.push(tib);return [...new Set(body)];
+  }
+
+  /* Keep existing v10 adaptive Core + Hiking logic, but protect the hiking
+     module when duration is shortened. */
+  const strength101Base=window.fsV10StrengthPlan||fsStrengthPlan;
+  function coreHiking101(loc,dateKey,duration){
+    if(duration==='Recommended'||!duration){
+      const full=strength101Base(loc,'Core + Hiking',dateKey,'Recommended');
+      const module=full.length>=7?full[full.length-1]:null;
+      return stationAware(full,loc,{keepLast:module});
+    }
+    const full=strength101Base(loc,'Core + Hiking',dateKey,'Recommended');
+    const module=full.length>=7?full[full.length-1]:null;
+    if(duration==='40 min'){
+      let core=module?full.slice(0,-1):full.slice();core=stationAware(core.slice(0,5),loc);if(module&&!core.includes(module))core.push(module);return core;
+    }
+    if(duration==='20 min'){
+      let core=module?full.slice(0,-1):full.slice();core=stationAware(core.slice(0,3),loc);if(module&&!core.includes(module))core.push(module);return core.slice(0,4);
+    }
+    return stationAware(full,loc,{keepLast:module});
+  }
+  function strength101(loc=state.ui.location,focus='Upper Body',dateKey=fsTodayKey(),duration=state.ui.duration){
+    if(focus==='Upper Body + Core')focus='Upper Body';
+    if(focus==='Lower Body + Core'||focus==='Hiking Support + Core')focus='Core + Hiking';
+    if(focus==='Lower Body')return lower101(loc,dateKey,duration);
+    if(focus==='Core + Hiking')return coreHiking101(loc,dateKey,duration);
+    const ids=strength101Base(loc,focus,dateKey,duration).filter(id=>EXERCISES[id]&&fsExerciseAvailable(id,loc));
+    return stationAware([...new Set(ids)],loc);
+  }
+  window.fsV101StrengthPlan=strength101;window.fsV10StrengthPlan=strength101;fsStrengthPlan=strength101;
+
+  /* Short sessions reduce sets first. The two leg-press tracks are always two
+     working sets each when present, preserving independent progression. */
+  const sets101Base=fsV9AdaptiveSets;
+  fsV9AdaptiveSets=function(id){
+    const duration=state.activeWorkout?.durationMode||state.ui.duration||'Recommended',base=sets101Base(id);
+    if(['unilateral_leg_press','leg_press','seated_leg_extension'].includes(id))return Math.min(2,base||2);
+    if(duration==='20 min'||duration==='40 min')return Math.min(2,base||2);
+    return base;
+  };
+
+  /* ---------- Performance-confirmed step-up progression ---------- */
+  function stepRows(dateKey=fsTodayKey()){
+    const ref=new Date(`${dateKey}T23:59:59`).getTime();
+    return (state.history||[]).filter(h=>{const t=new Date(h.date).getTime();if(!(t<=ref))return false;const typ=String(h.cardio?.type||h.cardioType||h.sessionType||'').toLowerCase();return ['hiking_stepups','step_ups','step-ups'].includes(typ)&&Number(h.cardio?.totalSteps||h.activityDetails?.totalSteps||0)>0;}).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  }
+  function stepActual(h){return Math.max(0,Number(h?.cardio?.totalSteps||h?.activityDetails?.totalSteps||0));}
+  function stepPrescribed(h){return Math.max(0,Number(h?.cardio?.prescribed?.totalSteps||h?.cardio?.prescribedTarget||0))||stepActual(h);}
+  function stepSuccessful(h){const actual=stepActual(h),target=stepPrescribed(h),rpe=Number(h?.cardio?.rpe||0),fb=String(h?.activityDetails?.strengthFeedback||'').toLowerCase();return actual>0&&actual>=target*.98&&!h?.cardio?.pain&&!['too_hard','pain'].includes(fb)&&(!rpe||rpe<=8)&&['completed','shortened'].includes(String(h?.status||'completed'));}
+  function nextStepDose(n){if(n<250)return n+25;if(n<600)return n+50;if(n<800)return n+75;return n+100;}
+  function stepTarget101(dateKey=fsTodayKey()){
+    const rows=stepRows(dateKey);if(!rows.length)return 150;
+    const latest=rows[0],target=Math.max(150,Math.round(stepPrescribed(latest)/25)*25),tol=Math.max(12.5,target*.08);
+    if(!stepSuccessful(latest))return Math.min(1000,target);
+    const confirmed=rows.filter(h=>stepSuccessful(h)&&Math.abs(stepPrescribed(h)-target)<=tol).slice(0,2).length>=2;
+    return Math.min(1000,confirmed?Math.round(nextStepDose(target)/25)*25:target);
+  }
+  window.fsV101StepTarget=stepTarget101;
+  const rx101Base=window.fsV923CardioRxFor;
+  window.fsV923CardioRxFor=function(id,dateKey=fsTodayKey(),loc=state.ui.location){
+    if(id==='hike_stepups'){
+      const total=stepTarget101(dateKey);return {name:'Hill Endurance · Step-Ups',minutes:null,distance:null,speed:null,incline:null,totalSteps:total,purpose:'Progressive hiking-specific climbing endurance at Work Gym.',progressionNote:`Target ${total} total step-ups. Coach increases the rep target only after repeated successful workloads; time and heart-rate data are logged as performance context.`};
+    }
+    return rx101Base?rx101Base(id,dateKey,loc):fsCardioRx(id);
+  };
+  window.fsV922CardioRxFor=window.fsV923CardioRxFor;
+  const cardioRx101Base=fsCardioRx;
+  fsCardioRx=function(id){if(id==='hike_stepups')return window.fsV923CardioRxFor(id,fsTodayKey(),state.ui.location);return cardioRx101Base(id);};
+
+  /* Save the prescribed target so incomplete/hard sessions can hold the dose
+     rather than accidentally resetting the baseline to the smaller actual count. */
+  fsV9SaveSpecialCardio=function(id){
+    const w=state.activeWorkout,isSteps=id==='hike_stepups',minutes=Number(document.querySelector('#v9-cardio-time')?.value||0)||null,steps=Number(document.querySelector('#v9-cardio-steps')?.value||0)||null,rpe=Number(document.querySelector('#v9-cardio-rpe')?.value||0)||null;
+    if(!rpe){toast('Add a session RPE before saving.');return;}
+    const rx=w?.cardioRx||fsCardioRx(id);
+    w.cardio={distance:null,speed:null,incline:null,minutes,avgHr:Number(document.querySelector('#v9-cardio-avg')?.value||0)||null,peakHr:Number(document.querySelector('#v9-cardio-peak')?.value||0)||null,endHr:null,hr60:null,hrr60:null,rpe,elevationGain:null,elevationLoss:null,note:document.querySelector('#v9-cardio-note')?.value||'',pain:!!document.querySelector('#v9-cardio-pain')?.checked,type:isSteps?'hiking_stepups':'stairmaster',totalSteps:steps,load:isSteps?(Number(document.querySelector('#v9-cardio-load')?.value||0)||0):null,stepHeight:isSteps?(Number(document.querySelector('#v9-cardio-height')?.value||0)||null):null,level:!isSteps?(Number(document.querySelector('#v9-cardio-level')?.value||0)||null):null,prescribed:isSteps?{totalSteps:Number(rx?.totalSteps||0)||null}:undefined};
+    w.meta=w.meta||{};w.meta.cardioType=isSteps?'hiking_stepups':'hill';if(w.plan?.[w.index])w.plan[w.index].completed=true;w.performanceOrder=w.performanceOrder||[];w.performanceOrder.push(id);saveState();advanceExercise();
+  };
+
+  /* ---------- Tighter strength-entry sanity checks ---------- */
+  function strengthCtx101(){const w=state.activeWorkout,item=w?.plan?.[w.index],ex=EXERCISES[item?.exerciseId];return {w,item,ex};}
+  function repWarn101(ex,reps){if(!ex||ex.timeBased||['step_up','hike_stepups'].includes(ex.id))return false;const max=Number(ex.repMax||0);return max>0&&reps>=max+10;}
+  function loadWarn101(ex,weight){if(!ex||!(weight>0)||ex.timeBased)return false;const prior=Number(state.exerciseState?.[ex.id]?.load||0);return prior>=10&&weight>prior*2&&(weight-prior)>=20;}
+  function paintStrengthSanity101(){const {ex}=strengthCtx101(),r=document.querySelector('#set-reps'),w=document.querySelector('#set-weight');if(r)r.classList.toggle('fs-v101-warning',repWarn101(ex,Number(r.value||0)));if(w)w.classList.toggle('fs-v101-warning',loadWarn101(ex,Number(w.value||0)));}
+  const log101Base=logStrengthSet;
+  logStrengthSet=function(){const {item,ex}=strengthCtx101();const reps=Number(document.querySelector('#set-reps')?.value||0),weight=Number(document.querySelector('#set-weight')?.value||0),rw=repWarn101(ex,reps),lw=loadWarn101(ex,weight),key=`${item?.exerciseId||''}|${reps}|${weight}|${(item?.sets||[]).length}`;
+    if((rw||lw)&&state.v1010.setConfirm!==key){state.v1010.setConfirm=key;saveState();paintStrengthSanity101();const msg=[rw?`${reps} reps is well above the prescribed ${ex.repMin}–${ex.repMax}`:null,lw?`${weight} lb is a very large jump from your recent ${Number(state.exerciseState?.[ex.id]?.load||0)} lb`:null].filter(Boolean).join('. ');toast(`${msg}. Tap Complete set again if that is intentional.`);return;}
+    if(rw&&reps>=100)state.v1000.setConfirm=key;const before=(item?.sets||[]).length;state.v1010.setConfirm=null;const out=log101Base();if((rw||lw)&&item?.sets?.length>before){item.sets[item.sets.length-1].sanityConfirmed=true;saveState();}return out;
+  };
+
+  /* ---------- Cardio derived-speed sanity check ---------- */
+  function minutes101(raw){const s=String(raw??'').trim();if(!s)return null;if(s.includes(':')){const p=s.split(':').map(Number);if(p.some(x=>!Number.isFinite(x)))return null;if(p.length===2)return p[0]+p[1]/60;if(p.length===3)return p[0]*60+p[1]+p[2]/60;}const n=Number(s);return Number.isFinite(n)?n:null;}
+  function derivedSpeed101(){const d=Number(document.querySelector('#cardio-distance')?.value||0),t=minutes101(document.querySelector('#cardio-time')?.value);return d>0&&t>0?d/(t/60):null;}
+  function speedWarn101(mph){const typ=String(state.activeWorkout?.meta?.cardioType||state.activeWorkout?.meta?.sessionType||'').toLowerCase();return mph!=null&&/easy|hill|long|walk|hike/.test(typ)&&mph>8;}
+  const speedUpdate101Base=window.fsV10UpdateAverageSpeed;
+  window.fsV10UpdateAverageSpeed=function(){speedUpdate101Base?.();const mph=derivedSpeed101(),out=document.querySelector('#fs-v10-speed-calc'),speed=document.querySelector('#cardio-speed'),warn=speedWarn101(mph);if(speed)speed.classList.toggle('fs-v101-warning',warn);if(out&&mph!=null){out.classList.toggle('fs-v101-cardio-warning',warn);out.innerHTML=warn?`<strong>Calculated avg: ${mph.toFixed(2)} mph</strong><div class="subtle small">That result is unusually fast for a walking/hiking workout. Check distance and time before saving.</div>`:`<strong>Calculated average speed: ${mph.toFixed(2)} mph</strong>`;}};
+  const saveCardio101Base=saveCardio;
+  saveCardio=function(){const mph=derivedSpeed101(),warn=speedWarn101(mph),d=Number(document.querySelector('#cardio-distance')?.value||0),t=String(document.querySelector('#cardio-time')?.value||''),key=`${d}|${t}|${mph?.toFixed(2)||''}`;if(warn&&state.v1010.cardioConfirm!==key){state.v1010.cardioConfirm=key;saveState();window.fsV10UpdateAverageSpeed?.();toast(`${d} mi in ${t} works out to ${mph.toFixed(1)} mph. Check the entry, or tap Save & continue again if it is intentional.`);return;}state.v1010.cardioConfirm=null;return saveCardio101Base();};
+
+  document.addEventListener('input',e=>{if(['set-reps','set-weight'].includes(e.target?.id)){state.v1010.setConfirm=null;paintStrengthSanity101();}if(['cardio-distance','cardio-time'].includes(e.target?.id)){state.v1010.cardioConfirm=null;setTimeout(()=>window.fsV10UpdateAverageSpeed?.(),0);}});
+
+  /* ---------- Corrected Weight Moved + top Progress placement ---------- */
+  function safeVolumeRows101(rows){
+    return (rows||[]).filter(h=>!h?._fsDuplicateOf).map(h=>({
+      ...h,
+      exercises:(h.exercises||[]).map(e=>({
+        ...e,
+        sets:(e.sets||[]).filter(s=>{
+          const ex=EXERCISES[e.exerciseId];if(!ex||ex.timeBased)return true;
+          const reps=Number(s.reps||0);
+          /* Historical data predates the confirmation flag. Only exclude the
+             clearly implausible triple-digit strength typo unless the user
+             explicitly confirmed it. New +10-over-range entries are already
+             blocked at entry time until confirmed. */
+          return s.sanityConfirmed||reps<100;
+        })
+      }))
+    }));
+  }
+  function vol101(){const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`,pmD=new Date(now.getFullYear(),now.getMonth()-1,1),pm=`${pmD.getFullYear()}-${String(pmD.getMonth()+1).padStart(2,'0')}`,day=now.getDate();const rows=safeVolumeRows101(state.history||[]),monthRows=rows.filter(h=>fsLocalDateKey(h.date).slice(0,7)===ym),priorRows=rows.filter(h=>{const k=fsLocalDateKey(h.date);return k.slice(0,7)===pm&&Number(k.slice(8,10))<=day;});const fn=window.fsV925WeightMoved||(()=>0);const month=Math.round(fn(monthRows)),prior=Math.round(fn(priorRows)),total=Math.round(fn(rows));return {month,prior,total,pct:prior>0?Math.round((month-prior)/prior*100):null};}
+  window.fsV101VolumeTotals=vol101;window.fsV10VolumeTotals=vol101;
+  function walkMiles101(rows){if(typeof window.fsV925WalkMiles==='function')return window.fsV925WalkMiles(rows);return (rows||[]).reduce((a,h)=>a+Math.max(0,Number(h.cardio?.distance||0)),0);}
+  function elevation101(rows){if(typeof window.fsV926VerticalClimbed==='function')return window.fsV926VerticalClimbed(rows);return (rows||[]).reduce((a,h)=>a+Math.max(0,Number(h.cardio?.elevationGain||0)),0);}
+  function removeSectionClass101(html,cls){const start=html.indexOf(`<section class="section ${cls}`);if(start<0)return html;let depth=0,end=-1,re=/<section\b|<\/section>/g,m;re.lastIndex=start;while((m=re.exec(html))){if(m[0].startsWith('<section'))depth++;else depth--;if(depth===0){end=re.lastIndex;break;}}return end>start?html.slice(0,start)+html.slice(end):html;}
+  function replaceSectionClass101(html,cls,block){const start=html.indexOf(`<section class="section ${cls}`);if(start<0)return html;let depth=0,end=-1,re=/<section\b|<\/section>/g,m;re.lastIndex=start;while((m=re.exec(html))){if(m[0].startsWith('<section'))depth++;else depth--;if(depth===0){end=re.lastIndex;break;}}return end>start?html.slice(0,start)+block+html.slice(end):html;}
+  const progress101Base=renderProgress;
+  renderProgress=function(){let html=progress101Base();const rows=(state.history||[]).filter(h=>!h?._fsDuplicateOf),m=walkMiles101(rows),e=elevation101(rows),v=vol101(),cut=Date.now()-30*86400000,m30=walkMiles101(rows.filter(h=>new Date(h.date).getTime()>=cut)),fmt1=x=>Number(x).toLocaleString(undefined,{minimumFractionDigits:Number(x)<100?1:0,maximumFractionDigits:1}),delta=v.pct==null?'No prior-month comparison yet':`${v.pct>=0?'+':''}${v.pct}% vs same days last month`;
+    const top=`<section class="section fs-v9233-game-stats"><div class="metric-grid"><div class="metric-card"><div class="subtle small">Total Miles Walked</div><div class="value">${fmt1(m)} mi</div><div class="delta">${m30>0?`${fmt1(m30)} mi in the last 30 days`:'Every logged walk or hike adds up'}</div></div><div class="metric-card"><div class="subtle small">Total Elevation Gained</div><div class="value">${Math.round(e).toLocaleString()} ft</div><div class="delta">Hikes + eligible treadmill incline work</div></div><div class="metric-card"><div class="subtle small">Weight Moved This Month</div><div class="value">${v.month.toLocaleString()} lb</div><div class="delta">${esc(delta)}</div></div><div class="metric-card"><div class="subtle small">Total Weight Moved</div><div class="value">${v.total.toLocaleString()} lb</div><div class="delta">Logged external-load training volume</div></div></div></section>`;
+    html=replaceSectionClass101(html,'fs-v9233-game-stats',top);
+    html=removeSectionClass101(html,'fs-v10-progress');
+    const ts=typeof window.fsV10TrainingState==='function'?window.fsV10TrainingState():null;if(ts){const focus=`<section class="section fs-v101-progress-focus"><div class="card flat"><div class="profile-row"><div><strong>Coach focus</strong><div class="subtle small">${esc(ts.reason||'')}</div></div><div class="value">${esc(ts.focus||'')}</div></div><div class="profile-row"><div><strong>Strength status</strong><div class="subtle small">Progress when performance supports it; hike readiness sets priority, not a ceiling.</div></div><div class="value">Progressing</div></div></div></section>`;const mark='<section class="section" id="preparedness">',i=html.indexOf(mark);html=i>=0?html.slice(0,i)+focus+html.slice(i):html.replace(nav('progress'),focus+nav('progress'));}
+    return html;
+  };
+
+  /* ---------- Styling ---------- */
+  const css=document.createElement('style');css.id='fs-v1010-style';css.textContent=`
+    #set-reps.fs-v101-warning,#set-weight.fs-v101-warning,#cardio-speed.fs-v101-warning{color:#a33b2b!important;border-color:#a33b2b!important;box-shadow:0 0 0 1px #a33b2b inset;font-weight:900}
+    .fs-v101-cardio-warning{border-color:#a33b2b!important;background:rgba(163,59,43,.06)!important;color:#7f2d22!important}
+    .fs-v9233-game-stats .metric-card .value{font-variant-numeric:tabular-nums}
+  `;document.head.appendChild(css);
+
+  /* Import remains blank until the user imports data; this only updates schema. */
+  const norm101Base=fsNormalizeImportedState;
+  fsNormalizeImportedState=function(imported){const out=norm101Base(imported);state.v1010=state.v1010||{};state.v1010.version='10.1.0';state.v1010.schema=1;saveState();return out;};
+
+  saveState();render();
+})();
+
+
+/* =========================================================
+   v10.1.1 — calendar/progress consistency cleanup
+   - Calendar preview uses the same live v10.1 planner as Today
+   - Progress keeps weight moved with the top cumulative metrics only
+   - Consistency scores the current 5-session weekly plan, not unique active days
+   - Coach note omits internal strength-priority logic
+   - Colorado River label gets higher-contrast river-blue text
+   ========================================================= */
+(function(){
+  'use strict';
+  state.v1010=state.v1010||{};
+  state.v1010.version='10.1.1';
+  state.v1010.schema=Math.max(2,Number(state.v1010.schema)||0);
+
+  /* ---------- One planner for Today + Calendar preview ---------- */
+  function split1011(plan){
+    const txt=`${plan?.type||''} ${plan?.title||''}`.toLowerCase();
+    if(txt.includes('core + hiking')||txt.includes('lower body + core')||txt.includes('hiking support + core'))return 'Core + Hiking';
+    if(txt.includes('upper body'))return 'Upper Body';
+    if((txt.includes('lower body')||txt.includes('lower body / legs'))&&!txt.includes('core'))return 'Lower Body';
+    return null;
+  }
+  const meta1011Base=fsV82MetaForPlan;
+  fsV82MetaForPlan=function(plan){
+    const split=split1011(plan),loc=plan?.location||state.ui.location,date=plan?.date||fsTodayKey(),duration=plan?.duration||state.ui.duration,p=fsPhase();
+    if(split){
+      const ids=(window.fsV101StrengthPlan||window.fsV10StrengthPlan||fsStrengthPlan)(loc,split,date,duration);
+      const reason=split==='Upper Body'
+        ?'Focused upper-body strength with stable anchors plus targeted pulling and coverage work.'
+        :split==='Lower Body'
+          ?'Focused lower-body strength with unilateral and bilateral leg-press work, direct knee extension/flexion, hinge, hip abduction/adduction and calf strength.'
+          :'Focused core training plus one hiking-specific module chosen from the broader week.';
+      return {type:'strength',title:split,focus:split,strengthSplit:split,ids,phase:p,estimated:estimatedMinutes(ids),reason};
+    }
+    if(/coach-selected workout|coach recommendation/i.test(`${plan?.type||''} ${plan?.title||''}`)){
+      const split=typeof fsNextStrengthSplit==='function'?fsNextStrengthSplit():'Upper Body';
+      const ids=(window.fsV101StrengthPlan||window.fsV10StrengthPlan||fsStrengthPlan)(loc,split,date,duration);
+      return {type:'strength',title:split,focus:split,strengthSplit:split,ids,phase:p,estimated:estimatedMinutes(ids),reason:'Coach selected the required strength session that best fits the current rotation.'};
+    }
+    return meta1011Base(plan);
+  };
+  fsPreviewIdsForPlan=function(dateKey,plan){const m=fsV82MetaForPlan({...plan,date:dateKey});return m?.ids||[];};
+
+  /* ---------- Coach note: report the plan, not internal policy ---------- */
+  window.fsV930TodayCoachNote=function(){
+    const ts=typeof window.fsV10TrainingState==='function'?window.fsV10TrainingState():null;
+    if(!ts)return '';
+    const today=(state.v10?.plannedSessions||[]).find(p=>p.date===fsTodayKey()&&p.status!=='completed');
+    const m=today?fsV82MetaForPlan(today):null;
+    const bits=[`Hike preparedness remains the top priority in ${ts.phase.name}. ${ts.reason}`];
+    if(ts.tibialisDue)bits.push('Tibialis is due for its weekly direct exposure, so Coach will place it in an appropriate lower-body or hiking-support session.');
+    if(m)bits.push(`Today’s planned ${m.title} session is being built around that workout’s actual purpose rather than whichever coverage category happens to be lowest.`);
+    return bits.join(' ');
+  };
+
+  /* ---------- Current plan = five purposeful primary sessions / week ---------- */
+  function primarySessions1011(days=7){
+    const rows=typeof fsRecentAny==='function'?fsRecentAny(days):(state.history||[]);
+    return (rows||[]).filter(h=>!h?._fsDuplicateOf && (typeof fsV83IsPrimaryTrainingHistory==='function'?fsV83IsPrimaryTrainingHistory(h):true));
+  }
+  function applyConsistency1011(out){
+    if(!out?.areas)return out;
+    const count=primarySessions1011(7).length,target=5,score=fsScoreFromRatio(count/target);
+    const a=out.areas.find(x=>x.key==='consistency');
+    if(a){a.score=score;a.detail=`${Math.min(count,target)}/${target} planned training sessions completed in the rolling 7-day window. Rest days and combining sessions on the same day do not count against consistency.`;}
+    out.onTrackCount=out.areas.filter(x=>x.score>=3.8).length;
+    out.weakest=[...out.areas].sort((x,y)=>x.score-y.score)[0];
+    if('average' in out)out.average=out.areas.reduce((sum,x)=>sum+x.score,0)/out.areas.length;
+    if('transition' in out){const p=fsPhase(),nearEnd=fsWeek()>=p.end-1;out.transition=nearEnd&&out.onTrackCount>=4;}
+    if(out.mode==='hike'||'average' in out){
+      const avg=out.average??out.areas.reduce((sum,x)=>sum+x.score,0)/out.areas.length;
+      out.programStatus=avg>=4.4?'Hike-ready range':avg>=3.6?'Building toward hike readiness':avg>=2.6?'Early-to-mid preparation':'Foundation still developing';
+    }else out.programStatus=out.onTrackCount>=4?'On track':out.onTrackCount===3?'Catch-up needed':'Behind the current timeline';
+    return out;
+  }
+  const prep1011Base=fsPreparedness;
+  fsPreparedness=function(...args){return applyConsistency1011(prep1011Base(...args));};
+  const hike1011Base=fsHikePreparedness;
+  fsHikePreparedness=function(...args){return applyConsistency1011(hike1011Base(...args));};
+
+  /* ---------- Progress cleanup ---------- */
+  function cutSection1011(html,cls){
+    const probes=[`<section class="section ${cls}`,`<section class="${cls}`];let start=-1;
+    for(const p of probes){start=html.indexOf(p);if(start>=0)break;}
+    if(start<0)return html;
+    let depth=0,end=-1,re=/<section\b|<\/section>/g,m;re.lastIndex=start;
+    while((m=re.exec(html))){if(m[0].startsWith('<section'))depth++;else depth--;if(depth===0){end=re.lastIndex;break;}}
+    return end>start?html.slice(0,start)+html.slice(end):html;
+  }
+  const progress1011Base=renderProgress;
+  renderProgress=function(){
+    let html=progress1011Base();
+    /* Top v10.1 cumulative cards stay. Remove duplicate/analysis blocks below. */
+    html=cutSection1011(html,'fs-v10-progress');
+    html=cutSection1011(html,'fs-v101-progress-focus');
+    html=cutSection1011(html,'fs-v925-game-stats');
+    return html;
+  };
+
+  /* ---------- Phase tracker label contrast ---------- */
+  const canyon1011Base=fsCanyonTrackerHTML;
+  fsCanyonTrackerHTML=function(...args){
+    const html=canyon1011Base(...args);
+    return String(html).replace(/(<text x="240" y="218" font-size="10" fill=")[^"]+(" font-weight="700" text-anchor="middle">Colorado River<\/text>)/,'$1#225F73$2');
+  };
+
+  const normalize1011Base=fsNormalizeImportedState;
+  fsNormalizeImportedState=function(imported){const out=normalize1011Base(imported);state.v1010=state.v1010||{};state.v1010.version='10.1.1';state.v1010.schema=Math.max(2,Number(state.v1010.schema)||0);return out;};
+
+  const css=document.createElement('style');css.id='fs-v1011-style';css.textContent=`
+    .fs-v9233-game-stats{margin-bottom:20px}
+  `;document.head.appendChild(css);
+
+  saveState();render();
+})();
+</script>
 </body>
 </html>
