@@ -10759,5 +10759,257 @@ saveState();render();
   saveState();render();
 })();
 </script>
+<script>
+(function(){
+  'use strict';
+  /* =========================================================
+     FitnSmart v10.2.0 — planner integrity + resilient logging
+     ========================================================= */
+  state.v1020=(state.v1020&&typeof state.v1020==='object')?state.v1020:{};
+  state.v1020.version='10.2.0';
+  state.v1020.schema=1;
+
+  /* ---------- universal duration helpers ---------- */
+  function v102Pad(n){return String(Math.max(0,Math.floor(Number(n)||0))).padStart(2,'0');}
+  function v102MinutesToHMS(mins){const sec=Math.max(0,Math.round((Number(mins)||0)*60));return `${v102Pad(Math.floor(sec/3600))}:${v102Pad(Math.floor((sec%3600)/60))}:${v102Pad(sec%60)}`;}
+  function v102SecondsToHMS(sec){sec=Math.max(0,Math.round(Number(sec)||0));return `${v102Pad(Math.floor(sec/3600))}:${v102Pad(Math.floor((sec%3600)/60))}:${v102Pad(sec%60)}`;}
+  function v102ParseMinutes(raw){
+    const s=String(raw??'').trim();if(!s)return null;
+    if(!s.includes(':')){const n=Number(s);return Number.isFinite(n)&&n>=0?n:null;}
+    const p=s.split(':').map(Number);if(p.some(x=>!Number.isFinite(x)||x<0))return null;
+    let h=0,m=0,sec=0;if(p.length===3)[h,m,sec]=p;else if(p.length===2)[m,sec]=p;else return null;
+    if(m>=60||sec>=60)return null;return (h*3600+m*60+sec)/60;
+  }
+  function v102DigitsToHMS(raw){const d=String(raw||'').replace(/\D/g,'').slice(-6);if(!d)return '';const z=d.padStart(6,'0');return `${z.slice(0,2)}:${z.slice(2,4)}:${z.slice(4,6)}`;}
+  window.fsV102FormatDuration=v102MinutesToHMS;window.fsV102ParseDuration=v102ParseMinutes;
+  window.fsV960FormatDuration=v102MinutesToHMS;window.fsV960ParseDuration=v102ParseMinutes;
+
+  /* ---------- exercise metadata / suitcase march ---------- */
+  if(!EXERCISES.suitcase_march){
+    EXERCISES.suitcase_march={id:'suitcase_march',name:'Suitcase Dumbbell March',type:'strength',movement:'dynamic_trunk_stability',altGroup:'dynamic_trunk_stability',equipmentType:'dumbbell',sets:2,repMin:10,repMax:16,defaultLoad:10,priority:2,
+      why:'Dynamic trunk control and single-leg stability while a one-sided load tries to pull the torso off center.',
+      cues:['Hold one dumbbell at one side.','Stand tall without leaning toward or away from the load.','March slowly with controlled alternating knee lifts.','Complete the prescribed reps, then switch the dumbbell to the other side.'],
+      mistakes:['Leaning toward the dumbbell','Rushing the march','Letting the pelvis hike or rotate'],muscles:['Core','Glutes','Grip'],substitutions:['loaded_carry','standing_march'],repBasis:'per_side',loadBasis:'single_implement'};
+    state.exerciseState.suitcase_march=state.exerciseState.suitcase_march||{load:10,lastReps:[],lastRpe:null,feedback:null,completedCount:0};
+  }
+  const PER_SIDE=new Set(['unilateral_leg_press','one_arm_db_row','supported_split_squat','reverse_lunge','db_reverse_lunge','side_lunge','low_step_down','single_arm_cable_pulldown','cable_hip_adduction','cable_hip_abduction','cable_dorsiflexion','pallof_press','cable_pallof','cable_chop','band_chop','suitcase_march']);
+  for(const id of PER_SIDE){if(EXERCISES[id])EXERCISES[id].repBasis='per_side';}
+  for(const id of ['pallof_press','cable_pallof','cable_chop','band_chop'])if(EXERCISES[id])EXERCISES[id].laterality='unilateral';
+  if(window.FS_V912_TAXONOMY){
+    window.FS_V912_TAXONOMY.suitcase_march={family:'dynamic_trunk_stability',patterns:['carry','anti_lateral_flexion','single_leg_stability'],primary:['Core'],secondary:['Glutes','Grip'],laterality:'unilateral',role:'core'};
+    for(const id of ['pallof_press','cable_pallof','cable_chop','band_chop'])if(window.FS_V912_TAXONOMY[id])window.FS_V912_TAXONOMY[id].laterality='unilateral';
+  }
+  function v102PerSide(id){return PER_SIDE.has(id)||EXERCISES[id]?.repBasis==='per_side';}
+
+  /* ---------- home anchor rule ---------- */
+  const avail102Base=fsExerciseAvailable;
+  const ANCHOR_REQUIRED=new Set(['pallof_press','band_chop','band_row','band_lat_pulldown','standing_band_press']);
+  fsExerciseAvailable=function(id,loc=state.ui.location){if((loc==='Home'||loc==='Travel / Minimal')&&ANCHOR_REQUIRED.has(id))return false;return avail102Base(id,loc);};
+
+  /* ---------- clearer exercise visuals ---------- */
+  const svg102Base=exerciseSVG;
+  function v102SvgFrame(body,label){return `<svg viewBox="0 0 240 180" role="img" aria-label="${esc(label)}" xmlns="http://www.w3.org/2000/svg"><rect width="240" height="180" rx="18" fill="#0b0e12"/>${body}</svg>`;}
+  exerciseSVG=function(id,large=false){
+    if(id==='leg_press_calf_raise')return svg102Base('leg_press',large);
+    if(id==='suitcase_march')return v102SvgFrame(`<circle cx="118" cy="35" r="12" fill="#d7dde2"/><path d="M118 48v55M118 66l-26 20M118 67l25 17" stroke="#d7dde2" stroke-width="9" stroke-linecap="round"/><path d="M118 103l-22 41M118 103l28 23" stroke="#d7dde2" stroke-width="10" stroke-linecap="round"/><path d="M92 86v42" stroke="#ff6f76" stroke-width="8" stroke-linecap="round"/><rect x="78" y="125" width="28" height="20" rx="5" fill="#ff6f76"/><path d="M146 126l18 19" stroke="#d7dde2" stroke-width="10" stroke-linecap="round"/>`,'Suitcase Dumbbell March');
+    if(id==='face_pull')return v102SvgFrame(`<circle cx="150" cy="48" r="11" fill="#d7dde2"/><path d="M150 60v55M150 76l-36 3M150 76l34 3" stroke="#d7dde2" stroke-width="9" stroke-linecap="round"/><path d="M114 79l-30-20M184 79l27-20" stroke="#ff6f76" stroke-width="8" stroke-linecap="round"/><path d="M150 115l-20 38M150 115l22 38" stroke="#d7dde2" stroke-width="9" stroke-linecap="round"/><path d="M34 54h48" stroke="#8d98a2" stroke-width="5"/><circle cx="30" cy="54" r="8" fill="#8d98a2"/>`,'Cable Face Pull');
+    if(id==='russian_twist')return v102SvgFrame(`<circle cx="118" cy="60" r="11" fill="#d7dde2"/><path d="M115 72l-28 40M88 111l55 0M89 111l-28 31M143 111l29 29" stroke="#d7dde2" stroke-width="9" stroke-linecap="round"/><path d="M105 84l-35 3M105 84l29 12" stroke="#ff6f76" stroke-width="8" stroke-linecap="round"/><circle cx="62" cy="87" r="10" fill="#ff6f76"/>`,'Russian Twist');
+    if(id==='plank')return v102SvgFrame(`<circle cx="65" cy="89" r="10" fill="#d7dde2"/><path d="M76 92l92 25M99 99l-17 37M167 117l27 29" stroke="#d7dde2" stroke-width="10" stroke-linecap="round"/><path d="M82 136h-30M194 146h25" stroke="#ff6f76" stroke-width="8" stroke-linecap="round"/>`,'Plank');
+    return svg102Base(id,large);
+  };
+
+  /* ---------- split-preserving strength planner ---------- */
+  const strength102Base=window.fsV101StrengthPlan||window.fsV10StrengthPlan||fsStrengthPlan;
+  function v102First(cands,loc){return cands.find(id=>EXERCISES[id]&&fsExerciseAvailable(id,loc))||null;}
+  function v102LowerPlan(loc,dateKey,duration){
+    const gym=['Work Gym','Commercial Gym'].includes(loc),due=typeof window.fsV10TibialisDue==='function'&&window.fsV10TibialisDue(dateKey);let ids=[];
+    if(gym){
+      if(duration==='20 min')ids=[v102First(['unilateral_leg_press'],loc),v102First(['seated_leg_extension'],loc),v102First(['seated_leg_curl','lying_leg_curl'],loc),v102First(['dumbbell_rdl','cable_pull_through'],loc)];
+      else if(duration==='40 min')ids=[v102First(['unilateral_leg_press'],loc),v102First(['seated_leg_extension'],loc),v102First(['seated_leg_curl','lying_leg_curl'],loc),v102First(['hip_abductor_machine','cable_hip_abduction'],loc),v102First(['hip_adductor_machine','cable_hip_adduction'],loc),v102First(['leg_press_calf_raise','machine_calf_raise','calf_raise'],loc),v102First(['dumbbell_rdl','cable_pull_through'],loc)];
+      else ids=[v102First(['unilateral_leg_press'],loc),v102First(['leg_press'],loc),v102First(['seated_leg_extension'],loc),v102First(['seated_leg_curl','lying_leg_curl'],loc),v102First(['hip_abductor_machine','cable_hip_abduction'],loc),v102First(['hip_adductor_machine','cable_hip_adduction'],loc),v102First(['leg_press_calf_raise','machine_calf_raise','calf_raise'],loc),v102First(['dumbbell_rdl','cable_pull_through'],loc)];
+    }else{
+      if(duration==='20 min')ids=[v102First(['goblet_squat','sumo_goblet_squat','bodyweight_squat'],loc),v102First(['db_reverse_lunge','reverse_lunge'],loc),v102First(['calf_raise'],loc),v102First(['dumbbell_rdl','band_rdl'],loc)];
+      else if(duration==='40 min')ids=[v102First(['goblet_squat','sumo_goblet_squat'],loc),v102First(['db_reverse_lunge','reverse_lunge'],loc),v102First(['band_lateral_walk','side_lunge'],loc),v102First(['glute_bridge','db_hip_thrust'],loc),v102First(['calf_raise'],loc),v102First(['dumbbell_rdl','band_rdl'],loc)];
+      else ids=[v102First(['goblet_squat','sumo_goblet_squat'],loc),v102First(['db_reverse_lunge','reverse_lunge'],loc),v102First(['band_lateral_walk','side_lunge'],loc),v102First(['glute_bridge','db_hip_thrust'],loc),v102First(['sumo_goblet_squat','bodyweight_squat'],loc),v102First(['calf_raise'],loc),v102First(['dumbbell_rdl','band_rdl'],loc)];
+    }
+    ids=ids.filter(Boolean);
+    if(due&&duration!=='20 min'){const tib=v102First(loc==='Home'?['tibialis_raise','band_tibialis_raise']:['tibialis_raise','cable_dorsiflexion','band_tibialis_raise'],loc);if(tib&&!ids.includes(tib))ids.splice(Math.max(0,ids.length-1),0,tib);}
+    const hinges=new Set(['dumbbell_rdl','band_rdl','cable_pull_through','db_good_morning','smith_rdl']);const hinge=ids.find(x=>hinges.has(x));ids=ids.filter(x=>x!==hinge);if(hinge)ids.push(hinge);
+    return [...new Set(ids)];
+  }
+  function v102CoreHiking(loc,dateKey,duration){
+    /* Build Core + Hiking from explicit roles so shortening cannot leak Upper Body
+       movements into the split. The old planner is consulted only for its adaptive
+       hiking module (unilateral/back-extension/carry/incline choice). */
+    const raw=strength102Base(loc,'Core + Hiking',dateKey,'Recommended').filter(id=>EXERCISES[id]&&fsExerciseAvailable(id,loc));
+    const corePools=loc==='Home'
+      ? [['weighted_crunch','crunch'],['russian_twist','kb_around_world'],['plank'],['bird_dog']]
+      : [['ab_machine','cable_crunch','weighted_crunch'],['cable_pallof','pallof_press'],['cable_chop','kb_around_world'],['back_extension','plank']];
+    const ids=[];
+    for(const pool of corePools){const id=v102First(pool,loc);if(id&&!ids.includes(id))ids.push(id);}
+    const moduleCandidates=new Set(['unilateral_leg_press','step_up','db_reverse_lunge','reverse_lunge','supported_split_squat','back_extension','loaded_carry','incline_finish_walk','outdoor_hill_walk']);
+    const module=[...raw].reverse().find(id=>moduleCandidates.has(id)&&fsExerciseAvailable(id,loc))||null;
+    /* Suitcase march is the standard dynamic hiking/trunk slot; it replaces both
+       the old suitcase hold and the generic standing march. */
+    if(fsExerciseAvailable('suitcase_march',loc)&&!ids.includes('suitcase_march'))ids.push('suitcase_march');
+    if(module&&!ids.includes(module))ids.push(module);
+    let out=[...new Set(ids)].filter(id=>fsExerciseAvailable(id,loc));
+    if(duration==='20 min'){
+      /* Protect three core functions plus the hiking module/march in a short session. */
+      const march=out.includes('suitcase_march')?'suitcase_march':module;
+      let core=out.filter(id=>id!==march&&id!==module).slice(0,3);
+      if(march&&!core.includes(march))core.push(march);
+      return core.slice(0,4);
+    }
+    if(duration==='40 min')return out.slice(0,6);
+    return out.slice(0,7);
+  }
+  function v102StrengthPlan(loc=state.ui.location,focus='Upper Body',dateKey=fsTodayKey(),duration=state.ui.duration){
+    if(focus==='Upper Body + Core')focus='Upper Body';if(focus==='Lower Body + Core'||focus==='Hiking Support + Core')focus='Core + Hiking';
+    if(focus==='Lower Body')return v102LowerPlan(loc,dateKey,duration);
+    if(focus==='Core + Hiking')return v102CoreHiking(loc,dateKey,duration);
+    return [...new Set(strength102Base(loc,focus,dateKey,duration).filter(id=>EXERCISES[id]&&fsExerciseAvailable(id,loc)))];
+  }
+  window.fsV102StrengthPlan=v102StrengthPlan;window.fsV101StrengthPlan=v102StrengthPlan;window.fsV10StrengthPlan=v102StrengthPlan;fsStrengthPlan=v102StrengthPlan;
+
+  /* ---------- Today overrides regenerate the preview immediately ---------- */
+  const planMeta102Base=fsPlanMeta;
+  function v102TodayPlan(){return (state.v10?.plannedSessions||[]).find(p=>p.date===fsTodayKey()&&p.status!=='completed')||null;}
+  function v102StrengthMeta(split,loc,duration,dateKey){const ids=v102StrengthPlan(loc,split,dateKey,duration);return {type:'strength',title:split,focus:split,strengthSplit:split,ids,phase:fsPhase(),estimated:estimatedMinutes(ids),reason:split==='Lower Body'?'Focused lower-body strength. Short versions preserve the essential lower-body patterns rather than borrowing unrelated exercises.':split==='Upper Body'?'Focused upper-body strength with the planned push/pull structure preserved.':'Core and hiking-support work with a protected hiking-specific module.'};}
+  function v102Meta(){
+    if(state.activeWorkout)return planMeta102Base();
+    const loc=state.ui.location,date=fsTodayKey(),duration=state.ui.duration,focus=state.ui.focusOverride;
+    if(focus==='Upper Body'||focus==='Lower Body'||focus==='Core + Hiking')return v102StrengthMeta(focus,loc,duration,date);
+    if(focus==='Core Workout'){const p={date,location:loc,duration,type:'Core Workout',title:'Core Workout'};const m=fsV82MetaForPlan(p);if(m){m.planId=null;m.planDate=date;m.planLocation=loc;}return m;}
+    if(focus==='Full Body'){const p={date,location:loc,duration,type:'Strength — Full Body',title:'Full Body'};const m=fsV82MetaForPlan(p);if(m){m.planId=null;m.planDate=date;m.planLocation=loc;}return m;}
+    if(focus){
+      const all=state.v10?.plannedSessions||[];state.v10.plannedSessions=all.filter(p=>p.date!==date||p.status==='completed');let m;try{m=planMeta102Base();}finally{state.v10.plannedSessions=all;}if(m){m.planId=null;m.planDate=date;m.planLocation=loc;}return m;
+    }
+    const p=v102TodayPlan();if(p){const synthetic={...p,location:loc,duration};const m=fsV82MetaForPlan(synthetic);if(m){m.planId=p.id;m.planDate=date;m.planLocation=loc;m.durationMode=duration;}return m;}
+    const m=planMeta102Base();if(m){m.planDate=date;m.planLocation=loc;m.durationMode=duration;}return m;
+  }
+  fsPlanMeta=v102Meta;currentPlan=function(){return fsPlanMeta()?.ids||[];};
+
+  /* ---------- preview order is authoritative ---------- */
+  fsNextSuggestedIndex=function(w=state.activeWorkout){if(!w)return -1;return (w.plan||[]).findIndex(p=>!p.completed&&!p.skipped);};
+
+  function v102BuildActive(meta,plan=null){
+    const ids=(meta?.ids||[]).filter(id=>EXERCISES[id]);if(!ids.length){toast("Today's planned target is already covered.");return false;}
+    const loc=meta.planLocation||plan?.location||state.ui.location,date=meta.planDate||plan?.date||fsTodayKey(),duration=meta.durationMode||plan?.duration||state.ui.duration;
+    const cardioId=ids.find(id=>EXERCISES[id]?.type==='cardio')||null;let kind=null,rx=null;
+    if(cardioId){kind=['hill_walk','outdoor_hill_walk'].includes(cardioId)?'hill':['long_walk','outdoor_long_walk'].includes(cardioId)?'long':cardioId==='stairmaster'?'stairmaster':cardioId==='hike_stepups'?'hiking_stepups':'easy';rx=window.fsV923CardioRxFor?window.fsV923CardioRxFor(cardioId,date,loc):fsCardioRx(cardioId);}
+    state.activeWorkout={id:uid(),startedAt:new Date().toISOString(),location:loc,durationMode:duration,plan:ids.map(id=>({exerciseId:id,sets:[],feedback:null,note:'',completed:false,skipped:false,skipReason:null})),index:0,cardio:null,checkin:'normal',checkinDone:false,note:'',performanceOrder:[],orderMode:'listed',formDrafts:{},meta:{title:meta.title,sessionType:meta.type,reason:meta.reason,phase:meta.phase?.name||fsPhase().name,cardioType:kind,strengthSplit:meta.strengthSplit||null,planId:meta.planId||plan?.id||null,prescriptionDate:date,previewFrozen:true},cardioRx:rx};
+    saveState();state.ui.view='active';state.ui.sheet=null;render();window.scrollTo({top:0,behavior:'smooth'});return true;
+  }
+  startWorkout=function(){const meta=fsPlanMeta(),plan=state.ui.focusOverride?null:v102TodayPlan();return v102BuildActive(meta,plan);};
+  if(typeof window.fsV923StartPlan==='function')window.fsV923StartPlan=function(id){const p=(state.v10?.plannedSessions||[]).find(x=>x.id===id);if(!p||p.date!==fsTodayKey()){toast('This planned workout can be started on its scheduled day.');return;}const m=fsV82MetaForPlan(p);if(!m){toast('Could not build this planned workout.');return;}closeSheet();return v102BuildActive({...m,planId:p.id,planDate:p.date,planLocation:p.location||state.ui.location,durationMode:p.duration},p);};
+
+  /* ---------- per-side display ---------- */
+  const activeStrength102Base=renderActiveStrength;
+  renderActiveStrength=function(item,ex){let html=activeStrength102Base(item,ex);if(v102PerSide(ex?.id)&&!ex?.timeBased){html=html.replace(`<div class="label">Reps</div><strong>${ex.repMin}–${ex.repMax}</strong>`,`<div class="label">Reps</div><strong>${ex.repMin}–${ex.repMax} / side</strong>`).replace('<label>Reps</label><input id="set-reps"','<label>Reps / side</label><input id="set-reps"').replace(/(\d+ reps)( · )/g,'$1 / side$2');}setTimeout(v102RestoreDraft,0);return v102InjectSaved(html);};
+  const overview102Base=renderWorkoutOverview;
+  renderWorkoutOverview=function(){let html=overview102Base();const meta=fsPlanMeta(),ids=meta?.ids||[];for(const id of ids){if(!v102PerSide(id))continue;const ex=EXERCISES[id];if(!ex)continue;const plain=`${ex.sets} × ${ex.repMin}${ex.repMax!==ex.repMin?`–${ex.repMax}`:''}`;html=html.replace(plain,`${plain} / side`);}return html;};
+
+  /* ---------- correct Weight Moved laterality ---------- */
+  const PAIR_DBS=new Set(['dumbbell_rdl','db_chest_press','db_overhead_press','db_biceps_curl','db_reverse_lunge']);
+  function v102RepBased(id){const ex=EXERCISES[id];if(!ex||ex.isStretch||ex.timeBased)return false;const t=`${id} ${ex.name||''}`.toLowerCase();return !/hold|carry|plank/.test(t);}
+  window.fsV925WeightMoved=function(rows){let total=0;for(const h of rows||[]){if(h?._fsDuplicateOf)continue;for(const e of h.exercises||[]){if(!v102RepBased(e.exerciseId))continue;let mult=1;if(v102PerSide(e.exerciseId))mult*=2;if(PAIR_DBS.has(e.exerciseId))mult*=2;for(const s of e.sets||[]){const load=Number(s.weight),reps=Number(s.reps);if(load>0&&reps>0&&Number.isFinite(load)&&Number.isFinite(reps))total+=load*reps*mult;}}}return total;};
+
+  /* ---------- special cardio / step-ups: sophisticated page + HR recovery ---------- */
+  function v102LastSteps(){return [...(state.history||[])].reverse().find(h=>['hiking_stepups','step_ups'].includes(String(h.cardio?.type||h.cardioType||'').toLowerCase())&&Number(h.cardio?.totalSteps||0)>0);}
+  function v102StepWhy(){const rx=state.activeWorkout?.cardioRx||{};return `The primary progression target is total step volume (${rx.totalSteps||'current target'}). Time, heart-rate response and one-minute recovery are performance context; they do not turn the session into a race.`;}
+  fsV9SpecialCardioHTML=function(item,ex){
+    const rx=state.activeWorkout?.cardioRx||fsCardioRx(ex.id),isSteps=ex.id==='hike_stepups',last=isSteps?v102LastSteps():null;
+    if(isSteps){const height=Number(last?.cardio?.stepHeight||14)||14,load=Number(last?.cardio?.load||0)||0,lastTxt=last?`${Number(last.cardio.totalSteps)||0} steps · ${v102MinutesToHMS(last.cardio.minutes||0)} · ${height} in`:'No prior step-up session logged';
+      return `<main class="shell fs-v102-special"><div class="topbar"><button class="icon-btn" onclick="navigate('workout')">←</button><div style="font-weight:800">Hill Endurance</div><button class="icon-btn" onclick="openSheet('activeMore')">⋯</button></div>${v102SavedBadge()}<section class="exercise-detail"><div class="detail-image">${exerciseSVG(ex.id,true)}</div><h1>Hill Endurance · Step-Ups</h1><div class="recommended"><div><div class="metric-label">Coach recommends</div><strong>${rx.totalSteps||150} total step-ups</strong><div class="subtle tiny" style="margin-top:4px">Last session: ${esc(lastTxt)}</div></div><button class="ghost-btn" onclick="openSheet('whyStepUps')">Why?</button></div><div class="stat-grid"><div class="stat"><div class="label">Target</div><strong>${rx.totalSteps||150} steps</strong></div><div class="stat"><div class="label">Step height</div><strong>${height} in</strong></div><div class="stat"><div class="label">Load</div><strong>${load?`${load} lb`:'Bodyweight'}</strong></div></div><div class="section"><h3>Session performance</h3><div class="input-row" style="margin-top:10px"><div class="field"><label>Steps completed</label><input id="v9-cardio-steps" type="number" step="1" value="${rx.totalSteps||150}"></div><div class="field"><label>Duration (HH:MM:SS)</label><input id="v9-cardio-time" class="fs-v102-duration" type="text" inputmode="numeric" placeholder="00:00:00"></div><div class="field"><label>Step height (in)</label><input id="v9-cardio-height" type="number" step="0.5" value="${height}"></div><div class="field"><label>External load (lb)</label><input id="v9-cardio-load" type="number" step="1" value="${load}"></div></div></div><div class="section"><h3>Heart response <span class="subtle small">optional</span></h3><div class="input-row"><div class="field"><label>Average HR</label><input id="v9-cardio-avg" inputmode="numeric" placeholder="bpm"></div><div class="field"><label>Peak HR</label><input id="v9-cardio-peak" inputmode="numeric" placeholder="bpm"></div><div class="field"><label>End-exercise HR</label><input id="v9-cardio-end" inputmode="numeric" placeholder="bpm"></div><div class="field"><label>HR after 60 sec</label><input id="v9-cardio-hr60" inputmode="numeric" placeholder="bpm"></div></div><div id="fs-v102-hrr" class="muted-box" style="margin-top:10px">HRR60: —</div></div><div class="field section"><label>How did this session feel?</label><select id="v9-cardio-difficulty"><option value="">Select</option><option value="too_easy">Too easy</option><option value="good">Good</option><option value="challenging">Challenging</option><option value="too_hard">Too hard</option></select></div><label class="option"><span>Any unusual pain?</span><input id="v9-cardio-pain" type="checkbox" style="width:20px;height:20px;accent-color:var(--teal)"></label><div class="field" style="margin-top:10px"><label>Notes</label><textarea id="v9-cardio-note" placeholder="Optional"></textarea></div><div class="sticky-action fs-v102-sticky"><button class="primary-btn" onclick="fsV9SaveSpecialCardio('${ex.id}')">Save & continue</button></div></section></main>`;}
+    return `<main class="shell fs-v102-special"><div class="topbar"><button class="icon-btn" onclick="navigate('workout')">←</button><div style="font-weight:800">Hill Endurance</div><button class="icon-btn" onclick="openSheet('activeMore')">⋯</button></div>${v102SavedBadge()}<section class="exercise-detail"><div class="detail-image">${exerciseSVG(ex.id,true)}</div><h1>${esc(rx.name||'StairMaster Climb')}</h1><div class="recommended"><div><div class="metric-label">Coach recommends</div><strong>${rx.minutes||15} min climb</strong></div></div><div class="section"><div class="input-row"><div class="field"><label>Duration (HH:MM:SS)</label><input id="v9-cardio-time" class="fs-v102-duration" type="text" inputmode="numeric" value="${v102MinutesToHMS(rx.minutes||15)}"></div><div class="field"><label>Level</label><input id="v9-cardio-level" type="number" step="1"></div><div class="field"><label>Floors / steps</label><input id="v9-cardio-steps" type="number" step="1"></div></div></div><div class="section"><h3>Heart response</h3><div class="input-row"><div class="field"><label>Average HR</label><input id="v9-cardio-avg" inputmode="numeric"></div><div class="field"><label>Peak HR</label><input id="v9-cardio-peak" inputmode="numeric"></div><div class="field"><label>End-exercise HR</label><input id="v9-cardio-end" inputmode="numeric"></div><div class="field"><label>HR after 60 sec</label><input id="v9-cardio-hr60" inputmode="numeric"></div></div><div id="fs-v102-hrr" class="muted-box" style="margin-top:10px">HRR60: —</div></div><div class="field"><label>How did this session feel?</label><select id="v9-cardio-difficulty"><option value="">Select</option><option value="too_easy">Too easy</option><option value="good">Good</option><option value="challenging">Challenging</option><option value="too_hard">Too hard</option></select></div><label class="option" style="margin-top:12px"><span>Any unusual pain?</span><input id="v9-cardio-pain" type="checkbox"></label><div class="field"><label>Notes</label><textarea id="v9-cardio-note"></textarea></div><div class="sticky-action fs-v102-sticky"><button class="primary-btn" onclick="fsV9SaveSpecialCardio('${ex.id}')">Save & continue</button></div></section></main>`;
+  };
+  function v102Hr(id){const v=document.getElementById(id)?.value;if(v==null||v==='')return null;const n=Number(v);return Number.isFinite(n)&&n>=40&&n<=240?n:NaN;}
+  function v102ValidateSpecialHR(){const vals=[['Average HR','v9-cardio-avg'],['Peak HR','v9-cardio-peak'],['End HR','v9-cardio-end'],['60-second HR','v9-cardio-hr60']];for(const [label,id] of vals){const v=v102Hr(id);if(Number.isNaN(v))return `${label} should be between 40 and 240 bpm.`;}const avg=v102Hr('v9-cardio-avg'),peak=v102Hr('v9-cardio-peak');if(avg!=null&&peak!=null&&peak<avg)return 'Peak HR cannot be lower than average HR.';return null;}
+  function v102DifficultyRpe(d){return d==='too_easy'?4:d==='good'?6:d==='challenging'?7.5:d==='too_hard'?9:null;}
+  fsV9SaveSpecialCardio=function(id){
+    const w=state.activeWorkout,isSteps=id==='hike_stepups',mins=v102ParseMinutes(document.getElementById('v9-cardio-time')?.value),steps=Number(document.getElementById('v9-cardio-steps')?.value||0)||null,diff=document.getElementById('v9-cardio-difficulty')?.value||null,err=v102ValidateSpecialHR();if(err){toast(err);return;}if(document.getElementById('v9-cardio-time')?.value&&mins==null){toast('Enter duration as HH:MM:SS.');return;}
+    const end=v102Hr('v9-cardio-end'),hr60=v102Hr('v9-cardio-hr60'),rx=w?.cardioRx||fsCardioRx(id);w.cardio={distance:null,speed:null,incline:null,minutes:mins,avgHr:v102Hr('v9-cardio-avg'),peakHr:v102Hr('v9-cardio-peak'),endHr:end,hr60,hrr60:(end!=null&&hr60!=null)?end-hr60:null,rpe:v102DifficultyRpe(diff),difficulty:diff,elevationGain:null,elevationLoss:null,note:document.getElementById('v9-cardio-note')?.value||'',pain:!!document.getElementById('v9-cardio-pain')?.checked,type:isSteps?'hiking_stepups':'stairmaster',totalSteps:steps,load:isSteps?(Number(document.getElementById('v9-cardio-load')?.value||0)||0):null,stepHeight:isSteps?(Number(document.getElementById('v9-cardio-height')?.value||0)||null):null,level:!isSteps?(Number(document.getElementById('v9-cardio-level')?.value||0)||null):null,prescribed:isSteps?{totalSteps:Number(rx?.totalSteps||0)||null}:undefined};
+    w.meta=w.meta||{};w.meta.cardioType=isSteps?'hiking_stepups':'hill';v102ClearDraft();if(w.plan?.[w.index])w.plan[w.index].completed=true;w.performanceOrder=w.performanceOrder||[];if(!w.performanceOrder.includes(id))w.performanceOrder.push(id);saveState();advanceExercise();
+  };
+
+  /* performance-confirmed step-up prescription using qualitative difficulty */
+  function v102StepRows(dateKey=fsTodayKey()){const ref=new Date(`${dateKey}T23:59:59`).getTime();return (state.history||[]).filter(h=>new Date(h.date).getTime()<=ref&&['hiking_stepups','step_ups'].includes(String(h.cardio?.type||h.cardioType||'').toLowerCase())&&Number(h.cardio?.totalSteps||0)>0).sort((a,b)=>new Date(b.date)-new Date(a.date));}
+  function v102StepTarget(dateKey=fsTodayKey()){const rows=v102StepRows(dateKey);if(!rows.length)return 150;const latest=rows[0],actual=Number(latest.cardio?.totalSteps||0),target=Math.max(150,Math.round(Number(latest.cardio?.prescribed?.totalSteps||actual||150)/25)*25),diff=String(latest.cardio?.difficulty||'');const ok=actual>=target*.98&&!latest.cardio?.pain&&!['too_hard'].includes(diff)&&Number(latest.cardio?.rpe||0)<=8;if(!ok)return Math.min(1000,target);const tol=Math.max(12.5,target*.08),confirmed=rows.filter(h=>{const a=Number(h.cardio?.totalSteps||0),t=Number(h.cardio?.prescribed?.totalSteps||a),d=String(h.cardio?.difficulty||'');return a>=t*.98&&!h.cardio?.pain&&d!=='too_hard'&&Math.abs(t-target)<=tol;}).slice(0,2).length>=2;const next=target<250?target+25:target<600?target+50:target<800?target+75:target+100;return Math.min(1000,confirmed?Math.round(next/25)*25:target);}
+  window.fsV101StepTarget=v102StepTarget;
+  const rx102Base=window.fsV923CardioRxFor;
+  window.fsV923CardioRxFor=function(id,dateKey=fsTodayKey(),loc=state.ui.location){if(id==='hike_stepups'){const total=v102StepTarget(dateKey);return {name:'Hill Endurance · Step-Ups',minutes:null,distance:null,speed:null,incline:null,totalSteps:total,purpose:'Progressive hiking-specific climbing endurance at Work Gym.',progressionNote:`Target ${total} total step-ups. Rep volume is the prescription; elapsed time and heart-rate recovery are tracked as performance evidence.`};}return rx102Base?rx102Base(id,dateKey,loc):fsCardioRx(id);};
+  const cardioRx102Base=fsCardioRx;fsCardioRx=function(id){if(id==='hike_stepups')return window.fsV923CardioRxFor(id,fsTodayKey(),state.ui.location);return cardioRx102Base(id);};
+
+  /* ---------- draft autosave for strength + all cardio forms ---------- */
+  function v102DraftKey(){const w=state.activeWorkout,p=w?.plan?.[w.index];return w&&p?`${w.id}|${w.index}|${p.exerciseId}`:null;}
+  function v102CaptureDraft(){const w=state.activeWorkout,key=v102DraftKey();if(!w||!key)return;const root=document.querySelector('main.shell');if(!root)return;const fields={};for(const el of root.querySelectorAll('input[id],select[id],textarea[id]')){if(!/^(set-|cardio-|v9-cardio-)/.test(el.id))continue;fields[el.id]=el.type==='checkbox'?!!el.checked:el.value;}const fb=root.querySelector('.fs-v9-set-feedback.selected')?.dataset.feedback||null;w.formDrafts=w.formDrafts||{};w.formDrafts[key]={fields,feedback:fb,at:Date.now()};saveState();v102PaintSaved('Saved');}
+  function v102RestoreDraft(){const w=state.activeWorkout,key=v102DraftKey(),d=w?.formDrafts?.[key];if(!d)return;for(const [id,val] of Object.entries(d.fields||{})){const el=document.getElementById(id);if(!el)continue;if(el.type==='checkbox')el.checked=!!val;else el.value=val;}if(d.feedback)document.querySelectorAll('.fs-v9-set-feedback').forEach(b=>b.classList.toggle('selected',b.dataset.feedback===d.feedback));v102UpdateHRR();}
+  function v102ClearDraft(){const w=state.activeWorkout,key=v102DraftKey();if(w?.formDrafts&&key){delete w.formDrafts[key];saveState();}}
+  function v102SavedBadge(){return '<div class="fs-v102-save-state" aria-live="polite">Saved</div>';}
+  function v102InjectSaved(html){return String(html).includes('fs-v102-save-state')?html:String(html).replace(/(<div class="topbar"[\s\S]*?<\/div>)/,'$1'+v102SavedBadge());}
+  function v102PaintSaved(t){const el=document.querySelector('.fs-v102-save-state');if(el)el.textContent=t;}
+  let draftTimer=null;function v102QueueDraft(){v102PaintSaved('Saving…');clearTimeout(draftTimer);draftTimer=setTimeout(v102CaptureDraft,120);}
+  document.addEventListener('input',e=>{if(state.activeWorkout&&/^(set-|cardio-|v9-cardio-)/.test(e.target?.id||''))v102QueueDraft();if(e.target?.classList?.contains('fs-v102-duration'))e.target.value=v102DigitsToHMS(e.target.value);v102UpdateHRR();});
+  document.addEventListener('change',e=>{if(state.activeWorkout&&/^(set-|cardio-|v9-cardio-)/.test(e.target?.id||''))v102QueueDraft();v102UpdateHRR();});
+  document.addEventListener('click',e=>{if(state.activeWorkout&&e.target?.classList?.contains('fs-v9-set-feedback'))setTimeout(v102QueueDraft,0);});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')v102CaptureDraft();});window.addEventListener('pagehide',v102CaptureDraft);
+  function v102UpdateHRR(){const end=Number(document.getElementById('v9-cardio-end')?.value||0),one=Number(document.getElementById('v9-cardio-hr60')?.value||0),el=document.getElementById('fs-v102-hrr');if(el)el.textContent=end&&one?`HRR60: ${end-one} bpm`:'HRR60: —';}
+  const logStrength102Base=logStrengthSet;logStrengthSet=function(){const item=state.activeWorkout?.plan?.[state.activeWorkout?.index],before=item?.sets?.length||0,out=logStrength102Base();if(item&&(item.sets?.length||0)>before){v102ClearDraft();setTimeout(()=>{if(state.activeWorkout)render();},0);}return out;};
+  const saveCardio102Base=saveCardio;saveCardio=function(){const w=state.activeWorkout,out=saveCardio102Base();if(w?.cardio){v102ClearDraft();}return out;};
+  const activeCardio102Base=renderActiveCardio;renderActiveCardio=function(item,ex){let html=activeCardio102Base(item,ex);setTimeout(v102RestoreDraft,0);return v102InjectSaved(html);};
+
+  /* ---------- timer feedback on Start / Stop / Reset ---------- */
+  function v102TimerTap(){const b=document.activeElement?.closest?.('.fs-v930-timer-controls button');if(b){b.classList.add('fs-v10-timer-tap');setTimeout(()=>b.classList.remove('fs-v10-timer-tap'),220);}}
+  const pause102Base=window.fsV930TimerPause;window.fsV930TimerPause=function(){v102TimerTap();return pause102Base?.();};
+  const reset102Base=window.fsV930TimerReset;window.fsV930TimerReset=function(){v102TimerTap();return reset102Base?.();};
+
+  /* ---------- all visible time inputs use HH:MM:SS ---------- */
+  function v102PrepareDurationInput(id,label){const el=document.getElementById(id);if(!el)return;const raw=String(el.value??'').trim(),mins=raw?v102ParseMinutes(raw):null;if(raw&&mins!=null)el.value=v102MinutesToHMS(mins);el.type='text';el.inputMode='numeric';el.placeholder='00:00:00';el.classList.add('fs-v102-duration');const l=el.closest('.field')?.querySelector('label');if(l&&label)l.textContent=label;}
+  function v102FixDecimalMinuteText(){const root=document.querySelector('#app')||document.body;if(!root)return;const walk=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;const nodes=[];while((n=walk.nextNode()))nodes.push(n);for(const t of nodes){if(t.parentElement?.closest('script,style,input,textarea'))continue;t.nodeValue=t.nodeValue.replace(/\b(\d+\.\d{2,})\s*min\b/g,(_,x)=>v102MinutesToHMS(Number(x)));}}
+  function v102PostRender(){for(const [id,label] of [['cardio-time','Time (HH:MM:SS)'],['sm-time','Time (HH:MM:SS)'],['manual-duration','Duration (HH:MM:SS)'],['a-duration','Duration (HH:MM:SS)'],['edit-minutes','Total duration (HH:MM:SS)'],['edit-cardio-minutes','Cardio duration (HH:MM:SS)'],['v9-cardio-time','Duration (HH:MM:SS)']])v102PrepareDurationInput(id,label);v102FixDecimalMinuteText();if(state.activeWorkout)v102RestoreDraft();}
+  const render102Base=render;render=function(...args){const out=render102Base(...args);setTimeout(v102PostRender,0);return out;};
+  function v102WithParsed(ids,fn){const stash=[];for(const id of ids){const el=document.getElementById(id);if(!el)continue;const raw=el.value,mins=v102ParseMinutes(raw);if(raw&&mins==null){toast('Enter duration as HH:MM:SS.');return;}stash.push([el,raw]);el.value=mins==null?'':String(mins);}const out=fn();for(const [el,raw] of stash)if(document.body.contains(el))el.value=raw;return out;}
+  if(typeof logStandardMile==='function'){const base=logStandardMile;logStandardMile=function(){return v102WithParsed(['sm-time'],()=>base());};}
+  if(typeof fsSaveActivityV10==='function'){const base=fsSaveActivityV10;fsSaveActivityV10=function(){return v102WithParsed(['a-duration'],()=>base());};}
+  if(typeof fsSaveManualLog==='function'){const base=fsSaveManualLog;fsSaveManualLog=function(){return v102WithParsed(['manual-duration'],()=>base());};}
+  if(typeof fsSaveHistoryEdit==='function'){const base=fsSaveHistoryEdit;fsSaveHistoryEdit=function(id){return v102WithParsed(['edit-minutes','edit-cardio-minutes'],()=>base(id));};}
+
+  /* ---------- manual Step-Ups also collect HR recovery ---------- */
+  const sheet102Base=renderSheet;
+  renderSheet=function(){const s=state.ui.sheet;if(s?.name==='whyStepUps')return `<div class="sheet-backdrop" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sheet-head"><h2>Why this target?</h2><button class="icon-btn" onclick="closeSheet()">×</button></div><p>${esc(v102StepWhy())}</p></div></div>`;
+    if(s?.name==='manualLogV10'&&s.data?.type==='Step-Ups'){const locOptions=[...(state.profile.locations||[]),'Other'];return `<div class="sheet-backdrop" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sheet-head"><div><h2>Step-Ups</h2><div class="subtle">Log total step volume plus heart-rate recovery if available.</div></div><button class="icon-btn" onclick="closeSheet()">×</button></div><input id="a-type" type="hidden" value="Step-Ups"><div class="field"><label>Date</label><input id="a-date" type="date" value="${esc(s.data?.date||fsTodayKey())}"></div><div class="input-row section"><div class="field"><label>Total step-ups</label><input id="a-step-total" type="number" min="1" step="1"></div><div class="field"><label>Duration (HH:MM:SS)</label><input id="a-duration" class="fs-v102-duration" type="text" inputmode="numeric" placeholder="00:00:00"></div><div class="field"><label>External load (lb)</label><input id="a-step-load" type="number" min="0" step="1" value="0"></div><div class="field"><label>Step height (in)</label><input id="a-step-height" type="number" min="0" step="0.5"></div></div><div class="section"><h3>Heart response</h3><div class="input-row"><div class="field"><label>Average HR</label><input id="a-avg" inputmode="numeric"></div><div class="field"><label>Peak HR</label><input id="a-peak" inputmode="numeric"></div><div class="field"><label>End-exercise HR</label><input id="a-end" inputmode="numeric"></div><div class="field"><label>HR after 60 sec</label><input id="a-hr60" inputmode="numeric"></div></div></div><div class="field section"><label>Location</label><select id="a-location" onchange="document.querySelector('#a-location-other-wrap').style.display=this.value==='Other'?'block':'none'">${locOptions.map(l=>`<option>${esc(l)}</option>`).join('')}</select></div><div id="a-location-other-wrap" class="field" style="display:none"><label>Custom location</label><input id="a-location-other"></div><div class="field"><label>How did the step-ups feel?</label><select id="a-step-feedback"><option value="">Not recorded</option><option value="too_easy">Too easy</option><option value="good">Good</option><option value="challenging">Challenging</option><option value="too_hard">Too hard</option><option value="pain">Something hurt</option></select></div><div class="field"><label>Notes</label><textarea id="a-notes"></textarea></div><button class="primary-btn section" onclick="fsV921SaveStepUps()">Save step-ups</button></div></div>`;}
+    let html=sheet102Base();return html;};
+  window.fsV921SaveStepUps=function(){const g=id=>document.querySelector(id)?.value??'',total=Math.round(Number(g('#a-step-total')||0));if(total<1){toast('Enter the total number of step-ups.');return;}const duration=v102ParseMinutes(g('#a-duration'));if(g('#a-duration')&&duration==null){toast('Enter duration as HH:MM:SS.');return;}const hr=id=>{const x=g(id);return x===''?null:Number(x)},avg=hr('#a-avg'),peak=hr('#a-peak'),end=hr('#a-end'),one=hr('#a-hr60');for(const [label,v] of [['Average HR',avg],['Peak HR',peak],['End HR',end],['60-second HR',one]])if(v!=null&&(v<40||v>240||!Number.isFinite(v))){toast(`${label} should be between 40 and 240 bpm.`);return;}if(avg!=null&&peak!=null&&peak<avg){toast('Peak HR cannot be lower than average HR.');return;}const date=g('#a-date')||fsTodayKey(),load=Math.max(0,Number(g('#a-step-load')||0)),height=g('#a-step-height')===''?null:Number(g('#a-step-height')),feedback=g('#a-step-feedback')||null,notes=g('#a-notes'),loc=g('#a-location'),location=(loc==='Other'?(g('#a-location-other')||'Other'):loc)||'Manual entry';const item={id:uid(),date:new Date(`${date}T12:00:00`).toISOString(),location,durationMode:'Manual',actualMinutes:duration,exercises:[],cardio:{distance:null,speed:null,incline:null,minutes:duration,avgHr:avg,peakHr:peak,endHr:end,hr60:one,hrr60:(end!=null&&one!=null)?end-one:null,rpe:v102DifficultyRpe(feedback),difficulty:feedback,elevationGain:null,elevationLoss:null,note:notes,pain:feedback==='pain',type:'step_ups',manual:true,totalSteps:total,load,stepHeight:height},status:'completed',completionPct:100,completedUnits:1,plannedUnits:1,source:'manual',workoutTitle:`${total} Step-Ups`,sessionType:'step_ups',cardioType:'step_ups',phase:fsPhase().name,notes,activityDetails:{type:'Step-Ups',totalSteps:total,load,stepHeight:height,strengthFeedback:feedback,pain:feedback==='pain'},customExercises:[{name:'Step-Up',muscles:['Quadriceps','Glutes','Calves'],sets:1,reps:total,equipment:load>0?`${load} lb external load`:'Bodyweight'}]};state.history.push(item);if(typeof fsPostLog==='function')fsPostLog(item);saveState();closeSheet();state.ui.view='calendar';state.v10.selectedDate=date;render();toast(`${total} step-ups logged.`);};
+
+  /* ---------- endurance preparedness scores the prescribed program ---------- */
+  const prep102Base=fsPreparedness;
+  function v102WeekSet(dateKey=fsTodayKey()){if(typeof fsV82WeekDates==='function')return new Set(fsV82WeekDates(dateKey));const d=new Date(`${dateKey}T12:00:00`),day=(d.getDay()+6)%7,m=new Date(d);m.setDate(d.getDate()-day);return new Set(Array.from({length:7},(_,i)=>{const x=new Date(m);x.setDate(m.getDate()+i);return fsLocalDateKey(x);}));}
+  function v102EndKind(x){const t=`${x?.type||''} ${x?.title||''} ${x?.workoutTitle||''} ${x?.sessionType||''} ${x?.cardioType||''} ${x?.cardio?.type||''}`.toLowerCase();if(/optional easy|recovery/.test(t))return null;if(/long walk|long endurance|\blong\b/.test(t))return 'long';if(/hill endurance|hiking step|step-ups|hiking_stepups|stairmaster|\bhill\b/.test(t))return 'hill';return null;}
+  function v102EnduranceScore(out){if(!out?.areas)return out;const dates=v102WeekSet(),plans=(state.v10?.plannedSessions||[]).filter(p=>dates.has(p.date)&&v102EndKind(p));const requiredKinds=[...new Set(plans.map(v102EndKind).filter(Boolean))];if(!requiredKinds.length)requiredKinds.push('hill','long');const hist=(state.history||[]).filter(h=>dates.has(fsLocalDateKey(h.date))&&!h._fsDuplicateOf);const doneKinds=new Set(hist.map(v102EndKind).filter(Boolean));const freq=requiredKinds.filter(k=>doneKinds.has(k)).length/requiredKinds.length;const longs=hist.filter(h=>v102EndKind(h)==='long').sort((a,b)=>new Date(b.date)-new Date(a.date));let longRatio=requiredKinds.includes('long')?0:1,longDetail='';if(longs.length){const h=longs[0],aD=Number(h.cardio?.distance||0),pD=Number(h.cardio?.prescribed?.distance||0),aT=Number(h.cardio?.minutes||h.actualMinutes||0),pT=Number(h.cardio?.prescribed?.minutes||0);if(pD>0){longRatio=Math.min(1,aD/pD);longDetail=`long session ${aD.toFixed(2)}/${pD.toFixed(2)} mi`;}else if(pT>0){longRatio=Math.min(1,aT/pT);longDetail=`long session ${v102MinutesToHMS(aT)}/${v102MinutesToHMS(pT)}`;}else{longRatio=1;longDetail='long session completed';}}
+    const ratio=.5*Math.min(1,freq)+.5*Math.min(1,longRatio),score=fsScoreFromRatio(ratio),a=out.areas.find(x=>x.key==='endurance');if(a){a.score=score;a.detail=`${requiredKinds.filter(k=>doneKinds.has(k)).length}/${requiredKinds.length} required endurance exposures completed this week${longDetail?`; ${longDetail}`:''}. Optional easy walking is extra credit, not required for full adherence.`;}out.onTrackCount=out.areas.filter(x=>x.score>=3.8).length;out.weakest=[...out.areas].sort((x,y)=>x.score-y.score)[0];if('average' in out)out.average=out.areas.reduce((s,x)=>s+x.score,0)/out.areas.length;if('transition' in out){const p=fsPhase();out.transition=fsWeek()>=p.end-1&&out.onTrackCount>=4;}if(out.mode!=='hike'&& !('average' in out))out.programStatus=out.onTrackCount>=4?'On track':out.onTrackCount===3?'Catch-up needed':'Behind the current timeline';return out;}
+  fsPreparedness=function(...args){return v102EnduranceScore(prep102Base(...args));};
+
+  /* ---------- Coach actually uses comparable HR / HRR trends ---------- */
+  function v102ComparablePrior(w){if(!w?.cardio)return null;const typ=String(w.cardio.type||w.cardioType||'').toLowerCase(),rows=(state.history||[]).filter(h=>h.id!==w.id&&h.cardio&&String(h.cardio.type||h.cardioType||'').toLowerCase()===typ&&!h._fsDuplicateOf).sort((a,b)=>new Date(b.date)-new Date(a.date));return rows.find(h=>{if(typ==='hiking_stepups'||typ==='step_ups'){const a=Number(w.cardio.totalSteps||0),b=Number(h.cardio.totalSteps||0),ha=Number(w.cardio.stepHeight||0),hb=Number(h.cardio.stepHeight||0);return a&&b&&Math.abs(a-b)/Math.max(a,b)<=.15&&(!ha||!hb||Math.abs(ha-hb)<=1);}const da=Number(w.cardio.distance||0),db=Number(h.cardio.distance||0),ia=Number(w.cardio.incline||0),ib=Number(h.cardio.incline||0),sa=Number(w.cardio.speed||0),sb=Number(h.cardio.speed||0);return da&&db&&Math.abs(da-db)/Math.max(da,db)<=.15&&Math.abs(ia-ib)<=1&&(!sa||!sb||Math.abs(sa-sb)<=.25);})||null;}
+  function v102HRSignal(w){const p=v102ComparablePrior(w);if(!p)return '';const bits=[],ch=Number(w.cardio.hrr60),ph=Number(p.cardio.hrr60),ca=Number(w.cardio.avgHr),pa=Number(p.cardio.avgHr);if(ch&&ph&&Math.abs(ch-ph)>=3)bits.push(`one-minute HR recovery ${ch>ph?'improved':'changed'} from ${ph} to ${ch} bpm`);if(ca&&pa&&Math.abs(ca-pa)>=4)bits.push(`average HR moved from ${pa} to ${ca} bpm`);return bits.length?` At a similar prior workload, ${bits.join(' and ')}. Coach will use repeated comparable exposures—not a single reading—to judge the trend.`:'';}
+  const coach102Base=coachAfterWorkout;coachAfterWorkout=function(w){const out=coach102Base(w);if(out&&w?.cardio){const sig=v102HRSignal(w);if(sig){out.message=(out.message||'Endurance work logged.')+sig;if(out.decision)out.decision.message=out.message;}}return out;};
+
+  /* ---------- wording cleanup ---------- */
+  const progress102Base=renderProgress;renderProgress=function(){return String(progress102Base()).replace(/areas are ready/g,'areas are on track').replace(/5\/5 areas are ready/g,'5/5 areas are on track');};
+
+  /* ---------- time-input normalization + import schema ---------- */
+  const norm102Base=fsNormalizeImportedState;fsNormalizeImportedState=function(imported){const out=norm102Base(imported);state.v1020=state.v1020||{};state.v1020.version='10.2.0';state.v1020.schema=1;return out;};
+
+  const css=document.createElement('style');css.id='fs-v1020-style';css.textContent=`
+    .fs-v102-save-state{margin:8px 0 2px;text-align:right;font-size:12px;font-weight:800;color:var(--muted)}
+    .fs-v102-special{padding-bottom:32px}.fs-v102-special .fs-v102-sticky{position:static!important;inset:auto!important;margin-top:18px;box-shadow:none!important}.fs-v102-duration{font-variant-numeric:tabular-nums;letter-spacing:.04em}
+    .fs-v102-special .recommended{margin-top:14px}.fs-v102-special .stat-grid{margin-top:12px}
+  `;document.head.appendChild(css);
+
+  try{saveState();render();}catch(e){console.error('FitnSmart v10.2.0 patch',e);}
+})();
+
+</script>
 </body>
 </html>
